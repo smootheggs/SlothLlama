@@ -184,7 +184,7 @@ export const KnowledgeView: React.FC<KnowledgeViewProps> = ({
   };
 
   return (
-    <div className="max-w-7xl mx-auto px-4 md:px-8 py-8 space-y-8 bg-black">
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 md:px-8 py-6 sm:py-8 space-y-6 sm:space-y-8 bg-black">
       {/* Top Header & Sub-Navigation */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-6 border-b border-[#1E2028]">
         <div>
@@ -197,11 +197,11 @@ export const KnowledgeView: React.FC<KnowledgeViewProps> = ({
         </div>
 
         {/* Interactive segmented control for Knowledge views */}
-        <div className="flex items-center gap-1 p-1 bg-[#0B0C0E] border border-[#1E2028] rounded-xl self-start">
+        <div className="flex items-center gap-1 p-1 bg-[#0B0C0E] border border-[#1E2028] rounded-xl max-w-full overflow-x-auto no-scrollbar shrink-0 self-start touch-pan-x">
           <button
             type="button"
             onClick={() => setSubTab('collections')}
-            className={`px-3.5 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
+            className={`min-h-[40px] px-3.5 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
               subTab === 'collections'
                 ? 'bg-[#38BDF8] text-black font-semibold'
                 : 'text-[#8E929F] hover:text-white'
@@ -212,7 +212,7 @@ export const KnowledgeView: React.FC<KnowledgeViewProps> = ({
           <button
             type="button"
             onClick={() => setSubTab('add_knowledge')}
-            className={`px-3.5 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
+            className={`min-h-[40px] px-3.5 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
               subTab === 'add_knowledge'
                 ? 'bg-[#38BDF8] text-black font-semibold'
                 : 'text-[#8E929F] hover:text-white'
@@ -223,7 +223,7 @@ export const KnowledgeView: React.FC<KnowledgeViewProps> = ({
           <button
             type="button"
             onClick={() => setSubTab('source_policy')}
-            className={`px-3.5 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap ${
+            className={`min-h-[40px] px-3.5 py-2 text-xs font-medium rounded-lg transition-colors whitespace-nowrap cursor-pointer ${
               subTab === 'source_policy'
                 ? 'bg-[#38BDF8] text-black font-semibold'
                 : 'text-[#8E929F] hover:text-white'

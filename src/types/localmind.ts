@@ -1,5 +1,36 @@
 export type NavigationTab = 'chat' | 'personas' | 'knowledge' | 'models' | 'settings';
 
+export type AppTheme = 'dark' | 'light';
+
+export type ModelRuntimeState =
+  | 'STANDBY'
+  | 'LOADING_WEIGHTS'
+  | 'READY_IN_RAM'
+  | 'STREAMING_TOKENS'
+  | 'DOWNLOADING'
+  | 'THERMAL_THROTTLED'
+  | 'ERROR';
+
+export interface KeystoreCipherEnvelope {
+  keyAlias: string;
+  algorithm: 'AES/GCM/NoPadding-256';
+  ivHex: string;
+  authTagHex: string;
+  cipherHex: string;
+  plainLength: number;
+  encryptedAt: string;
+}
+
+export interface SecurityProtocolAudit {
+  keystoreBacked: boolean;
+  indirectInjectionShield: boolean;
+  zeroCleartextTraffic: boolean;
+  safeTensorEnforced: boolean;
+  singleModelMemoryGuard: boolean;
+  threatLevel: 'SECURE' | 'ELEVATED' | 'BLOCKED';
+  lastAuditTimestamp: string;
+}
+
 export type CompatibilityStatus =
   | 'SUPPORTED'
   | 'UNSUPPORTED'

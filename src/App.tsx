@@ -3,10 +3,14 @@ import {
   BookOpen,
   Cpu,
   MessageSquare,
+  Moon,
+  Rocket,
   Settings,
+  Sun,
   Users,
 } from 'lucide-react';
 import {
+  AppTheme,
   ChatMessage,
   CloudRoutingPolicy,
   Conversation,
@@ -38,13 +42,42 @@ import { KnowledgeView } from './components/KnowledgeView';
 import { ModelsView } from './components/ModelsView';
 import { SettingsAndArchitectureView } from './components/SettingsAndArchitectureView';
 import { OnboardingModal } from './components/OnboardingModal';
+import { ModelStatusIndicator } from './components/ModelStatusIndicator';
+import { AndroidLaunchModal } from './components/AndroidLaunchModal';
 
 const STORAGE_KEY = 'slothllama_state_v1';
 const LEGACY_STORAGE_KEY = 'localmind_state_v1';
+const THEME_STORAGE_KEY = 'slothllama_theme';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<NavigationTab>('chat');
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
+  const [isAndroidLaunchOpen, setIsAndroidLaunchOpen] = useState<boolean>(false);
+  const [theme, setTheme] = useState<AppTheme>(() => {
+    try {
+      const saved = localStorage.getItem(THEME_STORAGE_KEY);
+      if (saved === 'light' || saved === 'dark') return saved;
+    } catch {}
+    return 'dark';
+  });
+
+  // Sync theme with document classList
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+      document.documentElement.classList.remove('light');
+    } else {
+      document.documentElement.classList.remove('dark');
+      document.documentElement.classList.add('light');
+    }
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, theme);
+    } catch {}
+  }, [theme]);
+
+  const handleToggleTheme = () => {
+    setTheme((prev) => (prev === 'dark' ? 'light' : 'dark'));
+  };
 
   // Core Persistent Application State
   const [models, setModels] = useState<LocalModel[]>(INITIAL_MODELS);
@@ -308,35 +341,59 @@ export default function App() {
   ];
 
   return (
-    <div className="min-h-screen bg-black text-[#F4F4F6] flex flex-col pb-16 md:pb-0">
-      {/* Strict 3-Zone Top Bar Contract */}
-      <header className="sticky top-0 z-30 h-[60px] flex items-center justify-between gap-8 px-6 border-b border-[#1E2028] bg-black/95 backdrop-blur-md">
-        {/* Zone 1: Single text element wordmark */}
-        <a
-          href="#chat"
-          onClick={(e) => {
-            e.preventDefault();
-            setActiveTab('chat');
-          }}
-          className="text-lg font-bold tracking-tight text-white whitespace-nowrap shrink-0 flex items-center gap-2"
-        >
-          <span>SlothLlama</span>
-        </a>
+    <div
+      className={`min-h-screen flex flex-col pb-16 md:pb-0 transition-colors ${
+        theme === 'dark' ? 'bg-black text-[#F4F4F6]' : 'bg-[#F8FAFC] text-[#0F172A]'
+      }`}
+    >
+      {/* Strict 3-Zone Top Bar Contract with Model Status Indicator & Theme Toggle */}
+      <header
+        className={`sticky top-0 z-30 min-h-[56px] sm:min-h-[64px] h-14 sm:h-16 flex items-center justify-between flex-nowrap gap-2 sm:gap-3 md:gap-4 px-3 sm:px-4 md:px-6 border-b transition-colors backdrop-blur-md pt-[env(safe-area-inset-top,0px)] shrink-0 ${
+          theme === 'dark'
+            ? 'border-[#1E2028] bg-black/95 text-white'
+            : 'border-slate-200 bg-white/95 text-slate-900 shadow-xs'
+        }`}
+      >
+        {/* Zone 1: Single text wordmark & live on-device Model Status Indicator */}
+        <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <a
+            href="#chat"
+            onClick={(e) => {
+              e.preventDefault();
+              setActiveTab('chat');
+            }}
+            className="text-base sm:text-lg font-bold tracking-tight whitespace-nowrap shrink-0 flex items-center gap-2"
+          >
+            <span className={theme === 'dark' ? 'text-white' : 'text-slate-900'}>SlothLlama</span>
+          </a>
+
+          {/* Model Status Indicator */}
+          <ModelStatusIndicator
+            models={models}
+            loadedModelId={loadedModelId}
+            onSelectLoadedModel={setLoadedModelId}
+            onNavigateToModels={() => setActiveTab('models')}
+          />
+        </div>
 
         {/* Zone 2: 5 concise single-line text navigation links */}
         <nav
           aria-label="Primary navigation"
-          className="hidden md:flex items-center gap-7 text-sm font-medium text-[#8E929F]"
+          className="hidden md:flex items-center gap-2 md:gap-3 lg:gap-5 xl:gap-6 text-xs lg:text-sm font-medium shrink-0"
         >
           {navItems.map((item) => (
             <button
               key={item.id}
               type="button"
               onClick={() => setActiveTab(item.id)}
-              className={`py-1 transition-colors whitespace-nowrap shrink-0 border-b-2 ${
+              className={`py-1 sm:py-1.5 transition-colors whitespace-nowrap shrink-0 border-b-2 cursor-pointer ${
                 activeTab === item.id
-                  ? 'text-white border-[#38BDF8]'
-                  : 'text-[#8E929F] border-transparent hover:text-white'
+                  ? theme === 'dark'
+                    ? 'text-white border-[#38BDF8]'
+                    : 'text-slate-950 border-[#0284C7] font-semibold'
+                  : theme === 'dark'
+                    ? 'text-[#8E929F] border-transparent hover:text-white'
+                    : 'text-slate-500 border-transparent hover:text-slate-900'
               }`}
             >
               {item.label}
@@ -344,14 +401,49 @@ export default function App() {
           ))}
         </nav>
 
-        {/* Zone 3: 1 primary action */}
-        <div className="flex items-center shrink-0">
+        {/* Zone 3: Actions (Theme Toggle, Android Launch Center, Hardware Scan) */}
+        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+          {/* Light / Dark Mode Toggle */}
+          <button
+            type="button"
+            onClick={handleToggleTheme}
+            className={`w-9 h-9 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center border transition-colors cursor-pointer shrink-0 ${
+              theme === 'dark'
+                ? 'border-[#1E2028] bg-[#121418] text-[#8E929F] hover:text-white'
+                : 'border-slate-200 bg-slate-100 text-slate-700 hover:text-slate-950'
+            }`}
+            aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to OLED dark mode'}
+            title={theme === 'dark' ? 'Switch to light mode' : 'Switch to OLED dark mode'}
+          >
+            {theme === 'dark' ? (
+              <Sun className="w-4 h-4 text-[#FBBF24]" />
+            ) : (
+              <Moon className="w-4 h-4 text-[#0284C7]" />
+            )}
+          </button>
+
+          {/* Android Launch CTA Button */}
+          <button
+            type="button"
+            onClick={() => setIsAndroidLaunchOpen(true)}
+            className="min-h-[36px] sm:min-h-[40px] px-2.5 sm:px-3 py-1.5 text-xs font-semibold bg-[#38BDF8] text-black hover:bg-[#38BDF8]/90 rounded-xl flex items-center gap-1.5 transition-all shadow-sm shadow-[#38BDF8]/20 whitespace-nowrap shrink-0 cursor-pointer"
+            title="Prepare for deployment and launch to Android Studio"
+          >
+            <Rocket className="w-3.5 h-3.5" />
+            <span className="hidden xl:inline">Android Launch</span>
+          </button>
+
+          {/* Hardware & Setup Scan Button */}
           <button
             type="button"
             onClick={() => setIsOnboardingOpen(true)}
-            className="px-4 py-2 text-xs font-semibold bg-[#121418] hover:bg-[#191C22] text-white border border-[#1E2028] rounded-lg transition-colors whitespace-nowrap shrink-0"
+            className={`hidden xl:flex min-h-[40px] px-3 py-1.5 text-xs font-semibold rounded-xl border transition-colors whitespace-nowrap shrink-0 cursor-pointer ${
+              theme === 'dark'
+                ? 'bg-[#121418] hover:bg-[#191C22] text-white border-[#1E2028]'
+                : 'bg-white hover:bg-slate-100 text-slate-800 border-slate-200'
+            }`}
           >
-            Hardware & Setup Scan
+            Device Scan
           </button>
         </div>
       </header>
@@ -472,6 +564,9 @@ export default function App() {
             onDeleteAllMemories={() => setMemories([])}
             onWipeAllLocalData={handleWipeAllLocalData}
             onOpenOnboarding={() => setIsOnboardingOpen(true)}
+            onOpenAndroidLaunch={() => setIsAndroidLaunchOpen(true)}
+            theme={theme}
+            onToggleTheme={handleToggleTheme}
           />
         )}
       </main>
@@ -479,7 +574,11 @@ export default function App() {
       {/* Mobile Bottom Navigation Bar (5 Tabs: Chat, Personas, Knowledge, Models, Settings) */}
       <nav
         aria-label="Mobile bottom navigation"
-        className="md:hidden fixed bottom-0 left-0 right-0 z-40 h-16 bg-[#0B0C0E]/95 backdrop-blur-md border-t border-[#1E2028] grid grid-cols-5 items-center"
+        className={`md:hidden fixed bottom-0 left-0 right-0 z-40 h-16 backdrop-blur-md border-t grid grid-cols-5 items-center transition-colors ${
+          theme === 'dark'
+            ? 'bg-[#0B0C0E]/95 border-[#1E2028]'
+            : 'bg-white/95 border-slate-200 shadow-lg'
+        }`}
       >
         {navItems.map((item) => {
           const active = activeTab === item.id;
@@ -489,7 +588,13 @@ export default function App() {
               type="button"
               onClick={() => setActiveTab(item.id)}
               className={`min-h-[48px] flex flex-col items-center justify-center transition-colors ${
-                active ? 'text-[#38BDF8]' : 'text-[#8E929F] hover:text-white'
+                active
+                  ? theme === 'dark'
+                    ? 'text-[#38BDF8]'
+                    : 'text-[#0284C7]'
+                  : theme === 'dark'
+                    ? 'text-[#8E929F] hover:text-white'
+                    : 'text-slate-500 hover:text-slate-900'
               }`}
             >
               {item.icon}
@@ -523,6 +628,12 @@ export default function App() {
             )
           )
         }
+      />
+
+      {/* Android Deployment & Launch Center Modal */}
+      <AndroidLaunchModal
+        isOpen={isAndroidLaunchOpen}
+        onClose={() => setIsAndroidLaunchOpen(false)}
       />
     </div>
   );

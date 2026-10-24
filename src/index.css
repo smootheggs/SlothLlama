@@ -4,17 +4,30 @@
   :root {
     --font-sans: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, monospace;
+    --bg-main: #F8FAFC;
+    --text-main: #0F172A;
+  }
+
+  html.dark {
+    --bg-main: #000000;
+    --text-main: #F4F4F6;
+  }
+
+  html.light {
+    --bg-main: #F8FAFC;
+    --text-main: #0F172A;
   }
 
   html,
   body {
-    background-color: #000000;
-    color: #F4F4F6;
+    background-color: var(--bg-main);
+    color: var(--text-main);
     font-family: var(--font-sans);
     letter-spacing: 0.01em;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
+    transition: background-color 0.15s ease, color 0.15s ease;
   }
 
   code,
@@ -25,27 +38,169 @@
   }
 }
 
+/* Semantic Dark/Light Palette Classes */
+.theme-canvas {
+  background-color: #F8FAFC;
+  color: #0F172A;
+}
+html.dark .theme-canvas {
+  background-color: #000000;
+  color: #F4F4F6;
+}
+
+.theme-card {
+  background-color: #FFFFFF;
+  border-color: #E2E8F0;
+  color: #0F172A;
+}
+html.dark .theme-card {
+  background-color: #0B0C0E;
+  border-color: #1E2028;
+  color: #F4F4F6;
+}
+
+.theme-elevated {
+  background-color: #F1F5F9;
+  border-color: #E2E8F0;
+}
+html.dark .theme-elevated {
+  background-color: #121418;
+  border-color: #1E2028;
+}
+
+.theme-border {
+  border-color: #E2E8F0;
+}
+html.dark .theme-border {
+  border-color: #1E2028;
+}
+
+.theme-text-primary {
+  color: #0F172A;
+}
+html.dark .theme-text-primary {
+  color: #FFFFFF;
+}
+
+.theme-text-secondary {
+  color: #475569;
+}
+html.dark .theme-text-secondary {
+  color: #8E929F;
+}
+
+.theme-text-muted {
+  color: #64748B;
+}
+html.dark .theme-text-muted {
+  color: #64748B;
+}
+
 .tabular-nums {
   font-variant-numeric: tabular-nums;
 }
 
-/* Subtle OLED scrollbar */
+/* Comprehensive Clean Light Mode Overrides when html.light is active */
+html.light {
+  color-scheme: light;
+}
+
+html.light .bg-black {
+  background-color: #F8FAFC !important;
+}
+
+html.light .bg-\[\#0B0C0E\] {
+  background-color: #FFFFFF !important;
+}
+
+html.light .bg-\[\#121418\] {
+  background-color: #F1F5F9 !important;
+}
+
+html.light .bg-\[\#181B22\] {
+  background-color: #E2E8F0 !important;
+}
+
+html.light .border-\[\#1E2028\] {
+  border-color: #E2E8F0 !important;
+}
+
+html.light .border-\[\#2E333D\] {
+  border-color: #CBD5E1 !important;
+}
+
+html.light .border-\[\#262934\] {
+  border-color: #E2E8F0 !important;
+}
+
+html.light .text-white {
+  color: #0F172A !important;
+}
+
+html.light .text-\[\#F4F4F6\] {
+  color: #1E293B !important;
+}
+
+html.light .text-\[\#8E929F\] {
+  color: #64748B !important;
+}
+
+html.light .text-\[\#4E5364\] {
+  color: #94A3B8 !important;
+}
+
+html.light input,
+html.light select,
+html.light textarea {
+  color: #0F172A !important;
+  background-color: #FFFFFF !important;
+  border-color: #CBD5E1 !important;
+}
+
+html.light pre {
+  background-color: #F1F5F9 !important;
+  color: #0F172A !important;
+  border-color: #E2E8F0 !important;
+}
+
+/* Maintain high-contrast text on bright action buttons */
+html.light .bg-\[\#38BDF8\],
+html.light .bg-\[\#34D399\],
+html.light .bg-\[\#FBBF24\],
+html.light .bg-\[\#F87171\] {
+  color: #000000 !important;
+}
+
+/* Subtle scrollbars */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
 }
 
-::-webkit-scrollbar-track {
+html.dark ::-webkit-scrollbar-track {
   background: #000000;
 }
 
-::-webkit-scrollbar-thumb {
+html.dark ::-webkit-scrollbar-thumb {
   background: #1F2229;
   border-radius: 3px;
 }
 
-::-webkit-scrollbar-thumb:hover {
+html.dark ::-webkit-scrollbar-thumb:hover {
   background: #2E333D;
+}
+
+html.light ::-webkit-scrollbar-track {
+  background: #F8FAFC;
+}
+
+html.light ::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 3px;
+}
+
+html.light ::-webkit-scrollbar-thumb:hover {
+  background: #94A3B8;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -58,3 +213,18 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* Responsive horizontal scrolling without unsightly scrollbars */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Touch action optimization */
+.touch-pan-x {
+  touch-action: pan-x;
+}
+

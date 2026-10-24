@@ -15,11 +15,15 @@ import {
   FileText,
   GitBranch,
   Languages,
+  MessageSquare,
   Mic,
+  PanelLeft,
+  PanelLeftClose,
   Paperclip,
   Play,
   Plus,
   RefreshCw,
+  Search,
   Send,
   Share2,
   Sparkles,
@@ -132,6 +136,11 @@ export const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
   const [attachedSnippet, setAttachedSnippet] = useState<{ name: string; content: string } | null>(null);
   const [voiceStatusMsg, setVoiceStatusMsg] = useState<string | null>(null);
   const [useCloudForNextTurn, setUseCloudForNextTurn] = useState(false);
+
+  // Responsive Navigation Panes State
+  const [isMobileDrawerOpen, setIsMobileDrawerOpen] = useState(false);
+  const [isDesktopSidebarOpen, setIsDesktopSidebarOpen] = useState(true);
+  const [convFilter, setConvFilter] = useState('');
 
   const cancelStreamRef = useRef(false);
   const fileAttachmentRef = useRef<HTMLInputElement | null>(null);
@@ -360,25 +369,80 @@ export const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
     reader.readAsText(file);
   };
 
-  return (
-    <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[calc(100vh-3.75rem)] bg-black">
-      {/* Left Conversation History Sidebar */}
-      <aside className="lg:col-span-3 border-b lg:border-b-0 lg:border-r border-[#1E2028] bg-[#0B0C0E] p-4 flex flex-col justify-between">
-        <div className="space-y-4">
-          <div className="flex items-center justify-between gap-2">
+  const filteredConversations = conversations.filter((c) => {
+    if (!convFilter.trim()) return true;
+    const query = convFilter.toLowerCase();
+    const persona = personas.find((p) => p.id === c.personaId);
+    return (
+      c.title.toLowerCase().includes(query) ||
+      Boolean(persona?.name && persona.name.toLowerCase().includes(query))
+    );
+  });
+
+  const renderConversationPaneContent = (isMobile = false) => (
+    <div className="flex flex-col h-full justify-between gap-4">
+      <div className="space-y-3 flex-1 overflow-hidden flex flex-col">
+        {/* Pane Header */}
+        <div className="flex items-center justify-between gap-2 shrink-0">
+          <div className="flex items-center gap-2">
+            <MessageSquare className="w-4 h-4 text-[#38BDF8]" />
             <h2 className="text-sm font-semibold text-white">Local Conversations</h2>
+          </div>
+          <div className="flex items-center gap-1.5">
             <button
               type="button"
-              onClick={() => onCreateConversation(activePersona.id, activeModel?.modelId)}
-              className="min-h-[40px] px-3 py-1.5 text-xs font-semibold bg-[#38BDF8] text-black rounded-lg hover:bg-[#38BDF8]/90 transition-colors flex items-center gap-1.5 whitespace-nowrap shrink-0"
+              onClick={() => {
+                onCreateConversation(activePersona.id, activeModel?.modelId);
+                if (isMobile) setIsMobileDrawerOpen(false);
+              }}
+              className="min-h-[36px] px-2.5 py-1 text-xs font-semibold bg-[#38BDF8] text-black rounded-lg hover:bg-[#38BDF8]/90 transition-colors flex items-center gap-1 whitespace-nowrap cursor-pointer shadow-xs"
+              title="Create new conversation"
             >
               <Plus className="w-3.5 h-3.5" />
-              <span>New Chat</span>
+              <span>New</span>
             </button>
+            {isMobile && (
+              <button
+                type="button"
+                onClick={() => setIsMobileDrawerOpen(false)}
+                className="w-9 h-9 flex items-center justify-center text-[#8E929F] hover:text-white rounded-lg transition-colors cursor-pointer"
+                aria-label="Close conversation drawer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            )}
           </div>
+        </div>
 
-          <div className="space-y-1.5 max-h-60 lg:max-h-[420px] overflow-y-auto pr-1">
-            {conversations.map((conv) => {
+        {/* Quick Filter Search */}
+        <div className="relative shrink-0">
+          <Search className="w-3.5 h-3.5 text-[#64748B] absolute left-2.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            value={convFilter}
+            onChange={(e) => setConvFilter(e.target.value)}
+            placeholder="Search conversations..."
+            className="w-full bg-[#121418] text-xs text-white placeholder-[#64748B] pl-8 pr-3 py-1.5 rounded-lg border border-[#1E2028] focus:outline-none focus:border-[#38BDF8]"
+          />
+          {convFilter && (
+            <button
+              type="button"
+              onClick={() => setConvFilter('')}
+              className="absolute right-2 top-1/2 -translate-y-1/2 text-[#8E929F] hover:text-white"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          )}
+        </div>
+
+        {/* Scrollable Conversation List */}
+        <div className="space-y-1.5 flex-1 overflow-y-auto pr-1">
+          {filteredConversations.length === 0 ? (
+            <div className="p-3 text-center text-xs text-[#8E929F]">
+              No conversations match your search.
+            </div>
+          ) : (
+            filteredConversations.map((conv) => {
               const isSelected = conv.id === activeConversation?.id;
               const convPersona = personas.find((p) => p.id === conv.personaId);
               return (
@@ -386,10 +450,13 @@ export const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
                   key={conv.id}
                   className={`group rounded-xl p-3 border transition-colors cursor-pointer ${
                     isSelected
-                      ? 'bg-[#121418] border-[#2E333D] text-white'
+                      ? 'bg-[#121418] border-[#38BDF8]/60 text-white shadow-xs'
                       : 'bg-transparent border-transparent hover:bg-[#121418]/60 text-[#8E929F]'
                   }`}
-                  onClick={() => onSelectConversation(conv.id)}
+                  onClick={() => {
+                    onSelectConversation(conv.id);
+                    if (isMobile) setIsMobileDrawerOpen(false);
+                  }}
                 >
                   <div className="flex items-center justify-between gap-2">
                     <span className="text-xs font-medium text-white truncate">{conv.title}</span>
@@ -400,7 +467,7 @@ export const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
                           e.stopPropagation();
                           onDeleteConversation(conv.id);
                         }}
-                        className="opacity-0 group-hover:opacity-100 p-1 text-[#8E929F] hover:text-[#F87171] transition-opacity"
+                        className="opacity-0 group-hover:opacity-100 p-1 text-[#8E929F] hover:text-[#F87171] transition-opacity cursor-pointer"
                         aria-label={`Delete conversation ${conv.title}`}
                       >
                         <Trash2 className="w-3.5 h-3.5" />
@@ -414,62 +481,124 @@ export const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
                   </div>
                 </div>
               );
-            })}
+            })
+          )}
+        </div>
+      </div>
+
+      {/* Explicit 5-Layer Architecture Transparency Box */}
+      <div className="pt-3 border-t border-[#1E2028] space-y-2 shrink-0">
+        <div className="text-xs font-semibold text-white">Active 5-Layer Stack</div>
+        <div className="space-y-1 text-xs text-[#8E929F]">
+          <div className="flex items-center justify-between gap-2">
+            <span>a. Base Model</span>
+            <span className="text-white font-mono truncate max-w-[130px]">
+              {activeModel ? activeModel.displayName.split(' (')[0] : 'None'}
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span>b. Persona</span>
+            <span className="text-white truncate max-w-[130px]">{activePersona.name}</span>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span>c. Local RAG</span>
+            <span className="text-white font-mono tabular-nums">
+              {activePersona.enabledCollectionIds.length} col.
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span>d. Explicit Memory</span>
+            <span className="text-white font-mono tabular-nums">
+              {memories.filter((m) => m.isApprovedByUser).length} facts
+            </span>
+          </div>
+          <div className="flex items-center justify-between gap-2">
+            <span>e. Model Adapter</span>
+            <span className="text-[#8E929F] font-mono truncate max-w-[120px]">
+              {activeModel?.adapterAttached ?? 'None'}
+            </span>
           </div>
         </div>
 
-        {/* Explicit 5-Layer Architecture Transparency Box */}
-        <div className="mt-6 pt-4 border-t border-[#1E2028] space-y-2.5">
-          <div className="text-xs font-semibold text-white">Active 5-Layer Stack</div>
-          <div className="space-y-1.5 text-xs text-[#8E929F]">
-            <div className="flex items-center justify-between gap-2">
-              <span>a. Base Model</span>
-              <span className="text-white font-mono truncate max-w-[140px]">
-                {activeModel ? activeModel.displayName.split(' (')[0] : 'None Installed'}
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <span>b. Persona</span>
-              <span className="text-white truncate max-w-[140px]">{activePersona.name}</span>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <span>c. Local RAG</span>
-              <span className="text-white font-mono tabular-nums">
-                {activePersona.enabledCollectionIds.length} collection(s)
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <span>d. Explicit Memory</span>
-              <span className="text-white font-mono tabular-nums">
-                {memories.filter((m) => m.isApprovedByUser).length} approved facts
-              </span>
-            </div>
-            <div className="flex items-center justify-between gap-2">
-              <span>e. Model Adapter</span>
-              <span className="text-[#8E929F] font-mono">
-                {activeModel?.adapterAttached ?? 'None (Base Weights)'}
-              </span>
-            </div>
-          </div>
+        <div className="pt-1.5">
+          <button
+            type="button"
+            onClick={handleExportConversation}
+            className="w-full min-h-[38px] px-3 py-1.5 text-xs font-medium text-[#F4F4F6] bg-[#121418] hover:bg-[#191C22] border border-[#1E2028] rounded-lg flex items-center justify-center gap-2 transition-colors whitespace-nowrap cursor-pointer"
+          >
+            <Download className="w-3.5 h-3.5 text-[#38BDF8]" />
+            <span>Export Chat JSON</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  );
 
-          <div className="pt-2 flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleExportConversation}
-              className="w-full min-h-[40px] px-3 py-2 text-xs font-medium text-[#F4F4F6] bg-[#121418] hover:bg-[#191C22] border border-[#1E2028] rounded-lg flex items-center justify-center gap-2 transition-colors whitespace-nowrap"
-            >
-              <Download className="w-3.5 h-3.5 text-[#38BDF8]" />
-              <span>Export Conversation JSON</span>
-            </button>
+  return (
+    <div className="grid grid-cols-1 lg:grid-cols-12 min-h-[calc(100dvh-3.5rem)] sm:min-h-[calc(100dvh-4rem)] bg-black">
+      {/* Mobile / Tablet Slide-out Drawer */}
+      {isMobileDrawerOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden flex" role="dialog" aria-modal="true" aria-label="Local Conversations">
+          <div
+            className="fixed inset-0 bg-black/80 backdrop-blur-xs transition-opacity"
+            onClick={() => setIsMobileDrawerOpen(false)}
+            aria-hidden="true"
+          />
+          <div className="relative w-full max-w-[320px] sm:max-w-[360px] h-full bg-[#0B0C0E] border-r border-[#1E2028] p-4 flex flex-col justify-between overflow-hidden shadow-2xl z-10 animate-in slide-in-from-left duration-200">
+            {renderConversationPaneContent(true)}
           </div>
         </div>
+      )}
+
+      {/* Desktop Docked Sidebar (Hidden on Mobile/Tablet to keep chat immediately visible) */}
+      <aside
+        className={`hidden lg:flex flex-col justify-between border-r border-[#1E2028] bg-[#0B0C0E] p-4 transition-all duration-200 ${
+          isDesktopSidebarOpen ? 'lg:col-span-4 xl:col-span-3' : 'hidden'
+        }`}
+      >
+        {renderConversationPaneContent(false)}
       </aside>
 
       {/* Main OLED #000000 Chat Column */}
-      <section className="lg:col-span-9 flex flex-col justify-between bg-black min-h-[calc(100vh-3.75rem)]">
-        {/* Top Control Strip: Model & Persona Selector + Context Budget */}
-        <div className="border-b border-[#1E2028] bg-[#0B0C0E] px-4 md:px-6 py-3 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex flex-wrap items-center gap-3">
+      <section
+        className={`flex flex-col justify-between bg-black min-h-[calc(100dvh-3.5rem)] sm:min-h-[calc(100dvh-4rem)] transition-all ${
+          isDesktopSidebarOpen ? 'lg:col-span-8 xl:col-span-9' : 'lg:col-span-12'
+        }`}
+      >
+        {/* Top Control Strip: Sidebar Toggles, Model & Persona Selector + Context Budget */}
+        <div className="shrink-0 border-b border-[#1E2028] bg-[#0B0C0E] px-3 sm:px-4 md:px-6 py-2 sm:py-2.5 flex flex-wrap items-center justify-between gap-2.5 sm:gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+            {/* Desktop Sidebar Toggle */}
+            <button
+              type="button"
+              onClick={() => setIsDesktopSidebarOpen((v) => !v)}
+              className="hidden lg:flex min-h-[38px] w-9 h-9 items-center justify-center rounded-xl border border-[#1E2028] bg-[#121418] hover:bg-[#181B22] text-[#8E929F] hover:text-white transition-colors shrink-0 cursor-pointer"
+              aria-label={isDesktopSidebarOpen ? 'Collapse sidebar' : 'Expand sidebar'}
+              title={isDesktopSidebarOpen ? 'Collapse conversation pane' : 'Expand conversation pane'}
+            >
+              {isDesktopSidebarOpen ? (
+                <PanelLeftClose className="w-4 h-4" />
+              ) : (
+                <PanelLeft className="w-4 h-4 text-[#38BDF8]" />
+              )}
+            </button>
+
+            {/* Mobile Conversations Drawer Toggle */}
+            <button
+              type="button"
+              onClick={() => setIsMobileDrawerOpen(true)}
+              className="lg:hidden min-h-[38px] px-3 py-1.5 text-xs font-medium rounded-xl border border-[#1E2028] bg-[#121418] hover:bg-[#181B22] text-[#F4F4F6] flex items-center gap-2 transition-colors shrink-0 cursor-pointer shadow-xs"
+              aria-label="Open conversations list"
+              title="Open conversations list"
+            >
+              <MessageSquare className="w-4 h-4 text-[#38BDF8]" />
+              <span className="truncate max-w-[110px] sm:max-w-[180px] font-semibold">
+                {activeConversation?.title || 'Chats'}
+              </span>
+              <span className="text-[10px] text-[#8E929F] font-mono tabular-nums">
+                ({conversations.length})
+              </span>
+            </button>
             {/* Persona Selector */}
             <label className="flex items-center gap-2 text-xs text-[#8E929F]">
               <span>Persona:</span>
@@ -794,7 +923,7 @@ export const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
         )}
 
         {/* Scrollable Message Stream on Pure #000000 OLED Canvas */}
-        <div className="flex-1 overflow-y-auto px-4 md:px-8 py-6 space-y-6">
+        <div className="flex-1 overflow-y-auto px-3 sm:px-4 md:px-8 py-4 sm:py-6 space-y-5 sm:space-y-6 min-h-0">
           {conversationMessages.length === 0 && !isStreaming && (
             <div className="max-w-2xl mx-auto my-12 p-6 rounded-2xl bg-[#0B0C0E] border border-[#1E2028] space-y-4">
               <div className="text-base font-semibold text-white">
@@ -1236,7 +1365,7 @@ export const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
           )}
 
           {/* Elevated Multi-Function Composer Container */}
-          <div className="rounded-2xl bg-[#121418] border border-[#1E2028] focus-within:border-[#38BDF8]/60 focus-within:ring-1 focus-within:ring-[#38BDF8]/30 transition-all p-3 space-y-2 shadow-2xl">
+          <div className="max-w-4xl mx-auto w-full rounded-2xl bg-[#121418] border border-[#1E2028] focus-within:border-[#38BDF8]/60 focus-within:ring-1 focus-within:ring-[#38BDF8]/30 transition-all p-3 space-y-2 shadow-2xl">
             {/* Attached Snippet Preview Chip */}
             {attachedSnippet && (
               <div className="px-3 py-2 rounded-xl bg-[#0B0C0E] border border-[#2E333D] flex items-center justify-between gap-3 text-xs">
@@ -1294,11 +1423,11 @@ export const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
             {/* Integrated Composer Bottom Toolbar */}
             <div className="flex flex-wrap items-center justify-between gap-2 pt-1 border-t border-[#1E2028]/70">
               {/* Left Utilities: Attachment, Math fx, RAG Indicator, Voice */}
-              <div className="flex items-center gap-1.5 text-xs">
+              <div className="flex items-center gap-1 sm:gap-1.5 text-xs">
                 <button
                   type="button"
                   onClick={() => fileAttachmentRef.current?.click()}
-                  className="h-8 px-2 text-[#8E929F] hover:text-white hover:bg-[#1E2028] rounded-lg transition-colors flex items-center gap-1.5"
+                  className="min-h-[38px] px-2.5 text-[#8E929F] hover:text-white hover:bg-[#1E2028] rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
                   aria-label="Attach local document snippet"
                   title="Attach local document (.txt, .md, .json, .html)"
                 >
@@ -1315,7 +1444,7 @@ export const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
                         : 'Calculate 144 / 12 + 3^2'
                     );
                   }}
-                  className="h-8 px-2 text-[#8E929F] hover:text-[#34D399] hover:bg-[#1E2028] rounded-lg transition-colors flex items-center gap-1.5"
+                  className="min-h-[38px] px-2.5 text-[#8E929F] hover:text-[#34D399] hover:bg-[#1E2028] rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
                   aria-label="Insert deterministic math expression"
                   title="Insert deterministic math expression"
                 >
@@ -1336,7 +1465,7 @@ export const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
                           : 'Explain how Carnot heat engine efficiency depends on reservoir temperatures.'
                       );
                     }}
-                    className="h-8 px-2 text-[#38BDF8] hover:text-white hover:bg-[#1E2028] rounded-lg transition-colors flex items-center gap-1.5"
+                    className="min-h-[38px] px-2.5 text-[#38BDF8] hover:text-white hover:bg-[#1E2028] rounded-lg transition-colors flex items-center gap-1.5 cursor-pointer"
                     aria-label="Offline voice input (Feature Flag)"
                     title="Offline voice input"
                   >
@@ -1345,25 +1474,25 @@ export const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
                   </button>
                 )}
 
-                {/* Grounding Status Pill */}
+                {/* Grounding Status Indicator */}
                 <div className="hidden md:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#0B0C0E] border border-[#1E2028] text-[11px] font-mono text-[#8E929F] tabular-nums">
                   <span
                     className={`w-2 h-2 rounded-full ${
                       activePersona.enabledCollectionIds.length > 0
-                        ? 'bg-[#38BDF8] animate-pulse'
+                        ? 'bg-[#38BDF8]'
                         : 'bg-[#64748B]'
                     }`}
                   />
                   <span>
                     {activePersona.enabledCollectionIds.length > 0
-                      ? `RAG Armed (${activePersona.enabledCollectionIds.length} collections)`
+                      ? `RAG Armed (${activePersona.enabledCollectionIds.length} col)`
                       : 'Base Weights Only'}
                   </span>
                 </div>
               </div>
 
               {/* Right Utilities: Token Estimator, Keyboard Shortcut & Elevated Send/Stop Button */}
-              <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2.5">
                 {inputPrompt.length > 0 && (
                   <span className="text-[11px] font-mono tabular-nums text-[#64748B] hidden sm:inline">
                     ~{promptEstimatedTokens} tokens
@@ -1378,7 +1507,7 @@ export const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
                   <button
                     type="button"
                     onClick={handleStopGeneration}
-                    className="min-h-[38px] px-3.5 bg-[#F87171] hover:bg-[#F87171]/90 text-black font-semibold text-xs rounded-xl flex items-center gap-1.5 shadow-md shadow-[#F87171]/20 transition-all active:scale-95 shrink-0 whitespace-nowrap"
+                    className="min-h-[44px] px-4 bg-[#F87171] hover:bg-[#F87171]/90 text-black font-semibold text-xs rounded-xl flex items-center gap-1.5 shadow-md shadow-[#F87171]/20 transition-all active:scale-95 shrink-0 whitespace-nowrap cursor-pointer"
                     aria-label="Stop token generation"
                     title="Stop generation"
                   >
@@ -1390,7 +1519,7 @@ export const ChatWorkspace: React.FC<ChatWorkspaceProps> = ({
                     type="button"
                     disabled={!inputPrompt.trim() || !activeModel}
                     onClick={() => executeGeneration(inputPrompt)}
-                    className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all shrink-0 ${
+                    className={`min-w-[44px] min-h-[44px] w-11 h-11 rounded-xl flex items-center justify-center transition-all shrink-0 ${
                       inputPrompt.trim() && activeModel
                         ? 'bg-[#38BDF8] hover:bg-[#38BDF8]/90 text-black shadow-lg shadow-[#38BDF8]/25 hover:scale-105 active:scale-95 cursor-pointer'
                         : 'bg-[#181B22] border border-[#222631] text-[#4E5364] cursor-not-allowed'
