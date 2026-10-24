@@ -52,7 +52,7 @@ export const PersonasView: React.FC<PersonasViewProps> = ({
       accentColor: '#38BDF8',
       selectedModelId: defaultModelId,
       systemInstruction:
-        'You are a user-created LocalMind Specialist. Base every technical claim on enabled local Knowledge Collections and clearly separate base model inference from retrieved passages.',
+        'You are a user-created SlothLlama Specialist. Base every technical claim on enabled local Knowledge Collections and clearly separate base model inference from retrieved passages.',
       temperature: 0.3,
       maxOutputTokens: 1024,
       contextWindowStrategy: 'ROLLING_SUMMARY_WITH_RAG',
@@ -82,7 +82,7 @@ export const PersonasView: React.FC<PersonasViewProps> = ({
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'localmind-personas.json';
+    a.download = 'slothllama-personas.json';
     a.click();
     URL.revokeObjectURL(url);
   };

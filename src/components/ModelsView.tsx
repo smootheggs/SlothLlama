@@ -120,7 +120,7 @@ export const ModelsView: React.FC<ModelsViewProps> = ({
       sourceUrl: `content://com.android.externalstorage.documents/${encodeURIComponent(file.name)}`,
       licenseName: 'User Imported Local Package',
       licenseSpdx: 'Custom-Local',
-      licenseUrl: 'https://localmind.app/licenses',
+      licenseUrl: 'https://slothllama.app/licenses',
       requiresExplicitAcceptance: false,
       licenseAccepted: true,
       hardwareAcceleration: ['GPU', 'CPU'],
@@ -614,7 +614,7 @@ export const ModelsView: React.FC<ModelsViewProps> = ({
             </h3>
             <p className="text-xs text-[#8E929F] leading-relaxed">
               <strong>{licenseTargetModel.displayName}</strong> is distributed under{' '}
-              <strong>{licenseTargetModel.licenseName}</strong> ({licenseTargetModel.licenseSpdx}). LocalMind requires explicit license acceptance before downloading or loading weights.
+              <strong>{licenseTargetModel.licenseName}</strong> ({licenseTargetModel.licenseSpdx}). SlothLlama requires explicit license acceptance before downloading or loading weights.
             </p>
             <div className="flex justify-end gap-2 pt-2">
               <button

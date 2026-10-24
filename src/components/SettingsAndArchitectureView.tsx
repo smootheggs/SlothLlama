@@ -118,7 +118,7 @@ export const SettingsAndArchitectureView: React.FC<SettingsAndArchitectureViewPr
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = file.path.split('/').pop() || 'LocalMindFile.kt';
+    a.download = file.path.split('/').pop() || 'SlothLlamaFile.kt';
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -291,7 +291,7 @@ export const SettingsAndArchitectureView: React.FC<SettingsAndArchitectureViewPr
                   Optional Cloud Provider Routing Policy
                 </h2>
                 <p className="text-xs text-[#8E929F] leading-relaxed">
-                  LocalMind never uploads prompts unless you explicitly configure a cloud provider policy. Raw API keys are never embedded in the APK; Firebase AI Logic + App Check or Android Keystore credentials are used.
+                  SlothLlama never uploads prompts unless you explicitly configure a cloud provider policy. Raw API keys are never embedded in the APK; Firebase AI Logic + App Check or Android Keystore credentials are used.
                 </p>
 
                 <select
@@ -362,7 +362,7 @@ export const SettingsAndArchitectureView: React.FC<SettingsAndArchitectureViewPr
                 Explicit Long-Term Memory Review (Zero Hidden Profiling)
               </h2>
               <p className="text-xs text-[#8E929F]">
-                LocalMind never silently profiles you. Every fact below was explicitly approved by you and can be edited or deleted at any time.
+                SlothLlama never silently profiles you. Every fact below was explicitly approved by you and can be edited or deleted at any time.
               </p>
             </div>
             {memories.length > 0 && (
