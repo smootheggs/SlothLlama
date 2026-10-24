@@ -1,0 +1,6 @@
+{
+  "name": "SlothLlama — Offline-First Modular AI Assistant",
+  "description": "Privacy-first, offline-capable modular local AI assistant with on-device LLM inference, local RAG knowledge collections, specialist tutor personas, and complete Android Studio Kotlin + Jetpack Compose project.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

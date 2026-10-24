@@ -1,0 +1,64 @@
+{
+  "collections": [
+    {
+      "id": "col-science-reference",
+      "name": "Open Science & Physics Reference",
+      "description": "Openly licensed CC-BY-SA 4.0 reference passages covering thermodynamics, cellular biology, and orbital mechanics.",
+      "license": "CC-BY-SA-4.0",
+      "sources": [
+        {
+          "id": "src-thermodynamics-101",
+          "title": "Laws of Thermodynamics — OpenStax University Physics Vol. 2",
+          "author": "OpenStax / Rice University",
+          "sourceUrl": "https://openstax.org/books/university-physics-volume-2",
+          "license": "CC-BY-4.0",
+          "retrievedAt": "2026-10-15T10:30:00Z",
+          "language": "en",
+          "sha256Checksum": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+          "chunks": [
+            {
+              "chunkId": "chk-thermo-1",
+              "heading": "First Law of Thermodynamics & Internal Energy",
+              "content": "The First Law of Thermodynamics states that the change in internal energy ΔU of a closed system equals the net heat transfer Q into the system minus the net work W done by the system: ΔU = Q - W. Internal energy U is a state function that depends only on the current equilibrium state of the system, not on the path taken to reach that state."
+            },
+            {
+              "chunkId": "chk-thermo-2",
+              "heading": "Second Law of Thermodynamics & Entropy",
+              "content": "The Second Law of Thermodynamics establishes that the total entropy S of an isolated system never decreases over time (ΔS >= 0). Heat cannot spontaneously flow from a colder body to a hotter body without external work being performed. For a reversible Carnot heat engine operating between reservoirs TH and TC, maximum thermal efficiency is η_max = 1 - (TC / TH)."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "col-math-formulas",
+      "name": "Core Mathematics & Calculus Reference",
+      "description": "Verified formulas for algebra, trigonometry, derivatives, and linear algebra.",
+      "license": "CC0-1.0",
+      "sources": [
+        {
+          "id": "src-calculus-handbook",
+          "title": "Fundamental Theorems of Calculus & Series Expansions",
+          "author": "LibreTexts Mathematics",
+          "sourceUrl": "https://math.libretexts.org/Calculus_Reference",
+          "license": "CC-BY-NC-SA-3.0",
+          "retrievedAt": "2026-10-18T14:20:00Z",
+          "language": "en",
+          "sha256Checksum": "60303ae22b998861bce3b28f33eec1be758a213c86c93c076dbe9f558c11c752",
+          "chunks": [
+            {
+              "chunkId": "chk-calc-1",
+              "heading": "Quadratic Formula & Discriminant Analysis",
+              "content": "For any second-degree polynomial equation ax^2 + bx + c = 0 with a != 0, the roots are given by x = (-b ± sqrt(b^2 - 4ac)) / (2a). The discriminant Δ = b^2 - 4ac determines root nature: Δ > 0 yields two distinct real roots, Δ = 0 yields one repeated real root, and Δ < 0 yields two complex conjugate roots."
+            },
+            {
+              "chunkId": "chk-calc-2",
+              "heading": "Integration by Parts & Fundamental Theorem",
+              "content": "If f is continuous on [a, b] and F is any antiderivative of f such that F'(x) = f(x), then the definite integral from a to b of f(x)dx equals F(b) - F(a). Integration by parts follows from the product rule: ∫ u dv = u v - ∫ v du."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

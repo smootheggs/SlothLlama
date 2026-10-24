@@ -1,0 +1,91 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://localmind.app/schemas/model-manifest-v1.json",
+  "title": "LocalMind Supported Model Manifest Schema",
+  "description": "Strict validation schema for local language model packages imported or downloaded by LocalMind.",
+  "type": "object",
+  "required": [
+    "schemaVersion",
+    "modelId",
+    "displayName",
+    "version",
+    "architecture",
+    "format",
+    "quantization",
+    "contextWindow",
+    "downloadSizeBytes",
+    "estimatedRamBytes",
+    "sha256Checksum",
+    "tokenizerIncluded",
+    "license",
+    "hardwareAcceleration"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "type": "integer",
+      "const": 1
+    },
+    "modelId": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9._-]{2,63}$"
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 2,
+      "maxLength": 80
+    },
+    "version": {
+      "type": "string"
+    },
+    "architecture": {
+      "type": "string",
+      "enum": ["gemma2", "gemma", "llama3", "phi3", "qwen2"]
+    },
+    "format": {
+      "type": "string",
+      "enum": ["litertlm", "task", "tflite", "gguf"]
+    },
+    "quantization": {
+      "type": "string",
+      "enum": ["INT4", "INT8", "Q4_K_M", "Q8_0", "FP16"]
+    },
+    "contextWindow": {
+      "type": "integer",
+      "minimum": 512,
+      "maximum": 131072
+    },
+    "downloadSizeBytes": {
+      "type": "integer",
+      "minimum": 1048576
+    },
+    "estimatedRamBytes": {
+      "type": "integer",
+      "minimum": 134217728
+    },
+    "sha256Checksum": {
+      "type": "string",
+      "pattern": "^[a-fA-F0-9]{64}$"
+    },
+    "tokenizerIncluded": {
+      "type": "boolean"
+    },
+    "license": {
+      "type": "object",
+      "required": ["spdxId", "name", "url", "requiresExplicitAcceptance"],
+      "properties": {
+        "spdxId": { "type": "string" },
+        "name": { "type": "string" },
+        "url": { "type": "string", "format": "uri" },
+        "requiresExplicitAcceptance": { "type": "boolean" }
+      }
+    },
+    "hardwareAcceleration": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["CPU", "GPU", "NPU"]
+      }
+    }
+  },
+  "additionalProperties": false
+}
