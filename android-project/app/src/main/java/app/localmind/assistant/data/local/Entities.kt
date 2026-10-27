@@ -65,6 +65,7 @@ data class ConversationEntity(
     val modelId: String,
     val rollingSummary: String?,
     val parentConversationId: String?,
+    val isArchived: Boolean = false,
     val createdAt: Long,
     val updatedAt: Long
 )
@@ -84,15 +85,19 @@ data class ConversationEntity(
 data class MessageEntity(
     @PrimaryKey val id: String,
     val conversationId: String,
-    val role: String, // USER, ASSISTANT, SYSTEM
+    val role: String, // USER, ASSISTANT, SYSTEM, TOOL
     val content: String,
+    val status: String = "COMPLETE", // PENDING, STREAMING, COMPLETE, FAILED, CANCELLED
+    val errorCode: String? = null,
+    val parentMessageId: String? = null,
     val modelIdUsed: String?,
     val personaIdUsed: String?,
-    val isCloudResponse: Boolean,
-    val promptTokens: Int,
-    val completionTokens: Int,
-    val generationSpeedTps: Float?,
-    val createdAt: Long
+    val isCloudResponse: Boolean = false,
+    val promptTokens: Int = 0,
+    val completionTokens: Int = 0,
+    val generationSpeedTps: Float? = null,
+    val createdAt: Long,
+    val updatedAt: Long = createdAt
 )
 
 @Entity(tableName = "knowledge_collections")

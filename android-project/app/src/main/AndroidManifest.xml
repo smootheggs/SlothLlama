@@ -16,8 +16,8 @@
         android:dataExtractionRules="@xml/data_extraction_rules"
         android:networkSecurityConfig="@xml/network_security_config"
         android:usesCleartextTraffic="false"
-        android:icon="@mipmap/ic_launcher"
-        android:label="LocalMind"
+        android:icon="@drawable/ic_launcher"
+        android:label="@string/app_name"
         android:supportsRtl="true"
         android:largeHeap="true"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">

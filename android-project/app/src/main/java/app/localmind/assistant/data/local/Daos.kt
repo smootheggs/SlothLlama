@@ -32,23 +32,62 @@ interface LocalMindDao {
     suspend fun deleteCustomPersona(personaId: String)
 
     // Conversations & Messages
-    @Query("SELECT * FROM conversations ORDER BY updatedAt DESC")
+    @Query("SELECT * FROM conversations WHERE isArchived = 0 ORDER BY updatedAt DESC")
     fun observeConversations(): Flow<List<ConversationEntity>>
+
+    @Query("SELECT * FROM conversations WHERE isArchived = 0 ORDER BY updatedAt DESC")
+    fun observeActiveConversations(): Flow<List<ConversationEntity>>
+
+    @Query("SELECT * FROM conversations WHERE isArchived = 1 ORDER BY updatedAt DESC")
+    fun observeArchivedConversations(): Flow<List<ConversationEntity>>
+
+    @Query("SELECT * FROM conversations WHERE id = :conversationId LIMIT 1")
+    suspend fun getConversationById(conversationId: String): ConversationEntity?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertConversation(conversation: ConversationEntity)
 
+    @Query("UPDATE conversations SET title = :title, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateConversationTitle(id: String, title: String, updatedAt: Long)
+
+    @Query("UPDATE conversations SET isArchived = :isArchived, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun setConversationArchived(id: String, isArchived: Boolean, updatedAt: Long)
+
     @Query("DELETE FROM conversations WHERE id = :conversationId")
     suspend fun deleteConversation(conversationId: String)
+
+    @Query("DELETE FROM conversations")
+    suspend fun deleteAllConversations()
 
     @Query("SELECT * FROM messages WHERE conversationId = :conversationId ORDER BY createdAt ASC")
     fun observeMessages(conversationId: String): Flow<List<MessageEntity>>
 
+    @Query("SELECT * FROM messages WHERE conversationId = :conversationId ORDER BY createdAt ASC")
+    suspend fun getMessagesForConversation(conversationId: String): List<MessageEntity>
+
+    @Query("SELECT * FROM messages WHERE id = :messageId LIMIT 1")
+    suspend fun getMessageById(messageId: String): MessageEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertMessage(message: MessageEntity)
 
+    @Query("UPDATE messages SET content = :content, status = :status, errorCode = :errorCode, promptTokens = :promptTokens, completionTokens = :completionTokens, generationSpeedTps = :speedTps, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateMessageContentAndStatus(
+        id: String,
+        content: String,
+        status: String,
+        updatedAt: Long,
+        errorCode: String? = null,
+        promptTokens: Int = 0,
+        completionTokens: Int = 0,
+        speedTps: Float? = null
+    )
+
     @Query("DELETE FROM messages WHERE id = :messageId")
     suspend fun deleteMessage(messageId: String)
+
+    @Query("DELETE FROM messages WHERE conversationId = :conversationId AND createdAt >= :timestamp")
+    suspend fun deleteMessagesFromTimestamp(conversationId: String, timestamp: Long)
 
     // Knowledge Collections, Sources & Chunks
     @Query("SELECT * FROM knowledge_collections ORDER BY updatedAt DESC")
@@ -118,7 +157,18 @@ interface LocalMindDao {
     // Privacy Wipe
     @Transaction
     suspend fun deleteAllLocalData() {
+        deleteAllConversations()
         deleteAllMemories()
+    }
+}
+
+val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
+    override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+        db.execSQL("ALTER TABLE conversations ADD COLUMN isArchived INTEGER NOT NULL DEFAULT 0")
+        db.execSQL("ALTER TABLE messages ADD COLUMN status TEXT NOT NULL DEFAULT 'COMPLETE'")
+        db.execSQL("ALTER TABLE messages ADD COLUMN errorCode TEXT DEFAULT NULL")
+        db.execSQL("ALTER TABLE messages ADD COLUMN parentMessageId TEXT DEFAULT NULL")
+        db.execSQL("ALTER TABLE messages ADD COLUMN updatedAt INTEGER NOT NULL DEFAULT 0")
     }
 }
 
@@ -138,8 +188,8 @@ interface LocalMindDao {
         VocabularyItemEntity::class,
         AppEventEntity::class
     ],
-    version = 1,
-    exportSchema = true
+    version = 2,
+    exportSchema = false
 )
 abstract class LocalMindDatabase : RoomDatabase() {
     abstract fun dao(): LocalMindDao
