@@ -14,3 +14,16 @@ LocalMind is a privacy-first, offline-capable modular AI assistant for Android b
 3. Run Gradle sync (`./gradlew assembleDebug`).
 4. Run unit tests: `./gradlew testDebugUnitTest`.
 5. Run instrumented Compose UI tests: `./gradlew connectedDebugAndroidTest`.
+
+## Running a real model on the tablet
+1. On Hugging Face, accept the Gemma license on `litert-community/Gemma3-1B-IT`, then download
+   `Gemma3-1B-IT_multi-prefill-seq_q4_block128_ekv4096.task` (~660 MB, CPU, 4096-token context).
+2. Build and run the app once so it creates its model folder.
+3. Plug the tablet in over USB and copy the `.task` file into
+   `Internal storage/Android/data/app.localmind.assistant.debug/files/models/`
+   (`app.localmind.assistant` without `.debug` for release builds).
+   Or with adb: `adb push <file>.task /data/local/tmp/llm/`.
+4. Reopen the app. The chat header badge turns green and shows the file name once the model has loaded.
+
+The engine (`data/inference/LiteRtLmInferenceEngine.kt`) picks up any `.task` / `.litertlm` file in
+those folders (see `ModelFileLocator`). If none is found, replies say where to copy one.

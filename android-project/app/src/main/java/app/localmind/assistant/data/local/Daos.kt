@@ -44,6 +44,9 @@ interface LocalMindDao {
     @Query("SELECT * FROM conversations WHERE id = :conversationId LIMIT 1")
     suspend fun getConversationById(conversationId: String): ConversationEntity?
 
+    @Query("SELECT modelId FROM conversations ORDER BY updatedAt DESC LIMIT 1")
+    suspend fun getMostRecentConversationModelId(): String?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertConversation(conversation: ConversationEntity)
 

@@ -2,6 +2,8 @@ package app.localmind.assistant.ui.chat
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.localmind.assistant.data.repository.DEFAULT_MODEL_ID
+import app.localmind.assistant.domain.inference.EngineRuntimeState
 import app.localmind.assistant.domain.model.ChatMessage
 import app.localmind.assistant.domain.model.Conversation
 import app.localmind.assistant.domain.repository.ChatRepository
@@ -10,6 +12,7 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -31,30 +34,44 @@ class ChatViewModel @Inject constructor(
 
     private var activeGenerationJob: Job? = null
 
+    init {
+        // Load the model in the background so the header shows its real status
+        // and the first message doesn't wait for a multi-second load.
+        viewModelScope.launch { repository.warmUpModel() }
+    }
+
+    /** The conversation on screen: the one picked, else the most recent. */
+    private val effectiveConversationId: Flow<String?> = combine(
+        _activeConversationId,
+        repository.observeConversations()
+    ) { activeId, conversations ->
+        activeId ?: conversations.firstOrNull()?.id
+    }.distinctUntilChanged()
+
+    // kotlinx.coroutines only has typed combine() overloads for up to 5 flows,
+    // so the rest are chained on below.
     val uiState: StateFlow<ChatUiState> = combine(
         repository.observeConversations(),
         repository.observeArchivedConversations(),
-        _activeConversationId,
-        _activeConversationId.flatMapLatest { id ->
+        effectiveConversationId,
+        effectiveConversationId.flatMapLatest { id ->
             if (id != null) repository.observeMessages(id) else flowOf(emptyList())
         },
-        _inputText,
-        _isGenerating,
-        _streamingMessageId
-    ) { conversations, archived, activeId, messages, input, generating, streamingId ->
-        // If no active conversation exists yet but conversations exist, select the most recent
-        val effectiveActiveId = activeId ?: conversations.firstOrNull()?.id
-
+        _inputText
+    ) { conversations, archived, activeId, messages, input ->
         ChatUiState(
             conversations = conversations,
             archivedConversations = archived,
-            activeConversationId = effectiveActiveId,
+            activeConversationId = activeId,
             messages = messages,
-            inputText = input,
-            isGenerating = generating,
-            streamingMessageId = streamingId,
-            modelStatus = if (generating) ModelRuntimeStatus.GENERATING else ModelRuntimeStatus.READY
+            inputText = input
         )
+    }.combine(_isGenerating) { state, generating ->
+        state.copy(isGenerating = generating)
+    }.combine(_streamingMessageId) { state, streamingId ->
+        state.copy(streamingMessageId = streamingId)
+    }.combine(repository.engineState) { state, engine ->
+        state.withEngineState(engine)
     }.combine(_editingMessage) { state, editing ->
         state.copy(editingMessage = editing)
     }.combine(_errorMessage) { state, err ->
@@ -90,7 +107,7 @@ class ChatViewModel @Inject constructor(
     fun createNewConversation(
         title: String = "New Conversation",
         personaId: String = "persona-general-assistant",
-        modelId: String = "gemma-2-2b-it-litert-int4"
+        modelId: String = DEFAULT_MODEL_ID
     ) {
         viewModelScope.launch {
             val newConv = repository.createConversation(title, personaId, modelId)
@@ -106,9 +123,9 @@ class ChatViewModel @Inject constructor(
         if (text.isEmpty() || _isGenerating.value) return
 
         viewModelScope.launch {
-            var convId = _activeConversationId.value
+            var convId = _activeConversationId.value ?: uiState.value.activeConversationId
             if (convId == null) {
-                val newConv = repository.createConversation("New Conversation", "persona-general-assistant", "gemma-2-2b-it-litert-int4")
+                val newConv = repository.createConversation("New Conversation", "persona-general-assistant", DEFAULT_MODEL_ID)
                 convId = newConv.id
                 _activeConversationId.value = convId
             }
@@ -134,9 +151,10 @@ class ChatViewModel @Inject constructor(
     fun stopGeneration() {
         viewModelScope.launch {
             repository.stopGeneration()
-            activeGenerationJob?.cancel()
-            _isGenerating.value = false
-            _streamingMessageId.value = null
+            val job = activeGenerationJob ?: return@launch
+            // Give the engine a moment to report the partial reply so it is saved as CANCELLED;
+            // force-stop if it doesn't. isGenerating is reset in the job's finally block.
+            if (withTimeoutOrNull(STOP_GRACE_MS) { job.join() } == null) job.cancel()
         }
     }
 
@@ -268,5 +286,32 @@ class ChatViewModel @Inject constructor(
 
     fun clearError() {
         _errorMessage.value = null
+    }
+
+    private fun ChatUiState.withEngineState(engine: EngineRuntimeState): ChatUiState = when (engine) {
+        is EngineRuntimeState.Idle -> copy(
+            modelStatus = ModelRuntimeStatus.NO_MODEL_LOADED,
+            activeModelName = "Starting…"
+        )
+        is EngineRuntimeState.Loading -> copy(
+            modelStatus = ModelRuntimeStatus.NO_MODEL_LOADED,
+            activeModelName = "Loading ${engine.modelName}…"
+        )
+        is EngineRuntimeState.Ready -> copy(
+            modelStatus = if (isGenerating) ModelRuntimeStatus.GENERATING else ModelRuntimeStatus.READY,
+            activeModelName = engine.modelName
+        )
+        is EngineRuntimeState.NoModelFound -> copy(
+            modelStatus = ModelRuntimeStatus.NO_MODEL_LOADED,
+            activeModelName = "No model found"
+        )
+        is EngineRuntimeState.Failed -> copy(
+            modelStatus = ModelRuntimeStatus.ERROR,
+            activeModelName = "Couldn't load ${engine.modelName}"
+        )
+    }
+
+    private companion object {
+        const val STOP_GRACE_MS = 3_000L
     }
 }

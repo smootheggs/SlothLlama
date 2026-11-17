@@ -1,6 +1,7 @@
 package app.localmind.assistant.domain.inference
 
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 /**
  * Core inference abstraction allowing LocalMind to support LiteRT-LM (Google AI Edge),
@@ -8,12 +9,23 @@ import kotlinx.coroutines.flow.Flow
  * untrusted executable code.
  */
 interface LocalInferenceEngine {
+    /** What the runtime is doing right now — drives the model badge in the chat header. */
+    val runtimeState: StateFlow<EngineRuntimeState>
+
     suspend fun inspectModel(source: ModelSource): ModelCompatibilityReport
     suspend fun loadModel(modelId: String): Result<Unit>
     suspend fun unloadModel()
     fun generate(request: GenerationRequest): Flow<GenerationEvent>
     suspend fun cancelGeneration()
     fun capabilities(): EngineCapabilities
+}
+
+sealed interface EngineRuntimeState {
+    data object Idle : EngineRuntimeState
+    data class Loading(val modelName: String) : EngineRuntimeState
+    data class Ready(val modelName: String, val maxTokens: Int) : EngineRuntimeState
+    data class NoModelFound(val sideloadPath: String) : EngineRuntimeState
+    data class Failed(val modelName: String, val message: String) : EngineRuntimeState
 }
 
 sealed interface ModelSource {

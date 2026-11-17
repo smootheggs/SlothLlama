@@ -1,10 +1,18 @@
 package app.localmind.assistant.domain.repository
 
+import app.localmind.assistant.domain.inference.EngineRuntimeState
 import app.localmind.assistant.domain.model.ChatMessage
 import app.localmind.assistant.domain.model.Conversation
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 
 interface ChatRepository {
+    /** Live state of the on-device model (loading, ready, missing, failed). */
+    val engineState: StateFlow<EngineRuntimeState>
+
+    /** Loads the default model in the background so the first reply doesn't wait for it. */
+    suspend fun warmUpModel()
+
     fun observeConversations(): Flow<List<Conversation>>
     fun observeArchivedConversations(): Flow<List<Conversation>>
     fun observeMessages(conversationId: String): Flow<List<ChatMessage>>

@@ -22,6 +22,10 @@
         android:largeHeap="true"
         android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
 
+        <!-- Lets the GPU backend reach the vendor OpenCL driver on Android 12+ (ignored if absent) -->
+        <uses-native-library android:name="libOpenCL.so" android:required="false" />
+        <uses-native-library android:name="libvndksupport.so" android:required="false" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"

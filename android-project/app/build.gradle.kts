@@ -106,6 +106,7 @@ dependencies {
 
     // Google AI Edge LiteRT-LM / MediaPipe GenAI Runtime
     implementation(libs.mediapipe.tasks.genai)
+    implementation(libs.guava.listenablefuture)
 
     // Unit & UI Testing
     testImplementation(libs.junit)

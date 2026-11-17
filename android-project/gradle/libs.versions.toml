@@ -17,8 +17,9 @@ okhttp = "4.12.0"
 kotlinxSerializationJson = "1.7.3"
 coroutines = "1.9.0"
 securityCrypto = "1.1.0-alpha06"
-mediapipeTasksGenai = "0.10.18"
+mediapipeTasksGenai = "0.10.27"
 jsoup = "1.18.1"
+listenableFuture = "1.0"
 junit = "4.13.2"
 junitVersion = "1.2.1"
 espressoCore = "3.6.1"
@@ -72,6 +73,8 @@ kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-cor
 
 # Google AI Edge / LiteRT-LM On-Device Inference
 mediapipe-tasks-genai = { group = "com.google.mediapipe", name = "tasks-genai", version.ref = "mediapipeTasksGenai" }
+# generateResponseAsync() returns a Guava ListenableFuture; this tiny artifact makes the type visible to the compiler
+guava-listenablefuture = { group = "com.google.guava", name = "listenablefuture", version.ref = "listenableFuture" }
 
 # Testing
 junit = { group = "junit", name = "junit", version.ref = "junit" }

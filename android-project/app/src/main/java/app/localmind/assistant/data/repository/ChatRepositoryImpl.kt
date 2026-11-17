@@ -3,6 +3,7 @@ package app.localmind.assistant.data.repository
 import app.localmind.assistant.data.local.ConversationEntity
 import app.localmind.assistant.data.local.LocalMindDao
 import app.localmind.assistant.data.local.MessageEntity
+import app.localmind.assistant.domain.inference.EngineRuntimeState
 import app.localmind.assistant.domain.inference.GenerationEvent
 import app.localmind.assistant.domain.inference.GenerationRequest
 import app.localmind.assistant.domain.inference.LocalInferenceEngine
@@ -14,6 +15,7 @@ import app.localmind.assistant.domain.model.MessageStatus
 import app.localmind.assistant.domain.repository.ChatRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
@@ -27,6 +29,16 @@ class ChatRepositoryImpl @Inject constructor(
     private val dao: LocalMindDao,
     private val engine: LocalInferenceEngine
 ) : ChatRepository {
+
+    override val engineState: StateFlow<EngineRuntimeState>
+        get() = engine.runtimeState
+
+    override suspend fun warmUpModel() {
+        val modelId = withContext(Dispatchers.IO) {
+            dao.getMostRecentConversationModelId()
+        } ?: DEFAULT_MODEL_ID
+        engine.loadModel(modelId)
+    }
 
     override fun observeConversations(): Flow<List<Conversation>> =
         dao.observeActiveConversations().map { list ->
@@ -58,7 +70,7 @@ class ChatRepositoryImpl @Inject constructor(
             id = UUID.randomUUID().toString(),
             title = title.ifBlank { "New Conversation" },
             personaId = personaId.ifBlank { "persona-general-assistant" },
-            modelId = modelId.ifBlank { "gemma-2-2b-it-litert-int4" },
+            modelId = modelId.ifBlank { DEFAULT_MODEL_ID },
             rollingSummary = null,
             parentConversationId = null,
             isArchived = false,
@@ -99,7 +111,7 @@ class ChatRepositoryImpl @Inject constructor(
     override fun sendMessage(conversationId: String, content: String): Flow<ChatMessage> = flow {
         val now = System.currentTimeMillis()
         val conversation = dao.getConversationById(conversationId)
-            ?: createConversation("New Conversation", "persona-general-assistant", "gemma-2-2b-it-litert-int4").let {
+            ?: createConversation("New Conversation", "persona-general-assistant", DEFAULT_MODEL_ID).let {
                 dao.getConversationById(it.id)!!
             }
 
@@ -157,7 +169,8 @@ class ChatRepositoryImpl @Inject constructor(
 
         // 4. Retrieve conversation history for context assembly
         val existingMessages = dao.getMessagesForConversation(conversation.id)
-            .filter { it.id != assistantMsgId && it.status == MessageStatus.COMPLETE.name }
+            // The new user message goes in <user_request>, so leave it out of the history.
+            .filter { it.id != assistantMsgId && it.id != userMsgId && it.status == MessageStatus.COMPLETE.name }
             .map { PromptTurn(role = it.role, content = it.content) }
 
         val request = GenerationRequest(
@@ -354,3 +367,5 @@ class ChatRepositoryImpl @Inject constructor(
         updatedAt = updatedAt
     )
 }
+
+const val DEFAULT_MODEL_ID = "gemma-2-2b-it-litert-int4"
