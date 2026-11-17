@@ -30,8 +30,11 @@ data class AssembledPrompt(
  */
 @Singleton
 class SecurePromptAssembler @Inject constructor(
-    private val budgetManager: ContextBudgetManager = ContextBudgetManager()
+    private val budgetManager: ContextBudgetManager
 ) {
+    /** For tests. Deliberately not @Inject: Hilt allows only one injected constructor
+     *  (a default parameter value would make Kotlin generate a second one). */
+    constructor() : this(ContextBudgetManager())
 
     private val injectionPatterns = listOf(
         Regex("ignore\\s+(all\\s+)?(previous|prior|system)\\s+instructions", RegexOption.IGNORE_CASE),
