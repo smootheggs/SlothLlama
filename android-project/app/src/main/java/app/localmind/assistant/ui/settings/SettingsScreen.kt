@@ -1,5 +1,7 @@
 package app.localmind.assistant.ui.settings
 
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -24,10 +26,16 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.outlined.Info
+import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -49,6 +57,8 @@ import app.localmind.assistant.ui.theme.SlothPalette as P
 fun SettingsScreen(
     themeMode: ThemeMode,
     onThemeModeChange: (ThemeMode) -> Unit,
+    privacyScreen: Boolean,
+    onPrivacyScreenChange: (Boolean) -> Unit,
     onOpenModels: () -> Unit,
     onOpenPersonas: () -> Unit,
     onBack: () -> Unit
@@ -76,6 +86,31 @@ fun SettingsScreen(
                         detail = "Follow the tablet's light / dark setting",
                         selected = themeMode == ThemeMode.SYSTEM,
                         onClick = { onThemeModeChange(ThemeMode.SYSTEM) }
+                    )
+                }
+
+                Section("Privacy") {
+                    val context = LocalContext.current
+                    val networkBlocked = remember {
+                        context.checkSelfPermission(Manifest.permission.INTERNET) != PackageManager.PERMISSION_GRANTED
+                    }
+                    StatusRow(
+                        ok = networkBlocked,
+                        title = if (networkBlocked) "No network access" else "Network access allowed",
+                        detail = if (networkBlocked) "This app has no internet permission, so Android blocks every connection. Chats and models can't leave the tablet."
+                        else "This build can reach the network."
+                    )
+                    StatusRow(
+                        ok = true,
+                        title = "Stays out of backups",
+                        detail = "Chats, personas and models are excluded from cloud backup and device transfer."
+                    )
+                    HorizontalDivider(color = P.Border, modifier = Modifier.padding(vertical = 6.dp))
+                    ToggleRow(
+                        title = "Privacy screen",
+                        detail = "Block screenshots and screen recording, and hide chats in Recents.",
+                        checked = privacyScreen,
+                        onCheckedChange = onPrivacyScreenChange
                     )
                 }
 
@@ -182,6 +217,52 @@ private fun SettingRow(title: String, detail: String, selected: Boolean, onClick
             Text(title, color = P.Text, fontSize = 15.sp)
             Text(detail, color = P.Muted, fontSize = 12.sp)
         }
+    }
+}
+
+@Composable
+private fun StatusRow(ok: Boolean, title: String, detail: String) {
+    Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp), verticalAlignment = Alignment.Top) {
+        Icon(
+            if (ok) Icons.Outlined.Shield else Icons.Outlined.Info,
+            contentDescription = null,
+            tint = if (ok) P.Success else P.Warning,
+            modifier = Modifier.padding(top = 2.dp).size(18.dp)
+        )
+        Spacer(Modifier.width(12.dp))
+        Column(Modifier.weight(1f)) {
+            Text(title, color = P.Text, fontSize = 15.sp)
+            Text(detail, color = P.Muted, fontSize = 12.sp, lineHeight = 17.sp)
+        }
+    }
+}
+
+@Composable
+private fun ToggleRow(title: String, detail: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable { onCheckedChange(!checked) }
+            .padding(horizontal = 4.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, color = P.Text, fontSize = 15.sp)
+            Text(detail, color = P.Muted, fontSize = 12.sp, lineHeight = 17.sp)
+        }
+        Spacer(Modifier.width(12.dp))
+        Switch(
+            checked = checked,
+            onCheckedChange = onCheckedChange,
+            colors = SwitchDefaults.colors(
+                checkedThumbColor = P.OnAccent,
+                checkedTrackColor = P.Accent,
+                uncheckedThumbColor = P.Muted,
+                uncheckedTrackColor = P.Elevated,
+                uncheckedBorderColor = P.BorderStrong
+            )
+        )
     }
 }
 

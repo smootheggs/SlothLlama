@@ -27,7 +27,11 @@ data class ModelsUiState(
     val importProgress: Float? = null,
     val importFolder: String = "",
     val message: String? = null,
-    val pendingDelete: LocalModel? = null
+    val pendingDelete: LocalModel? = null,
+    /** Model whose SHA-256 is being computed, with progress 0..1. */
+    val hashing: Pair<LocalModel, Float>? = null,
+    /** Finished fingerprint to show: model and its SHA-256 hex. */
+    val fingerprint: Pair<LocalModel, String>? = null
 )
 
 @HiltViewModel
@@ -101,4 +105,24 @@ class ModelsViewModel @Inject constructor(
     }
 
     fun clearMessage() = local.update { it.copy(message = null) }
+
+    /** Shows the model's SHA-256 so it can be compared with the hash on Hugging Face. */
+    fun verify(model: LocalModel) {
+        if (local.value.hashing != null) return
+        viewModelScope.launch {
+            local.update { it.copy(hashing = model to 0f) }
+            try {
+                val hex = library.sha256(model) { p -> local.update { s -> s.copy(hashing = model to p) } }
+                local.update { it.copy(fingerprint = model to hex) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                local.update { it.copy(message = "Couldn't read ${model.displayName}: ${e.message}") }
+            } finally {
+                local.update { it.copy(hashing = null) }
+            }
+        }
+    }
+
+    fun dismissFingerprint() = local.update { it.copy(fingerprint = null) }
 }

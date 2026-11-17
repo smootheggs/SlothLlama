@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
+import app.localmind.assistant.data.models.ModelLibrary
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -51,6 +52,7 @@ class LlamaCppInferenceEngine @Inject constructor(
         unloadOnThread()
         status.set(EngineRuntimeState.Loading(file.name))
         runCatching {
+            ModelLibrary.ggufProblem(file)?.let { error("${file.name} can't be loaded: $it.") }
             LlamaNative.ensureInitialized(context.applicationInfo.nativeLibraryDir)
             check(LlamaNative.load(file.absolutePath) == 0) {
                 "llama.cpp couldn't open ${file.name} — the architecture may be unsupported or the file damaged."

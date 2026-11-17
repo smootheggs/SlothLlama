@@ -23,6 +23,7 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+        manifestPlaceholders["appLabel"] = "SlothLlama"
         ndk {
             abiFilters += listOf("arm64-v8a")
         }
@@ -32,30 +33,50 @@ android {
         schemaDirectory("$projectDir/schemas")
     }
 
-    // A fixed debug key (committed on purpose) so every build — on GitHub Actions or in
-    // Android Studio — installs over the previous one and keeps your chats and personas.
-    // It's the standard debug setup; don't use it for a Play Store release.
+    // Release builds are signed with YOUR private key, which never enters the repo: GitHub
+    // Actions decodes it from the SLOTH_KEYSTORE_B64 secret and points SLOTH_KEYSTORE at it.
+    // Only someone holding that key can publish an update that Android will install over the
+    // app (and so inherit its chats). Without the secrets, CI falls back to the debug build.
+    val releaseKeystore = System.getenv("SLOTH_KEYSTORE")?.let { file(it) }?.takeIf { it.isFile }
+
     signingConfigs {
+        // The standard Android debug key, committed on purpose so debug builds install over each
+        // other. It's public, so debug builds are for development only.
         getByName("debug") {
             storeFile = file("debug.keystore")
             storePassword = "android"
             keyAlias = "androiddebugkey"
             keyPassword = "android"
         }
+        if (releaseKeystore != null) {
+            create("release") {
+                storeFile = releaseKeystore
+                storeType = "pkcs12"
+                storePassword = System.getenv("SLOTH_KEYSTORE_PASSWORD")
+                keyAlias = System.getenv("SLOTH_KEY_ALIAS") ?: "slothllama"
+                keyPassword = System.getenv("SLOTH_KEYSTORE_PASSWORD")
+            }
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = true
-            isShrinkResources = true
+            // Not debuggable: adb can't attach or read the app's private files (run-as).
+            isDebuggable = false
+            // R8 is off until the keep rules for Hilt, Room, MediaPipe and JNI are verified on a
+            // device; shrinking adds little for a sideloaded personal app.
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
             )
+            if (releaseKeystore != null) signingConfig = signingConfigs.getByName("release")
         }
         debug {
             isMinifyEnabled = false
             applicationIdSuffix = ".debug"
+            manifestPlaceholders["appLabel"] = "SlothLlama Dev"
             signingConfig = signingConfigs.getByName("debug")
         }
     }
@@ -72,6 +93,12 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    lint {
+        // Release builds run "lint vital" by default; skip it so a lint rule can't block a
+        // sideloaded build that CI can't preview. Lint still runs on demand (gradle :app:lint).
+        checkReleaseBuilds = false
     }
 
     packaging {

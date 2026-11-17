@@ -1,4 +1,6 @@
-# Builds the SlothLlama debug APK on GitHub's servers, so no computer is needed.
+# Builds SlothLlama on GitHub's servers, so no computer is needed.
+# With the SLOTH_KEYSTORE_B64 / SLOTH_KEYSTORE_PASSWORD secrets set, it builds the release APK
+# signed with your private key (not debuggable). Without them, it builds the debug APK.
 # Triggered by any push that touches the Android project, or by hand from the Actions tab.
 name: Build SlothLlama APK
 
@@ -50,13 +52,29 @@ jobs:
         with:
           gradle-version: "8.11.1"
 
-      - name: Build debug APK
+      - name: Build APK
         working-directory: android-project
-        run: gradle :app:assembleDebug --stacktrace
+        env:
+          SLOTH_KEYSTORE_B64: ${{ secrets.SLOTH_KEYSTORE_B64 }}
+          SLOTH_KEYSTORE_PASSWORD: ${{ secrets.SLOTH_KEYSTORE_PASSWORD }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/out"
+          if [ -n "$SLOTH_KEYSTORE_B64" ] && [ -n "$SLOTH_KEYSTORE_PASSWORD" ]; then
+            echo "Building the release APK, signed with your private key"
+            echo "$SLOTH_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.p12"
+            export SLOTH_KEYSTORE="$RUNNER_TEMP/release.p12"
+            gradle :app:assembleRelease --stacktrace
+            rm -f "$RUNNER_TEMP/release.p12"
+            cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/out/SlothLlama.apk"
+          else
+            echo "::warning::No release key in GitHub Secrets, so this is the debug build (debuggable, public debug key)."
+            gradle :app:assembleDebug --stacktrace
+            cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/out/SlothLlama.apk"
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: slothllama-debug-apk
-          path: android-project/app/build/outputs/apk/debug/*.apk
+          name: slothllama-apk
+          path: ${{ runner.temp }}/out/SlothLlama.apk
           if-no-files-found: error

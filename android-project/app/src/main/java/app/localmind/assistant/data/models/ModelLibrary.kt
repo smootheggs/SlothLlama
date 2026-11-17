@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.withContext
 import java.io.File
+import java.io.RandomAccessFile
+import java.security.MessageDigest
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -114,6 +116,7 @@ class ModelLibrary @Inject constructor(
 
         val target = File(dir, name)
         val partial = File(dir, "$name.part")
+        val digest = MessageDigest.getInstance("SHA-256")
         try {
             val input = context.contentResolver.openInputStream(uri) ?: error("Can't open the selected file")
             input.use { inp ->
@@ -126,6 +129,7 @@ class ModelLibrary @Inject constructor(
                         val n = inp.read(buf)
                         if (n < 0) break
                         out.write(buf, 0, n)
+                        digest.update(buf, 0, n)
                         copied += n
                         if (size > 0) {
                             val pct = (copied * 100 / size).toInt()
@@ -134,9 +138,10 @@ class ModelLibrary @Inject constructor(
                     }
                 }
             }
-            if (format == ModelFormat.GGUF) check(hasGgufMagic(partial)) { "$name is not a valid GGUF file." }
+            if (format == ModelFormat.GGUF) ggufProblem(partial)?.let { error("$name: $it") }
             target.delete()
             check(partial.renameTo(target)) { "Couldn't save $name" }
+            rememberSha256(target, digest.digest().toHex())
         } catch (e: Throwable) {
             partial.delete()
             throw e
@@ -152,12 +157,41 @@ class ModelLibrary @Inject constructor(
         return true
     }
 
-    private fun hasGgufMagic(file: File): Boolean = runCatching {
-        file.inputStream().use { s ->
-            val magic = ByteArray(4)
-            s.read(magic) == 4 && String(magic, Charsets.US_ASCII) == "GGUF"
+    /** The SHA-256 recorded at import (or by an earlier [sha256] call), if the file hasn't changed since. */
+    fun knownSha256(model: LocalModel): String? =
+        prefs.getString(shaKey(model.file), null)
+
+    /**
+     * SHA-256 of the model file, to compare with the hash Hugging Face lists for it
+     * (file page → "SHA256"). Takes a few seconds per GB; the result is cached.
+     */
+    suspend fun sha256(model: LocalModel, onProgress: (Float) -> Unit = {}): String = withContext(Dispatchers.IO) {
+        knownSha256(model)?.let { return@withContext it }
+        val digest = MessageDigest.getInstance("SHA-256")
+        val total = model.file.length().coerceAtLeast(1)
+        model.file.inputStream().use { inp ->
+            val buf = ByteArray(4 shl 20)
+            var read = 0L
+            var lastPct = -1
+            while (true) {
+                ensureActive()
+                val n = inp.read(buf)
+                if (n < 0) break
+                digest.update(buf, 0, n)
+                read += n
+                val pct = (read * 100 / total).toInt()
+                if (pct != lastPct) { lastPct = pct; onProgress(pct / 100f) }
+            }
         }
-    }.getOrDefault(false)
+        digest.digest().toHex().also { rememberSha256(model.file, it) }
+    }
+
+    private fun rememberSha256(file: File, hex: String) {
+        prefs.edit().putString(shaKey(file), hex).apply()
+    }
+
+    /** Keyed by path, size and timestamp, so a replaced file never shows a stale hash. */
+    private fun shaKey(file: File) = "sha256:${file.absolutePath}:${file.length()}:${file.lastModified()}"
 
     private fun describe(uri: Uri): Pair<String, Long> {
         var name: String? = null
@@ -175,6 +209,39 @@ class ModelLibrary @Inject constructor(
     }
 
     companion object {
+        /**
+         * Cheap sanity check before a file reaches llama.cpp's native parser: the GGUF magic,
+         * a known format version, and plausible tensor / metadata counts. Returns null if the
+         * header looks fine, otherwise a short reason. It can't prove a file is safe — only
+         * download models from sources you trust — but it stops junk and obviously crafted files.
+         */
+        fun ggufProblem(file: File): String? = runCatching {
+            RandomAccessFile(file, "r").use { f ->
+                if (f.length() < 24) return "file is too small to be a GGUF model"
+                val header = ByteArray(24)
+                f.readFully(header)
+                if (String(header, 0, 4, Charsets.US_ASCII) != "GGUF") return "not a GGUF file"
+                val version = le32(header, 4)
+                if (version !in 2..3) return "unsupported GGUF version $version"
+                val tensors = le64(header, 8)
+                val metadata = le64(header, 16)
+                if (tensors <= 0 || tensors > MAX_TENSORS) return "implausible tensor count ($tensors)"
+                if (metadata < 0 || metadata > MAX_METADATA) return "implausible metadata count ($metadata)"
+                null
+            }
+        }.getOrElse { "couldn't read the file (${it.message})" }
+
+        private fun le32(b: ByteArray, at: Int): Int =
+            (b[at].toInt() and 0xFF) or ((b[at + 1].toInt() and 0xFF) shl 8) or
+                ((b[at + 2].toInt() and 0xFF) shl 16) or ((b[at + 3].toInt() and 0xFF) shl 24)
+
+        private fun le64(b: ByteArray, at: Int): Long =
+            (le32(b, at).toLong() and 0xFFFFFFFFL) or (le32(b, at + 4).toLong() shl 32)
+
+        private fun ByteArray.toHex(): String = joinToString("") { "%02x".format(it) }
+
+        private const val MAX_TENSORS = 1_000_000L
+        private const val MAX_METADATA = 100_000L
         private const val KEY_ACTIVE = "active_model_path"
         private const val FREE_SPACE_MARGIN = 200L * 1024 * 1024
         private val QUANT = Regex("(?i)(IQ[1-4]_[A-Z0-9_]+|Q[2-8]_K(_[SML])?|Q[2-8]_[01]|BF16|F16|F32|int4|int8|q4|q8)")

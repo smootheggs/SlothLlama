@@ -23,10 +23,12 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -45,6 +47,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -117,7 +121,9 @@ fun ModelsScreen(viewModel: ModelsViewModel, onBack: () -> Unit) {
                             isActive = model.path == state.activePath ||
                                 (state.activePath == null && model == state.models.first()),
                             engine = state.engine,
+                            hashProgress = state.hashing?.takeIf { it.first.path == model.path }?.second,
                             onClick = { viewModel.activate(model) },
+                            onVerify = { viewModel.verify(model) },
                             onDelete = { viewModel.requestDelete(model) }
                         )
                     }
@@ -125,6 +131,40 @@ fun ModelsScreen(viewModel: ModelsViewModel, onBack: () -> Unit) {
             }
             SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
         }
+    }
+
+    state.fingerprint?.let { (model, hex) ->
+        val clipboard = LocalClipboardManager.current
+        AlertDialog(
+            onDismissRequest = viewModel::dismissFingerprint,
+            containerColor = P.Elevated,
+            title = { Text("SHA-256 fingerprint", color = P.Text) },
+            text = {
+                Column {
+                    Text(model.file.name, color = P.Muted, fontSize = 12.sp)
+                    Spacer(Modifier.height(10.dp))
+                    SelectionContainer {
+                        Text(
+                            hex.chunked(8).joinToString(" "),
+                            color = P.Text, fontSize = 13.sp, lineHeight = 20.sp, fontFamily = FontFamily.Monospace
+                        )
+                    }
+                    Spacer(Modifier.height(12.dp))
+                    Text(
+                        "To check the file wasn't corrupted or tampered with, open the same file on Hugging Face " +
+                            "(Files and versions → the file name) and compare it with the SHA256 shown there. " +
+                            "The first and last 8 characters matching is a good quick check.",
+                        color = P.Muted, fontSize = 12.sp, lineHeight = 17.sp
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = viewModel::dismissFingerprint) { Text("Done", color = P.Accent) }
+            },
+            dismissButton = {
+                TextButton(onClick = { clipboard.setText(AnnotatedString(hex)) }) { Text("Copy", color = P.Muted) }
+            }
+        )
     }
 
     state.pendingDelete?.let { model ->
@@ -215,7 +255,9 @@ private fun ModelCard(
     model: LocalModel,
     isActive: Boolean,
     engine: EngineRuntimeState,
+    hashProgress: Float?,
     onClick: () -> Unit,
+    onVerify: () -> Unit,
     onDelete: () -> Unit
 ) {
     val loadedHere = isActive && engine is EngineRuntimeState.Ready && engine.modelName == model.file.name
@@ -253,6 +295,19 @@ private fun ModelCard(
                     },
                     fontSize = 11.sp
                 )
+                if (hashProgress != null) {
+                    Spacer(Modifier.height(8.dp))
+                    Text("Checking fingerprint… ${(hashProgress * 100).toInt()}%", color = P.Muted, fontSize = 11.sp)
+                    Spacer(Modifier.height(4.dp))
+                    LinearProgressIndicator(
+                        progress = { hashProgress },
+                        color = P.Accent, trackColor = P.Border,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+            IconButton(onClick = onVerify, enabled = hashProgress == null) {
+                Icon(Icons.Outlined.Fingerprint, contentDescription = "Show SHA-256 fingerprint", tint = P.Faint)
             }
             IconButton(onClick = onDelete) {
                 Icon(Icons.Default.DeleteOutline, contentDescription = "Delete model", tint = P.Faint)

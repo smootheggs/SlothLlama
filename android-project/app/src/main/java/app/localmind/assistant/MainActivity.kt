@@ -2,6 +2,7 @@ package app.localmind.assistant
 
 import android.app.Application
 import android.os.Bundle
+import android.view.WindowManager
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.BackHandler
@@ -50,7 +51,15 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             val mode by appearance.mode.collectAsStateWithLifecycle()
+            val privacyScreen by appearance.privacyScreen.collectAsStateWithLifecycle()
             val colors = resolveColors(mode)
+
+            // Privacy screen: no screenshots or recordings, and a blank card in Recents.
+            DisposableEffect(privacyScreen) {
+                if (privacyScreen) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                onDispose { }
+            }
 
             // Dark icons on the white theme, light icons on OLED black.
             DisposableEffect(colors.isDark) {
@@ -62,7 +71,12 @@ class MainActivity : ComponentActivity() {
             }
 
             SlothTheme(colors) {
-                SlothRoot(themeMode = mode, onThemeModeChange = appearance::set)
+                SlothRoot(
+                    themeMode = mode,
+                    onThemeModeChange = appearance::set,
+                    privacyScreen = privacyScreen,
+                    onPrivacyScreenChange = appearance::setPrivacyScreen
+                )
             }
         }
     }
@@ -75,7 +89,12 @@ private enum class Destination { CHAT, PERSONAS, MODELS, SETTINGS }
  * Back always returns to the chat.
  */
 @Composable
-private fun SlothRoot(themeMode: ThemeMode, onThemeModeChange: (ThemeMode) -> Unit) {
+private fun SlothRoot(
+    themeMode: ThemeMode,
+    onThemeModeChange: (ThemeMode) -> Unit,
+    privacyScreen: Boolean,
+    onPrivacyScreenChange: (Boolean) -> Unit
+) {
     var destination by rememberSaveable { mutableStateOf(Destination.CHAT) }
     val chatViewModel: ChatViewModel = hiltViewModel()
     val goHome = { destination = Destination.CHAT }
@@ -103,6 +122,8 @@ private fun SlothRoot(themeMode: ThemeMode, onThemeModeChange: (ThemeMode) -> Un
                 Destination.SETTINGS -> SettingsScreen(
                     themeMode = themeMode,
                     onThemeModeChange = onThemeModeChange,
+                    privacyScreen = privacyScreen,
+                    onPrivacyScreenChange = onPrivacyScreenChange,
                     onOpenModels = { destination = Destination.MODELS },
                     onOpenPersonas = { destination = Destination.PERSONAS },
                     onBack = goHome

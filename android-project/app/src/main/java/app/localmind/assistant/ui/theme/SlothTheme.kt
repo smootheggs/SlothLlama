@@ -164,7 +164,17 @@ class AppearanceStore @Inject constructor(@ApplicationContext context: Context) 
         _mode.value = mode
     }
 
+    private val _privacyScreen = MutableStateFlow(prefs.getBoolean(KEY_PRIVACY, false))
+    /** Blocks screenshots / screen recording and blanks the app in Recents. */
+    val privacyScreen: StateFlow<Boolean> = _privacyScreen.asStateFlow()
+
+    fun setPrivacyScreen(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_PRIVACY, enabled).apply()
+        _privacyScreen.value = enabled
+    }
+
     private companion object {
         const val KEY = "theme_mode"
+        const val KEY_PRIVACY = "privacy_screen"
     }
 }

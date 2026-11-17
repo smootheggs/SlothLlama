@@ -305,7 +305,8 @@ static std::string chat_add_and_format(const std::string &role, const std::strin
     auto formatted = common_chat_format_single(
             g_chat_templates.get(), chat_msgs, new_msg, role == ROLE_USER, /* use_jinja */ false);
     chat_msgs.push_back(new_msg);
-    LOGi("%s: Formatted and added %s message: \n%s\n", __func__, role.c_str(), formatted.c_str());
+    // Never log message text: logcat is readable over adb and by system tools.
+    LOGi("%s: added %s message (%zu chars)", __func__, role.c_str(), formatted.size());
     return formatted;
 }
 

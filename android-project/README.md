@@ -47,6 +47,19 @@ through **personas** (built-in or your own). Language tutors are built-in person
    The first build compiles llama.cpp and takes several minutes; later builds are quick.
    The app needs Android 13+ (minSdk 33).
 
+## Security model
+- **No network.** The app has no internet permission, so Android refuses any connection it
+  tries to make. Models come in through **Models → Import**. Settings → Privacy shows the status.
+- **Private signing key.** Release builds are signed with your own key, kept only in GitHub
+  Secrets (`SLOTH_KEYSTORE_B64`, `SLOTH_KEYSTORE_PASSWORD`) and in your Termux home. Without
+  those secrets, CI builds the debug app ("SlothLlama Dev"), which is debuggable and signed
+  with the public debug key, so use it only for development.
+- **Model files are the main untrusted input.** GGUF headers are sanity-checked before they
+  reach llama.cpp, and Models → fingerprint shows each file's SHA-256 to compare with
+  Hugging Face. Only use models from publishers you trust, and keep llama.cpp up to date.
+- **Nothing leaves in logs or backups.** Chat text isn't logged, and app data is excluded from
+  cloud backup and device transfer. Settings → Privacy screen blocks screenshots and Recents.
+
 ## Getting models
 In the **Models** tab tap **Import Model File** and pick a file from Downloads, an SSD or any folder,
 or copy files over USB into `Android/data/app.localmind.assistant.debug/files/models/`
