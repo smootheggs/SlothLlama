@@ -6,6 +6,7 @@ import android.util.Log
 import app.localmind.assistant.domain.inference.*
 import com.google.mediapipe.tasks.genai.llminference.LlmInference
 import com.google.mediapipe.tasks.genai.llminference.LlmInferenceSession
+import com.google.mediapipe.tasks.genai.llminference.PromptTemplates
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -47,6 +48,7 @@ class LiteRtLmInferenceEngine @Inject constructor(
     @Volatile private var llmInference: LlmInference? = null
     @Volatile private var loadedFile: File? = null
     @Volatile private var loadedMaxTokens: Int = 0
+    @Volatile private var chatTemplate: ChatTemplate? = null
     @Volatile private var activeSession: LlmInferenceSession? = null
     private val cancelRequested = AtomicBoolean(false)
 
@@ -210,8 +212,9 @@ class LiteRtLmInferenceEngine @Inject constructor(
                 llmInference = LlmInference.createFromOptions(context, options)
                 loadedFile = file
                 loadedMaxTokens = maxTokens
+                chatTemplate = ChatTemplate.detect(file.name)
                 _runtimeState.value = EngineRuntimeState.Ready(file.name, maxTokens)
-                Log.i(TAG, "Loaded ${file.absolutePath} (maxTokens=$maxTokens)")
+                Log.i(TAG, "Loaded ${file.absolutePath} (maxTokens=$maxTokens, template=$chatTemplate)")
                 return Result.success(Unit)
             } catch (t: Throwable) {
                 Log.w(TAG, "Load failed for ${file.name} with maxTokens=$maxTokens", t)
@@ -239,6 +242,7 @@ class LiteRtLmInferenceEngine @Inject constructor(
         llmInference = null
         loadedFile = null
         loadedMaxTokens = 0
+        chatTemplate = null
     }
 
     override fun generate(request: GenerationRequest): Flow<GenerationEvent> = callbackFlow {
@@ -270,7 +274,13 @@ class LiteRtLmInferenceEngine @Inject constructor(
                 maxOutputTokens = minOf(request.maxOutputTokens, loadedMaxTokens / 3)
             )
         } else request
-        val assembledPrompt = promptAssembler.assemble(effectiveRequest)
+        val template = chatTemplate
+        val assembledPrompt = if (template != null) {
+            promptAssembler.assembleChat(effectiveRequest, template)
+        } else {
+            promptAssembler.assemble(effectiveRequest)
+        }
+        val stopMarkers = template?.stopMarkers.orEmpty()
 
         trySend(GenerationEvent.Started(request.modelId, assembledPrompt.estimatedTokenCount))
 
@@ -289,30 +299,49 @@ class LiteRtLmInferenceEngine @Inject constructor(
         try {
             // A fresh session per reply: the prompt already carries the trimmed history,
             // and it keeps the KV cache from growing across turns.
-            val newSession = LlmInferenceSession.createFromOptions(
-                engine,
-                LlmInferenceSession.LlmInferenceSessionOptions.builder()
-                    .setTopK(DEFAULT_TOP_K)
-                    .setTopP(0.95f)
-                    .setTemperature(request.temperature)
-                    .build()
-            )
+            val sessionOptions = LlmInferenceSession.LlmInferenceSessionOptions.builder()
+                .setTopK(DEFAULT_TOP_K)
+                .setTopP(0.95f)
+                .setTemperature(request.temperature)
+            if (template != null) {
+                // We rendered the chat format ourselves; empty templates stop MediaPipe wrapping it again.
+                sessionOptions.setPromptTemplates(PromptTemplates.builder().build())
+            }
+            val newSession = LlmInferenceSession.createFromOptions(engine, sessionOptions.build())
             session = newSession
             activeSession = newSession
             newSession.addQueryChunk(assembledPrompt.fullPromptText)
 
-            val response = StringBuilder()
+            val raw = StringBuilder()
+            var emittedLength = 0
             var deltas = 0
+            val stoppedAtMarker = AtomicBoolean(false)
+
             newSession.generateResponseAsync { partial, done ->
-                if (!partial.isNullOrEmpty()) {
-                    response.append(partial)
+                if (!partial.isNullOrEmpty() && !stoppedAtMarker.get()) {
+                    raw.append(partial)
                     deltas++
-                    trySend(GenerationEvent.TokenDelta(partial))
+                    val markerIndex = firstMarkerIndex(raw, stopMarkers)
+                    val visibleEnd = if (markerIndex >= 0) markerIndex else safeEmitEnd(raw, stopMarkers)
+                    if (visibleEnd > emittedLength) {
+                        trySend(GenerationEvent.TokenDelta(raw.substring(emittedLength, visibleEnd)))
+                        emittedLength = visibleEnd
+                    }
+                    if (markerIndex >= 0) {
+                        // The model started a new turn: end the reply here.
+                        stoppedAtMarker.set(true)
+                        cleanupScope.launch { runCatching { newSession.cancelGenerateResponseAsync() } }
+                    }
                 }
                 if (done) {
                     finished.set(true)
-                    val text = response.toString()
-                    if (cancelRequested.get()) {
+                    val markerIndex = firstMarkerIndex(raw, stopMarkers)
+                    val fullText = (if (markerIndex >= 0) raw.substring(0, markerIndex) else raw.toString())
+                    if (fullText.length > emittedLength) {
+                        trySend(GenerationEvent.TokenDelta(fullText.substring(emittedLength)))
+                    }
+                    val text = fullText.trim()
+                    if (cancelRequested.get() && !stoppedAtMarker.get()) {
                         trySend(GenerationEvent.Canceled(text))
                     } else {
                         val elapsedSec = (SystemClock.elapsedRealtime() - startTime).coerceAtLeast(100) / 1000f
@@ -364,6 +393,18 @@ class LiteRtLmInferenceEngine @Inject constructor(
     private fun releaseSession(session: LlmInferenceSession) {
         if (activeSession === session) activeSession = null
         cleanupScope.launch { runCatching { session.close() } }
+    }
+
+    private fun firstMarkerIndex(text: CharSequence, markers: List<String>): Int =
+        markers.map { text.indexOf(it) }.filter { it >= 0 }.minOrNull() ?: -1
+
+    /** Holds back a trailing "<|im_" etc. that might be the start of a stop marker. */
+    private fun safeEmitEnd(text: CharSequence, markers: List<String>): Int {
+        if (markers.isEmpty()) return text.length
+        val lt = text.lastIndexOf('<')
+        if (lt < 0) return text.length
+        val tail = text.substring(lt)
+        return if (markers.any { it.startsWith(tail) }) lt else text.length
     }
 
     private fun noModelMessage(): String =

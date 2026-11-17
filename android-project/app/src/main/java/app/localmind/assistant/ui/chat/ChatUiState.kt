@@ -2,6 +2,8 @@ package app.localmind.assistant.ui.chat
 
 import app.localmind.assistant.domain.model.ChatMessage
 import app.localmind.assistant.domain.model.Conversation
+import app.localmind.assistant.domain.persona.BuiltInPersonas
+import app.localmind.assistant.domain.persona.Persona
 
 enum class ModelRuntimeStatus {
     READY,
@@ -25,7 +27,10 @@ data class ChatUiState(
     val renameTarget: Conversation? = null,
     val deleteTarget: Conversation? = null,
     val isClearAllConfirmOpen: Boolean = false,
-    val isDrawerOpen: Boolean = false
+    val isDrawerOpen: Boolean = false,
+    val personas: List<Persona> = BuiltInPersonas.all,
+    /** The active conversation's persona, or the one new chats will use. */
+    val activePersona: Persona = BuiltInPersonas.default
 ) {
     val activeConversation: Conversation?
         get() = conversations.find { it.id == activeConversationId }

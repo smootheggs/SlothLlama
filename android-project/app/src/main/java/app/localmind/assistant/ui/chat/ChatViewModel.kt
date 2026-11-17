@@ -6,6 +6,7 @@ import app.localmind.assistant.data.repository.DEFAULT_MODEL_ID
 import app.localmind.assistant.domain.inference.EngineRuntimeState
 import app.localmind.assistant.domain.model.ChatMessage
 import app.localmind.assistant.domain.model.Conversation
+import app.localmind.assistant.domain.persona.BuiltInPersonas
 import app.localmind.assistant.domain.repository.ChatRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -31,6 +32,8 @@ class ChatViewModel @Inject constructor(
     private val _deleteTarget = MutableStateFlow<Conversation?>(null)
     private val _isClearAllConfirmOpen = MutableStateFlow(false)
     private val _isDrawerOpen = MutableStateFlow(false)
+    /** Persona for new chats; follows the last tutor picked. */
+    private val _selectedPersonaId = MutableStateFlow(BuiltInPersonas.default.id)
 
     private var activeGenerationJob: Job? = null
 
@@ -66,6 +69,8 @@ class ChatViewModel @Inject constructor(
             messages = messages,
             inputText = input
         )
+    }.combine(_selectedPersonaId) { state, selectedId ->
+        state.copy(activePersona = BuiltInPersonas.byId(state.activeConversation?.personaId ?: selectedId))
     }.combine(_isGenerating) { state, generating ->
         state.copy(isGenerating = generating)
     }.combine(_streamingMessageId) { state, streamingId ->
@@ -100,13 +105,17 @@ class ChatViewModel @Inject constructor(
 
     fun selectConversation(conversationId: String) {
         _activeConversationId.value = conversationId
+        // "+" then continues with the same tutor as the chat you opened.
+        (uiState.value.conversations + uiState.value.archivedConversations)
+            .firstOrNull { it.id == conversationId }
+            ?.let { _selectedPersonaId.value = it.personaId }
         _isDrawerOpen.value = false
         _editingMessage.value = null
     }
 
     fun createNewConversation(
         title: String = "New Conversation",
-        personaId: String = "persona-general-assistant",
+        personaId: String = _selectedPersonaId.value,
         modelId: String = DEFAULT_MODEL_ID
     ) {
         viewModelScope.launch {
@@ -118,6 +127,13 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    /** Switching tutor starts a fresh chat, so lessons in different languages never mix. */
+    fun startConversationWith(personaId: String) {
+        if (_isGenerating.value) return
+        _selectedPersonaId.value = personaId
+        createNewConversation(personaId = personaId)
+    }
+
     fun sendMessage() {
         val text = _inputText.value.trim()
         if (text.isEmpty() || _isGenerating.value) return
@@ -125,7 +141,7 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             var convId = _activeConversationId.value ?: uiState.value.activeConversationId
             if (convId == null) {
-                val newConv = repository.createConversation("New Conversation", "persona-general-assistant", DEFAULT_MODEL_ID)
+                val newConv = repository.createConversation("New Conversation", _selectedPersonaId.value, DEFAULT_MODEL_ID)
                 convId = newConv.id
                 _activeConversationId.value = convId
             }
@@ -299,7 +315,7 @@ class ChatViewModel @Inject constructor(
         )
         is EngineRuntimeState.Ready -> copy(
             modelStatus = if (isGenerating) ModelRuntimeStatus.GENERATING else ModelRuntimeStatus.READY,
-            activeModelName = engine.modelName
+            activeModelName = prettyModelName(engine.modelName)
         )
         is EngineRuntimeState.NoModelFound -> copy(
             modelStatus = ModelRuntimeStatus.NO_MODEL_LOADED,
@@ -313,5 +329,9 @@ class ChatViewModel @Inject constructor(
 
     private companion object {
         const val STOP_GRACE_MS = 3_000L
+
+        /** "Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.task" -> "Qwen2.5-1.5B-Instruct" */
+        fun prettyModelName(fileName: String): String =
+            fileName.substringBeforeLast('.').substringBefore("_multi-prefill").substringBefore("_q8").ifBlank { fileName }
     }
 }

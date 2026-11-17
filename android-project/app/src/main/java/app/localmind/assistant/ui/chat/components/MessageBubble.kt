@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.sp
 import app.localmind.assistant.domain.model.ChatMessage
 import app.localmind.assistant.domain.model.MessageRole
 import app.localmind.assistant.domain.model.MessageStatus
+import app.localmind.assistant.ui.speech.LocalSpeakAction
 import java.text.SimpleDateFormat
 import java.util.*
 
@@ -289,6 +290,21 @@ fun AssistantMessageBubble(
                     horizontalArrangement = Arrangement.spacedBy(2.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    val speak = LocalSpeakAction.current
+                    if (speak != null && message.content.isNotBlank() && message.status != MessageStatus.STREAMING) {
+                        IconButton(
+                            onClick = { speak(message.content) },
+                            modifier = Modifier.size(28.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.VolumeUp,
+                                contentDescription = "Read aloud",
+                                tint = Color(0xFF38BDF8),
+                                modifier = Modifier.size(16.dp)
+                            )
+                        }
+                    }
+
                     if (message.content.isNotBlank()) {
                         IconButton(
                             onClick = {

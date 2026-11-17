@@ -37,7 +37,10 @@ fun MessageList(
     onRegenerate: () -> Unit,
     onRetry: () -> Unit,
     onStarterPromptSelected: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    emptyTitle: String = "SlothLlama LocalMind",
+    emptySubtitle: String = "100% On-Device • Private • Offline-First",
+    starterPrompts: List<String> = DefaultStarterPrompts
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -66,6 +69,9 @@ fun MessageList(
         if (messages.isEmpty()) {
             EmptyConversationPlaceholder(
                 onPromptSelected = onStarterPromptSelected,
+                title = emptyTitle,
+                subtitle = emptySubtitle,
+                starterPrompts = starterPrompts,
                 modifier = Modifier.fillMaxSize()
             )
         } else {
@@ -125,14 +131,11 @@ fun MessageList(
 @Composable
 fun EmptyConversationPlaceholder(
     onPromptSelected: (String) -> Unit,
-    modifier: Modifier = Modifier
+    modifier: Modifier = Modifier,
+    title: String = "SlothLlama LocalMind",
+    subtitle: String = "100% On-Device • Private • Offline-First",
+    starterPrompts: List<String> = DefaultStarterPrompts
 ) {
-    val starterPrompts = listOf(
-        "Explain quantum computing in simple terms",
-        "Write a Python function to parse JSON with error handling",
-        "How do I prevent memory leaks in Android Jetpack Compose?",
-        "Draft a polite email asking for project feedback"
-    )
 
     Column(
         modifier = modifier
@@ -159,14 +162,14 @@ fun EmptyConversationPlaceholder(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = "SlothLlama LocalMind",
+            text = title,
             color = Color(0xFFF4F4F6),
             fontSize = 20.sp,
             fontWeight = FontWeight.Bold
         )
 
         Text(
-            text = "100% On-Device • Private • Offline-First",
+            text = subtitle,
             color = Color(0xFF8E929F),
             fontSize = 13.sp,
             textAlign = TextAlign.Center,
@@ -197,3 +200,10 @@ fun EmptyConversationPlaceholder(
         }
     }
 }
+
+val DefaultStarterPrompts = listOf(
+    "Explain quantum computing in simple terms",
+    "Write a Python function to parse JSON with error handling",
+    "How do I prevent memory leaks in Android Jetpack Compose?",
+    "Draft a polite email asking for project feedback"
+)

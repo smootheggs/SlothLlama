@@ -16,8 +16,11 @@ LocalMind is a privacy-first, offline-capable modular AI assistant for Android b
 5. Run instrumented Compose UI tests: `./gradlew connectedDebugAndroidTest`.
 
 ## Running a real model on the tablet
-1. On Hugging Face, accept the Gemma license on `litert-community/Gemma3-1B-IT`, then download
-   `Gemma3-1B-IT_multi-prefill-seq_q4_block128_ekv4096.task` (~660 MB, CPU, 4096-token context).
+1. Download a model from Hugging Face (`litert-community`):
+   - **For Mandarin/Cantonese tutoring:** `Qwen2.5-1.5B-Instruct` →
+     `Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.task` (~1.6 GB, CPU/GPU, 4096-token context).
+   - Smaller, English-first alternative: `Gemma3-1B-IT` →
+     `Gemma3-1B-IT_multi-prefill-seq_q4_block128_ekv4096.task` (~660 MB; accept the Gemma license first).
 2. Build and run the app once so it creates its model folder.
 3. Plug the tablet in over USB and copy the `.task` file into
    `Internal storage/Android/data/app.localmind.assistant.debug/files/models/`
@@ -27,3 +30,10 @@ LocalMind is a privacy-first, offline-capable modular AI assistant for Android b
 
 The engine (`data/inference/LiteRtLmInferenceEngine.kt`) picks up any `.task` / `.litertlm` file in
 those folders (see `ModelFileLocator`). If none is found, replies say where to copy one.
+
+### Tutors
+Tap the 🎓 icon in the chat header to pick a tutor (Mandarin/Cantonese partner or teacher,
+any-language partner, general assistant). Each tutor has its own prompt and starter prompts;
+switching starts a new chat. The 🔊 button reads the Chinese parts of a reply aloud using
+Android's text-to-speech — install the Chinese (Mandarin) and Chinese (Hong Kong / Cantonese)
+voices under Settings → Text-to-speech → Google → Install voice data.

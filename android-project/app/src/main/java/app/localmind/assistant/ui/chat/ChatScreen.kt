@@ -9,6 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
+import androidx.compose.material.icons.filled.School
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -20,6 +21,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.localmind.assistant.ui.chat.components.*
+import app.localmind.assistant.ui.speech.LocalSpeakAction
+import app.localmind.assistant.ui.speech.rememberTutorSpeaker
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -32,6 +35,12 @@ fun ChatScreen(
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val coroutineScope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
+    val speaker = rememberTutorSpeaker()
+    val persona = uiState.activePersona
+    val speakAction: ((String) -> Unit)? = persona.speech?.let { language ->
+        { text: String -> speaker.speak(text, language) }
+    }
+    var isPersonaMenuOpen by remember { mutableStateOf(false) }
 
     // Sync drawer state with view model if needed
     LaunchedEffect(uiState.isDrawerOpen) {
@@ -83,6 +92,7 @@ fun ChatScreen(
             }
         }
     ) {
+        CompositionLocalProvider(LocalSpeakAction provides speakAction) {
         Scaffold(
             containerColor = Color.Black,
             topBar = {
@@ -117,7 +127,10 @@ fun ChatScreen(
                                         )
                                 )
                                 Text(
-                                    text = if (uiState.isGenerating) "Generating..." else uiState.activeModelName,
+                                    text = "${persona.badge} ${persona.name} · " +
+                                        (if (uiState.isGenerating) "Generating..." else uiState.activeModelName),
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
                                     color = Color(0xFF8E929F),
                                     fontSize = 11.sp
                                 )
@@ -140,6 +153,47 @@ fun ChatScreen(
                         }
                     },
                     actions = {
+                        Box {
+                            IconButton(
+                                onClick = { isPersonaMenuOpen = true },
+                                enabled = !uiState.isGenerating
+                            ) {
+                                Icon(
+                                    imageVector = Icons.Default.School,
+                                    contentDescription = "Choose tutor",
+                                    tint = Color(0xFF38BDF8)
+                                )
+                            }
+                            DropdownMenu(
+                                expanded = isPersonaMenuOpen,
+                                onDismissRequest = { isPersonaMenuOpen = false }
+                            ) {
+                                uiState.personas.forEach { option ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Column {
+                                                Text(
+                                                    text = "${option.badge}  ${option.name}",
+                                                    color = if (option.id == persona.id) Color(0xFF38BDF8) else Color(0xFFF4F4F6),
+                                                    fontWeight = FontWeight.SemiBold,
+                                                    fontSize = 14.sp
+                                                )
+                                                Text(
+                                                    text = option.tagline,
+                                                    color = Color(0xFF8E929F),
+                                                    fontSize = 12.sp
+                                                )
+                                            }
+                                        },
+                                        onClick = {
+                                            isPersonaMenuOpen = false
+                                            speaker.stop()
+                                            viewModel.startConversationWith(option.id)
+                                        }
+                                    )
+                                }
+                            }
+                        }
                         IconButton(onClick = { viewModel.createNewConversation() }) {
                             Icon(
                                 imageVector = Icons.Default.Add,
@@ -165,6 +219,9 @@ fun ChatScreen(
                 // Message list occupying upper area
                 Box(modifier = Modifier.weight(1f)) {
                     MessageList(
+                        emptyTitle = "${persona.badge}  ${persona.name}",
+                        emptySubtitle = persona.tagline,
+                        starterPrompts = persona.starterPrompts,
                         messages = uiState.messages,
                         isGenerating = uiState.isGenerating,
                         onEditUserMessage = { msg -> viewModel.startEditingMessage(msg) },
@@ -190,6 +247,7 @@ fun ChatScreen(
                 )
             }
         }
+        } // CompositionLocalProvider
     }
 
     // Dialogs

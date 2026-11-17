@@ -9,6 +9,7 @@ import app.localmind.assistant.domain.inference.GenerationRequest
 import app.localmind.assistant.domain.inference.LocalInferenceEngine
 import app.localmind.assistant.domain.inference.PromptTurn
 import app.localmind.assistant.domain.model.ChatMessage
+import app.localmind.assistant.domain.persona.BuiltInPersonas
 import app.localmind.assistant.domain.model.Conversation
 import app.localmind.assistant.domain.model.MessageRole
 import app.localmind.assistant.domain.model.MessageStatus
@@ -69,7 +70,7 @@ class ChatRepositoryImpl @Inject constructor(
         val conv = ConversationEntity(
             id = UUID.randomUUID().toString(),
             title = title.ifBlank { "New Conversation" },
-            personaId = personaId.ifBlank { "persona-general-assistant" },
+            personaId = personaId.ifBlank { BuiltInPersonas.default.id },
             modelId = modelId.ifBlank { DEFAULT_MODEL_ID },
             rollingSummary = null,
             parentConversationId = null,
@@ -111,7 +112,7 @@ class ChatRepositoryImpl @Inject constructor(
     override fun sendMessage(conversationId: String, content: String): Flow<ChatMessage> = flow {
         val now = System.currentTimeMillis()
         val conversation = dao.getConversationById(conversationId)
-            ?: createConversation("New Conversation", "persona-general-assistant", DEFAULT_MODEL_ID).let {
+            ?: createConversation("New Conversation", BuiltInPersonas.default.id, DEFAULT_MODEL_ID).let {
                 dao.getConversationById(it.id)!!
             }
 
@@ -173,15 +174,18 @@ class ChatRepositoryImpl @Inject constructor(
             .filter { it.id != assistantMsgId && it.id != userMsgId && it.status == MessageStatus.COMPLETE.name }
             .map { PromptTurn(role = it.role, content = it.content) }
 
+        val persona = BuiltInPersonas.byId(conversation.personaId)
         val request = GenerationRequest(
             conversationId = conversation.id,
             modelId = conversation.modelId,
-            personaSystemInstruction = "You are SlothLlama, a friendly, intelligent, and private on-device assistant. Answer directly, concisely, and practically.",
+            personaSystemInstruction = persona.systemInstruction,
             conversationSummary = conversation.rollingSummary,
             recentMessages = existingMessages,
             retrievedPassages = emptyList(),
             userMemories = emptyList(),
-            userPrompt = content.trim()
+            userPrompt = content.trim(),
+            temperature = persona.temperature,
+            maxOutputTokens = persona.maxOutputTokens
         )
 
         // 5. Update assistant status to STREAMING
