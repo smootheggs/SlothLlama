@@ -24,6 +24,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.hilt.navigation.compose.hiltViewModel
 import app.localmind.assistant.ui.chat.ChatScreen
 import app.localmind.assistant.ui.chat.ChatViewModel
+import app.localmind.assistant.ui.models.ModelsScreen
+import app.localmind.assistant.ui.models.ModelsViewModel
+import app.localmind.assistant.ui.personas.PersonasScreen
+import app.localmind.assistant.ui.personas.PersonasViewModel
 import dagger.hilt.android.AndroidEntryPoint
 import dagger.hilt.android.HiltAndroidApp
 
@@ -65,6 +69,8 @@ class MainActivity : ComponentActivity() {
 @Composable
 fun LocalMindRootScaffold() {
     var selectedTab by remember { mutableIntStateOf(0) }
+    // Activity-scoped, so the Personas tab can start a chat on the Chat tab.
+    val chatViewModel: ChatViewModel = hiltViewModel()
     val tabItems = listOf(
         Pair("Chat", Icons.Default.ChatBubbleOutline),
         Pair("Personas", Icons.Default.PersonOutline),
@@ -112,13 +118,16 @@ fun LocalMindRootScaffold() {
                 .background(Color.Black)
         ) {
             when (selectedTab) {
-                0 -> {
-                    val chatViewModel: ChatViewModel = hiltViewModel()
-                    ChatScreen(viewModel = chatViewModel)
-                }
-                1 -> TabPlaceholderScreen("Personas", "Configure specialized offline personas with custom system prompts, temperature, and local knowledge collections.")
+                0 -> ChatScreen(viewModel = chatViewModel)
+                1 -> PersonasScreen(
+                    viewModel = hiltViewModel<PersonasViewModel>(),
+                    onChatWith = { personaId ->
+                        chatViewModel.startConversationWith(personaId)
+                        selectedTab = 0
+                    }
+                )
                 2 -> TabPlaceholderScreen("Knowledge", "Manage local indexed document collections, SHA-256 verified text chunks, and offline vector embeddings.")
-                3 -> TabPlaceholderScreen("Models", "Download, inspect hardware memory envelopes, and switch between validated on-device LiteRT-LM models.")
+                3 -> ModelsScreen(viewModel = hiltViewModel<ModelsViewModel>())
                 4 -> TabPlaceholderScreen("Settings", "On-device privacy controls, secure hardware key management, and complete local database wipe.")
             }
         }

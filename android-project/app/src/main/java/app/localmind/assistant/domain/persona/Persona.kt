@@ -18,5 +18,7 @@ data class Persona(
     val maxOutputTokens: Int,
     /** Null = no read-aloud button. */
     val speech: SpeechLanguage?,
-    val starterPrompts: List<String>
+    val starterPrompts: List<String>,
+    /** Built-ins live in code; custom personas are stored in the database and can be edited. */
+    val isBuiltIn: Boolean = true
 )

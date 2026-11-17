@@ -39,7 +39,8 @@ class LiteRtLmInferenceEngine @Inject constructor(
     @ApplicationContext private val context: Context,
     private val promptAssembler: SecurePromptAssembler,
     private val calculatorTool: DeterministicCalculatorTool,
-    private val modelLocator: ModelFileLocator
+    private val modelLocator: ModelFileLocator,
+    private val status: EngineStatus
 ) : LocalInferenceEngine {
 
     private val loadMutex = Mutex()
@@ -52,8 +53,9 @@ class LiteRtLmInferenceEngine @Inject constructor(
     @Volatile private var activeSession: LlmInferenceSession? = null
     private val cancelRequested = AtomicBoolean(false)
 
-    private val _runtimeState = MutableStateFlow<EngineRuntimeState>(EngineRuntimeState.Idle)
-    override val runtimeState: StateFlow<EngineRuntimeState> = _runtimeState.asStateFlow()
+    override val runtimeState: StateFlow<EngineRuntimeState> get() = status.state
+
+    val isLoaded: Boolean get() = llmInference != null
 
     override suspend fun inspectModel(source: ModelSource): ModelCompatibilityReport =
         withContext(Dispatchers.IO) {
@@ -186,18 +188,28 @@ class LiteRtLmInferenceEngine @Inject constructor(
         loadMutex.withLock { loadLocked(modelId) }
     }
 
+    /** Loads a specific .task / .litertlm file (used by the engine router). */
+    suspend fun loadFile(file: File): Result<Unit> = withContext(Dispatchers.IO) {
+        loadMutex.withLock { loadFileLocked(file) }
+    }
+
     /** Must be called with [loadMutex] held. */
     private fun loadLocked(modelId: String): Result<Unit> {
         val file = modelLocator.locate(modelId)
         if (file == null) {
             closeEngineLocked()
-            _runtimeState.value = EngineRuntimeState.NoModelFound(modelLocator.sideloadDir.absolutePath)
+            status.set(EngineRuntimeState.NoModelFound(modelLocator.sideloadDir.absolutePath))
             return Result.failure(IllegalStateException(noModelMessage()))
         }
+        return loadFileLocked(file)
+    }
+
+    /** Must be called with [loadMutex] held. */
+    private fun loadFileLocked(file: File): Result<Unit> {
         if (llmInference != null && file == loadedFile) return Result.success(Unit)
 
         closeEngineLocked()
-        _runtimeState.value = EngineRuntimeState.Loading(file.name)
+        status.set(EngineRuntimeState.Loading(file.name))
 
         // Some .task bundles are compiled with a fixed KV-cache size (e.g. "ekv1280" in the
         // file name) and reject a larger maxTokens, so step down until one is accepted.
@@ -213,7 +225,7 @@ class LiteRtLmInferenceEngine @Inject constructor(
                 loadedFile = file
                 loadedMaxTokens = maxTokens
                 chatTemplate = ChatTemplate.detect(file.name)
-                _runtimeState.value = EngineRuntimeState.Ready(file.name, maxTokens)
+                status.set(EngineRuntimeState.Ready(file.name, maxTokens))
                 Log.i(TAG, "Loaded ${file.absolutePath} (maxTokens=$maxTokens, template=$chatTemplate)")
                 return Result.success(Unit)
             } catch (t: Throwable) {
@@ -222,15 +234,16 @@ class LiteRtLmInferenceEngine @Inject constructor(
             }
         }
         val message = lastError?.message ?: "Unknown error"
-        _runtimeState.value = EngineRuntimeState.Failed(file.name, message)
+        status.set(EngineRuntimeState.Failed(file.name, message))
         return Result.failure(IllegalStateException("Couldn't load ${file.name}: $message", lastError))
     }
 
     override suspend fun unloadModel() {
         withContext(Dispatchers.IO) {
             loadMutex.withLock {
+                val hadModel = llmInference != null
                 closeEngineLocked()
-                _runtimeState.value = EngineRuntimeState.Idle
+                if (hadModel) status.set(EngineRuntimeState.Idle)
             }
         }
     }
@@ -249,11 +262,12 @@ class LiteRtLmInferenceEngine @Inject constructor(
         cancelRequested.set(false)
         val startTime = SystemClock.elapsedRealtime()
 
-        // Lazy-load on first use; a no-op when the warm-up at app start already loaded it.
-        val loadResult = loadModel(request.modelId)
+        // The engine router loads the chosen file before calling generate().
         val engine = llmInference
+        val loadResult: Result<Unit> = if (engine != null) Result.success(Unit) else
+            Result.failure(IllegalStateException("No model is loaded. Open the Models tab and pick one."))
         if (loadResult.isFailure || engine == null) {
-            val state = _runtimeState.value
+            val state = status.state.value
             trySend(
                 GenerationEvent.Error(
                     code = if (state is EngineRuntimeState.NoModelFound) "NO_MODEL" else "MODEL_LOAD_FAILED",

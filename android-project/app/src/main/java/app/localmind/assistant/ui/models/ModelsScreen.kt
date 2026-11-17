@@ -1,0 +1,318 @@
+package app.localmind.assistant.ui.models
+
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.localmind.assistant.data.models.LocalModel
+import app.localmind.assistant.data.models.ModelFormat
+import app.localmind.assistant.data.models.ModelLibrary
+import app.localmind.assistant.domain.inference.EngineRuntimeState
+import app.localmind.assistant.ui.theme.SlothPalette as P
+
+@Composable
+fun ModelsScreen(viewModel: ModelsViewModel) {
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
+    val snackbar = remember { SnackbarHostState() }
+    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let(viewModel::import)
+    }
+
+    LaunchedEffect(state.message) {
+        state.message?.let {
+            snackbar.showSnackbar(it)
+            viewModel.clearMessage()
+        }
+    }
+
+    Box(Modifier.fillMaxSize().background(P.Canvas), contentAlignment = Alignment.TopCenter) {
+        LazyColumn(
+            modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),
+            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            item {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Models", color = P.Text, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                        Text("On-Device Runtime · 100% offline", color = P.Muted, fontSize = 12.sp)
+                    }
+                    IconButton(onClick = viewModel::refresh) {
+                        Icon(Icons.Default.Refresh, contentDescription = "Rescan model folders", tint = P.Muted)
+                    }
+                }
+            }
+
+            item { RuntimeCard(state.engine) }
+
+            item {
+                ImportCard(
+                    progress = state.importProgress,
+                    folder = state.importFolder,
+                    onImport = { picker.launch(arrayOf("*/*")) },
+                    onCancel = viewModel::cancelImport
+                )
+            }
+
+            if (state.models.isEmpty()) {
+                item { GettingStartedCard() }
+            } else {
+                item {
+                    Text(
+                        "ON THIS DEVICE · ${state.models.size}",
+                        color = P.Faint, fontSize = 11.sp, letterSpacing = 1.2.sp,
+                        modifier = Modifier.padding(top = 8.dp, start = 4.dp)
+                    )
+                }
+                items(state.models, key = { it.path }) { model ->
+                    ModelCard(
+                        model = model,
+                        isActive = model.path == state.activePath ||
+                            (state.activePath == null && model == state.models.first()),
+                        engine = state.engine,
+                        onClick = { viewModel.activate(model) },
+                        onDelete = { viewModel.requestDelete(model) }
+                    )
+                }
+            }
+        }
+        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
+    }
+
+    state.pendingDelete?.let { model ->
+        AlertDialog(
+            onDismissRequest = viewModel::dismissDelete,
+            containerColor = P.Elevated,
+            title = { Text("Delete ${model.displayName}?", color = P.Text) },
+            text = {
+                Text(
+                    "This removes the ${ModelLibrary.formatBytes(model.sizeBytes)} file from the tablet. Your chats stay.",
+                    color = P.Muted
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = viewModel::confirmDelete) { Text("Delete", color = P.Danger) }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::dismissDelete) { Text("Cancel", color = P.Muted) }
+            }
+        )
+    }
+}
+
+@Composable
+private fun RuntimeCard(engine: EngineRuntimeState) {
+    val (dot, title, detail) = when (engine) {
+        is EngineRuntimeState.Ready -> Triple(P.Success, "Loaded in Memory", "${engine.modelName} · ${engine.maxTokens} token context")
+        is EngineRuntimeState.Loading -> Triple(P.Warning, "Loading…", engine.modelName)
+        is EngineRuntimeState.Failed -> Triple(P.Danger, "Couldn't load ${engine.modelName}", engine.message)
+        is EngineRuntimeState.NoModelFound -> Triple(P.Warning, "No model yet", "Import one below to start chatting.")
+        is EngineRuntimeState.Idle -> Triple(P.Faint, "No model loaded", "Tap a model below to load it.")
+    }
+    SlothCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Box(Modifier.size(8.dp).clip(CircleShape).background(dot))
+            Spacer(Modifier.width(10.dp))
+            Column {
+                Text(title, color = P.Text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text(detail, color = P.Muted, fontSize = 12.sp, maxLines = 3, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        Spacer(Modifier.height(10.dp))
+        Text(
+            "GGUF → llama.cpp   ·   .task / .litertlm → MediaPipe",
+            color = P.Faint, fontSize = 11.sp, fontFamily = FontFamily.Monospace
+        )
+    }
+}
+
+@Composable
+private fun ImportCard(progress: Float?, folder: String, onImport: () -> Unit, onCancel: () -> Unit) {
+    SlothCard {
+        if (progress == null) {
+            Button(
+                onClick = onImport,
+                colors = ButtonDefaults.buttonColors(containerColor = P.Accent, contentColor = Color.Black),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Icon(Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Import Model File", fontWeight = FontWeight.SemiBold)
+            }
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Pick a .gguf, .task or .litertlm file from Downloads, an SSD or any folder. " +
+                    "Files copied over USB to the folder below also appear here.",
+                color = P.Muted, fontSize = 12.sp
+            )
+            Spacer(Modifier.height(4.dp))
+            Text(folder, color = P.Faint, fontSize = 11.sp, fontFamily = FontFamily.Monospace)
+        } else {
+            Text("Importing… ${(progress * 100).toInt()}%", color = P.Text, fontSize = 14.sp)
+            Spacer(Modifier.height(8.dp))
+            LinearProgressIndicator(
+                progress = { progress },
+                color = P.Accent,
+                trackColor = P.Border,
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp))
+            )
+            TextButton(onClick = onCancel) { Text("Cancel", color = P.Muted) }
+        }
+    }
+}
+
+@Composable
+private fun ModelCard(
+    model: LocalModel,
+    isActive: Boolean,
+    engine: EngineRuntimeState,
+    onClick: () -> Unit,
+    onDelete: () -> Unit
+) {
+    val loadedHere = isActive && engine is EngineRuntimeState.Ready && engine.modelName == model.file.name
+    val loadingHere = isActive && engine is EngineRuntimeState.Loading && engine.modelName == model.file.name
+    SlothCard(
+        borderColor = if (isActive) P.Accent else P.Border,
+        modifier = Modifier.clickable(onClick = onClick)
+    ) {
+        Row(verticalAlignment = Alignment.Top) {
+            Column(Modifier.weight(1f)) {
+                Text(
+                    model.displayName,
+                    color = P.Text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold,
+                    maxLines = 2, overflow = TextOverflow.Ellipsis
+                )
+                Spacer(Modifier.height(6.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Chip("${model.format.label} · ${model.format.runtime}", if (model.format == ModelFormat.GGUF) P.Accent else P.Success)
+                    model.quantization?.let { Chip(it, P.Muted) }
+                    Chip(ModelLibrary.formatBytes(model.sizeBytes), P.Muted)
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    when {
+                        loadedHere -> "● Loaded in Memory"
+                        loadingHere -> "Loading…"
+                        isActive -> "Active · tap to load"
+                        else -> "Tap to use this model"
+                    },
+                    color = when {
+                        loadedHere -> P.Success
+                        loadingHere -> P.Warning
+                        isActive -> P.Accent
+                        else -> P.Faint
+                    },
+                    fontSize = 11.sp
+                )
+            }
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Default.DeleteOutline, contentDescription = "Delete model", tint = P.Faint)
+            }
+        }
+    }
+}
+
+@Composable
+private fun GettingStartedCard() {
+    SlothCard {
+        Text("Getting a model", color = P.Text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        Spacer(Modifier.height(6.dp))
+        Text(
+            "On Hugging Face, search for a model name plus \"GGUF\" and download a Q4_K_M file " +
+                "(a good balance of quality and size). On a 12 GB tablet, models up to about 7–8B parameters " +
+                "(files under ~5 GB) run comfortably.",
+            color = P.Muted, fontSize = 12.sp
+        )
+        Spacer(Modifier.height(10.dp))
+        Text("Good starting points", color = P.Faint, fontSize = 11.sp, letterSpacing = 1.sp)
+        listOf(
+            "Qwen2.5-3B-Instruct / Qwen3-4B — fast, strongest for Chinese tutoring",
+            "Gemma 3 4B it — strong all-rounder",
+            "Llama 3.2 3B Instruct — quick everyday chat",
+            "Qwen2.5-7B-Instruct — deeper answers, slower"
+        ).forEach {
+            Text("• $it", color = P.Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+        }
+    }
+}
+
+@Composable
+private fun Chip(text: String, color: Color) {
+    Text(
+        text,
+        color = color,
+        fontSize = 10.sp,
+        fontFamily = FontFamily.Monospace,
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(P.Elevated)
+            .border(1.dp, P.Border, RoundedCornerShape(6.dp))
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+    )
+}
+
+@Composable
+fun SlothCard(
+    modifier: Modifier = Modifier,
+    borderColor: Color = P.Border,
+    content: @Composable () -> Unit
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(16.dp))
+            .background(P.Card)
+            .border(1.dp, borderColor, RoundedCornerShape(16.dp))
+            .then(modifier)
+            .padding(14.dp)
+    ) {
+        content()
+    }
+}

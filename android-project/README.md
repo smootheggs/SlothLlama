@@ -15,25 +15,54 @@ LocalMind is a privacy-first, offline-capable modular AI assistant for Android b
 4. Run unit tests: `./gradlew testDebugUnitTest`.
 5. Run instrumented Compose UI tests: `./gradlew connectedDebugAndroidTest`.
 
-## Running a real model on the tablet
-1. Download a model from Hugging Face (`litert-community`):
-   - **For Mandarin/Cantonese tutoring:** `Qwen2.5-1.5B-Instruct` →
-     `Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.task` (~1.6 GB, CPU/GPU, 4096-token context).
-   - Smaller, English-first alternative: `Gemma3-1B-IT` →
-     `Gemma3-1B-IT_multi-prefill-seq_q4_block128_ekv4096.task` (~660 MB; accept the Gemma license first).
-2. Build and run the app once so it creates its model folder.
-3. Plug the tablet in over USB and copy the `.task` file into
-   `Internal storage/Android/data/app.localmind.assistant.debug/files/models/`
-   (`app.localmind.assistant` without `.debug` for release builds).
-   Or with adb: `adb push <file>.task /data/local/tmp/llm/`.
-4. Reopen the app. The chat header badge turns green and shows the file name once the model has loaded.
+## What SlothLlama is
+A private, offline AI terminal for the tablet: load **any open-source model**, then chat with it
+through **personas** (built-in or your own). Language tutors are built-in personas.
 
-The engine (`data/inference/LiteRtLmInferenceEngine.kt`) picks up any `.task` / `.litertlm` file in
-those folders (see `ModelFileLocator`). If none is found, replies say where to copy one.
+| Tab | What it does |
+|---|---|
+| Chat | Conversations; the 👤 icon applies a persona to a new chat; 🔊 reads Chinese aloud |
+| Personas | Built-in personas + your own: system prompt, temperature, reply length, read-aloud, starter prompts |
+| Models | Import, choose, and delete models; shows what's loaded in memory |
+
+### Runtimes
+| File | Runtime | Where models come from |
+|---|---|---|
+| `.gguf` | **llama.cpp** (CPU, Arm KleidiAI) | Almost every open model on Hugging Face (Qwen, Gemma, Llama, Mistral, Phi, DeepSeek…) |
+| `.task` / `.litertlm` | Google AI Edge MediaPipe | `litert-community` on Hugging Face |
+
+## Building
+1. **Get the llama.cpp sources** (pinned submodule, once):
+   ```
+   git submodule update --init --recursive
+   ```
+   If you copied files in by hand instead of using `git am`, add it yourself:
+   ```
+   git submodule add https://github.com/ggml-org/llama.cpp android-project/third_party/llama.cpp
+   cd android-project/third_party/llama.cpp && git checkout 9048bad8d6e3a0f9f1726e238e451181c7e02613
+   ```
+2. In Android Studio → **SDK Manager → SDK Tools** (tick *Show Package Details*), install
+   **NDK 29.0.13113456** and **CMake 3.31.6**.
+3. Open `android-project/`, sync Gradle, press ▶ with the tablet selected.
+   The first build compiles llama.cpp and takes several minutes; later builds are quick.
+   The app needs Android 13+ (minSdk 33).
+
+## Getting models
+In the **Models** tab tap **Import Model File** and pick a file from Downloads, an SSD or any folder,
+or copy files over USB into `Android/data/app.localmind.assistant.debug/files/models/`
+(`app.localmind.assistant` without `.debug` for release builds).
+
+On Hugging Face, search for a model name plus "GGUF" and take a **Q4_K_M** file. On a 12 GB tablet,
+files under ~5 GB (up to ~7–8B parameters) run comfortably. Good starting points:
+- **Qwen2.5-3B-Instruct** or **Qwen3-4B** — fast, and the strongest small models for Mandarin/Cantonese
+- **Gemma 3 4B it** — strong all-rounder
+- **Llama 3.2 3B Instruct** — quick everyday chat
+- **Qwen2.5-7B-Instruct** — deeper answers, slower
+
+Reasoning models (Qwen3, DeepSeek-R1 distills) work too; their `<think>` sections are hidden.
 
 ### Tutors
-Tap the 🎓 icon in the chat header to pick a tutor (Mandarin/Cantonese partner or teacher,
-any-language partner, general assistant). Each tutor has its own prompt and starter prompts;
-switching starts a new chat. The 🔊 button reads the Chinese parts of a reply aloud using
-Android's text-to-speech — install the Chinese (Mandarin) and Chinese (Hong Kong / Cantonese)
-voices under Settings → Text-to-speech → Google → Install voice data.
+The built-in tutors (Mandarin/Cantonese partner and teacher, any-language partner) are personas like any other —
+pick one from the 👤 menu in Chat or from the Personas tab. Tap **Customize** to make your own copy.
+For read-aloud, install the Chinese (Mandarin) and Chinese (Hong Kong / Cantonese) voices under
+Settings → Text-to-speech → Google → Install voice data.

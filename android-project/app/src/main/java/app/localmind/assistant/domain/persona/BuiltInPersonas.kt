@@ -163,16 +163,16 @@ object BuiltInPersonas {
     )
 
     val all: List<Persona> = listOf(
+        GENERAL_ASSISTANT,
         MANDARIN_PARTNER,
         MANDARIN_TEACHER,
         CANTONESE_PARTNER,
         CANTONESE_TEACHER,
-        ANY_LANGUAGE_PARTNER,
-        GENERAL_ASSISTANT
+        ANY_LANGUAGE_PARTNER
     )
 
     /** New chats start with this one. */
-    val default: Persona = MANDARIN_PARTNER
+    val default: Persona = GENERAL_ASSISTANT
 
     fun byId(id: String?): Persona = all.firstOrNull { it.id == id } ?: GENERAL_ASSISTANT
 }

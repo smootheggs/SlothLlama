@@ -9,7 +9,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.School
+import androidx.compose.material.icons.filled.PersonOutline
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -159,8 +159,8 @@ fun ChatScreen(
                                 enabled = !uiState.isGenerating
                             ) {
                                 Icon(
-                                    imageVector = Icons.Default.School,
-                                    contentDescription = "Choose tutor",
+                                    imageVector = Icons.Default.PersonOutline,
+                                    contentDescription = "Choose persona",
                                     tint = Color(0xFF38BDF8)
                                 )
                             }
@@ -221,7 +221,7 @@ fun ChatScreen(
                     MessageList(
                         emptyTitle = "${persona.badge}  ${persona.name}",
                         emptySubtitle = persona.tagline,
-                        starterPrompts = persona.starterPrompts,
+                        starterPrompts = persona.starterPrompts.ifEmpty { DefaultStarterPrompts },
                         messages = uiState.messages,
                         isGenerating = uiState.isGenerating,
                         onEditUserMessage = { msg -> viewModel.startEditingMessage(msg) },

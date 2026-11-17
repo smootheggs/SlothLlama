@@ -6,6 +6,7 @@ import app.localmind.assistant.data.repository.DEFAULT_MODEL_ID
 import app.localmind.assistant.domain.inference.EngineRuntimeState
 import app.localmind.assistant.domain.model.ChatMessage
 import app.localmind.assistant.domain.model.Conversation
+import app.localmind.assistant.data.persona.PersonaRepository
 import app.localmind.assistant.domain.persona.BuiltInPersonas
 import app.localmind.assistant.domain.repository.ChatRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -19,7 +20,8 @@ import javax.inject.Inject
 @OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class ChatViewModel @Inject constructor(
-    private val repository: ChatRepository
+    private val repository: ChatRepository,
+    personaRepository: PersonaRepository
 ) : ViewModel() {
 
     private val _activeConversationId = MutableStateFlow<String?>(null)
@@ -69,8 +71,12 @@ class ChatViewModel @Inject constructor(
             messages = messages,
             inputText = input
         )
-    }.combine(_selectedPersonaId) { state, selectedId ->
-        state.copy(activePersona = BuiltInPersonas.byId(state.activeConversation?.personaId ?: selectedId))
+    }.combine(combine(_selectedPersonaId, personaRepository.personas) { id, list -> id to list }) { state, (selectedId, personas) ->
+        val wantedId = state.activeConversation?.personaId ?: selectedId
+        state.copy(
+            personas = personas,
+            activePersona = personas.firstOrNull { it.id == wantedId } ?: BuiltInPersonas.GENERAL_ASSISTANT
+        )
     }.combine(_isGenerating) { state, generating ->
         state.copy(isGenerating = generating)
     }.combine(_streamingMessageId) { state, streamingId ->

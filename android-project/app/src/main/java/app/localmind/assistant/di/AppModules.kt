@@ -2,7 +2,7 @@ package app.localmind.assistant.di
 
 import android.content.Context
 import androidx.room.Room
-import app.localmind.assistant.data.inference.LiteRtLmInferenceEngine
+import app.localmind.assistant.data.inference.RoutingInferenceEngine
 import app.localmind.assistant.data.local.LocalMindDao
 import app.localmind.assistant.data.local.LocalMindDatabase
 import app.localmind.assistant.data.local.MIGRATION_1_2
@@ -46,7 +46,7 @@ abstract class BindingModule {
     @Binds
     @Singleton
     abstract fun bindInferenceEngine(
-        impl: LiteRtLmInferenceEngine
+        impl: RoutingInferenceEngine
     ): LocalInferenceEngine
 
     @Binds

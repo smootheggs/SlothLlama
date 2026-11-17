@@ -28,6 +28,9 @@ interface LocalMindDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertPersona(persona: PersonaEntity)
 
+    @Query("SELECT * FROM personas WHERE id = :personaId LIMIT 1")
+    suspend fun getPersonaById(personaId: String): PersonaEntity?
+
     @Query("DELETE FROM personas WHERE id = :personaId AND isBuiltIn = 0")
     suspend fun deleteCustomPersona(personaId: String)
 

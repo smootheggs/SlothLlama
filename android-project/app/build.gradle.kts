@@ -14,7 +14,7 @@ android {
 
     defaultConfig {
         applicationId = "app.localmind.assistant"
-        minSdk = 28
+        minSdk = 33 // required by the llama.cpp module
         targetSdk = 35
         versionCode = 1
         versionName = "1.0.0-offline"
@@ -22,6 +22,9 @@ android {
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
+        }
+        ndk {
+            abiFilters += listOf("arm64-v8a")
         }
     }
 
@@ -61,6 +64,11 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+        }
+        jniLibs {
+            // llama.cpp loads its CPU backends (libggml-cpu-*.so) from nativeLibraryDir at runtime,
+            // so native libraries must be extracted on install.
+            useLegacyPackaging = true
         }
     }
 }
@@ -107,6 +115,9 @@ dependencies {
     // Google AI Edge LiteRT-LM / MediaPipe GenAI Runtime
     implementation(libs.mediapipe.tasks.genai)
     implementation(libs.guava.listenablefuture)
+
+    // llama.cpp for GGUF models
+    implementation(project(":llama"))
 
     // Unit & UI Testing
     testImplementation(libs.junit)

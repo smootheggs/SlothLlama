@@ -3,6 +3,7 @@ package app.localmind.assistant.data.repository
 import app.localmind.assistant.data.local.ConversationEntity
 import app.localmind.assistant.data.local.LocalMindDao
 import app.localmind.assistant.data.local.MessageEntity
+import app.localmind.assistant.data.persona.PersonaRepository
 import app.localmind.assistant.domain.inference.EngineRuntimeState
 import app.localmind.assistant.domain.inference.GenerationEvent
 import app.localmind.assistant.domain.inference.GenerationRequest
@@ -28,7 +29,8 @@ import javax.inject.Singleton
 @Singleton
 class ChatRepositoryImpl @Inject constructor(
     private val dao: LocalMindDao,
-    private val engine: LocalInferenceEngine
+    private val engine: LocalInferenceEngine,
+    private val personaRepository: PersonaRepository
 ) : ChatRepository {
 
     override val engineState: StateFlow<EngineRuntimeState>
@@ -174,7 +176,7 @@ class ChatRepositoryImpl @Inject constructor(
             .filter { it.id != assistantMsgId && it.id != userMsgId && it.status == MessageStatus.COMPLETE.name }
             .map { PromptTurn(role = it.role, content = it.content) }
 
-        val persona = BuiltInPersonas.byId(conversation.personaId)
+        val persona = personaRepository.byId(conversation.personaId)
         val request = GenerationRequest(
             conversationId = conversation.id,
             modelId = conversation.modelId,

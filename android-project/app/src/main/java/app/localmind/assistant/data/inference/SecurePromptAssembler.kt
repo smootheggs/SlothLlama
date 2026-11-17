@@ -1,9 +1,19 @@
 package app.localmind.assistant.data.inference
 
 import app.localmind.assistant.domain.inference.GenerationRequest
+import app.localmind.assistant.domain.inference.PromptTurn
 import app.localmind.assistant.domain.inference.RetrievedPassage
 import javax.inject.Inject
 import javax.inject.Singleton
+
+data class ChatPlan(
+    val systemText: String,
+    val history: List<PromptTurn>,
+    val userPrompt: String,
+    val estimatedTokenCount: Int,
+    val includedPassages: List<RetrievedPassage>,
+    val injectionAttemptsNeutralized: Int
+)
 
 data class AssembledPrompt(
     val fullPromptText: String,
@@ -96,11 +106,10 @@ class SecurePromptAssembler @Inject constructor(
     }
 
     /**
-     * Same budgeting and evidence isolation as [assemble], but rendered in the model's
-     * native multi-turn chat format: persona + context go in the system turn, history
-     * as real user/assistant turns, then the new request.
+     * Same budgeting and evidence isolation as [assemble], split into chat parts:
+     * persona + context in the system text, history as real user/assistant turns, then the new request.
      */
-    fun assembleChat(request: GenerationRequest, template: ChatTemplate): AssembledPrompt {
+    fun planChat(request: GenerationRequest): ChatPlan {
         val budget = budgetManager.planContext(
             systemInstruction = request.personaSystemInstruction,
             userMemories = request.userMemories,
@@ -139,11 +148,24 @@ class SecurePromptAssembler @Inject constructor(
             it.role.equals("USER", ignoreCase = true) || it.role.equals("ASSISTANT", ignoreCase = true)
         }
 
-        return AssembledPrompt(
-            fullPromptText = template.render(system, history, request.userPrompt.trim()),
+        return ChatPlan(
+            systemText = system,
+            history = history,
+            userPrompt = request.userPrompt.trim(),
             estimatedTokenCount = budget.estimatedTokensUsed,
             includedPassages = includedPassages,
             injectionAttemptsNeutralized = neutralizedCount
+        )
+    }
+
+    /** [planChat] rendered in a model family's native chat format. */
+    fun assembleChat(request: GenerationRequest, template: ChatTemplate): AssembledPrompt {
+        val plan = planChat(request)
+        return AssembledPrompt(
+            fullPromptText = template.render(plan.systemText, plan.history, plan.userPrompt),
+            estimatedTokenCount = plan.estimatedTokenCount,
+            includedPassages = plan.includedPassages,
+            injectionAttemptsNeutralized = plan.injectionAttemptsNeutralized
         )
     }
 
