@@ -3,6 +3,7 @@ package app.localmind.assistant.data.repository
 import app.localmind.assistant.data.local.ConversationEntity
 import app.localmind.assistant.data.local.LocalMindDao
 import app.localmind.assistant.data.local.MessageEntity
+import app.localmind.assistant.data.persona.ChineseStyleStore
 import app.localmind.assistant.data.persona.PersonaRepository
 import app.localmind.assistant.domain.inference.EngineRuntimeState
 import app.localmind.assistant.domain.inference.GenerationEvent
@@ -11,6 +12,7 @@ import app.localmind.assistant.domain.inference.LocalInferenceEngine
 import app.localmind.assistant.domain.inference.PromptTurn
 import app.localmind.assistant.domain.model.ChatMessage
 import app.localmind.assistant.domain.persona.BuiltInPersonas
+import app.localmind.assistant.domain.persona.ChineseRules
 import app.localmind.assistant.domain.model.Conversation
 import app.localmind.assistant.domain.model.MessageRole
 import app.localmind.assistant.domain.model.MessageStatus
@@ -30,7 +32,8 @@ import javax.inject.Singleton
 class ChatRepositoryImpl @Inject constructor(
     private val dao: LocalMindDao,
     private val engine: LocalInferenceEngine,
-    private val personaRepository: PersonaRepository
+    private val personaRepository: PersonaRepository,
+    private val chineseStyle: ChineseStyleStore
 ) : ChatRepository {
 
     override val engineState: StateFlow<EngineRuntimeState>
@@ -180,7 +183,8 @@ class ChatRepositoryImpl @Inject constructor(
         val request = GenerationRequest(
             conversationId = conversation.id,
             modelId = conversation.modelId,
-            personaSystemInstruction = persona.systemInstruction,
+            // Chinese tutors get their character / romanization rules from Settings → Chinese.
+            personaSystemInstruction = ChineseRules.systemInstructionFor(persona, chineseStyle.style.value),
             conversationSummary = conversation.rollingSummary,
             recentMessages = existingMessages,
             retrievedPassages = emptyList(),

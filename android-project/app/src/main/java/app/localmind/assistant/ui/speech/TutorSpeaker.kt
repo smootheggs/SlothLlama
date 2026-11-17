@@ -78,13 +78,31 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
         private val HAN = Regex("[\\u3400-\\u4DBF\\u4E00-\\u9FFF\\uF900-\\uFAFF]")
         private val NOT_CHINESE = Regex("[^\\u3000-\\u303F\\u3400-\\u4DBF\\u4E00-\\u9FFF\\uF900-\\uFAFF\\uFF00-\\uFFEF]+")
 
-        /** Keeps the lines that contain Chinese characters, minus any Latin text on them. */
-        fun chineseOnly(text: String): String =
-            text.lines()
-                .filter { HAN.containsMatchIn(it) }
-                .map { it.replace(NOT_CHINESE, " ").trim() }
-                .filter { it.isNotEmpty() }
-                .joinToString("。")
+        /** "简:" / "繁:" line labels used when the tutors write both scripts. */
+        private val SCRIPT_LABEL = Regex("^\\s*[简繁簡]\\s*[:：]\\s*")
+
+        /**
+         * Keeps the lines that contain Chinese characters, minus any Latin text on them.
+         * When a sentence comes as a 简 / 繁 pair, only the first line is read, and in word lists
+         * like "时间 / 時間 – shíjiān – time" only the first form is read, so nothing is said twice.
+         */
+        fun chineseOnly(text: String): String {
+            val spoken = mutableListOf<String>()
+            var previousWasScriptLine = false
+            for (raw in text.lines()) {
+                val isScriptLine = SCRIPT_LABEL.containsMatchIn(raw)
+                val secondOfPair = isScriptLine && previousWasScriptLine
+                previousWasScriptLine = isScriptLine && !secondOfPair
+                if (secondOfPair || !HAN.containsMatchIn(raw)) continue
+
+                var line = raw.replace(SCRIPT_LABEL, "")
+                val forms = line.split('/', '／')
+                if (forms.size >= 2 && HAN.containsMatchIn(forms[0]) && HAN.containsMatchIn(forms[1])) line = forms[0]
+                line = line.replace(NOT_CHINESE, " ").trim()
+                if (line.isNotEmpty()) spoken += line
+            }
+            return spoken.joinToString("。")
+        }
     }
 }
 

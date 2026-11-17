@@ -46,6 +46,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.localmind.assistant.BuildConfig
 import app.localmind.assistant.R
+import app.localmind.assistant.domain.persona.ChineseScript
+import app.localmind.assistant.domain.persona.ChineseStyle
 import app.localmind.assistant.ui.common.SlothTopBar
 import app.localmind.assistant.ui.theme.LightColors
 import app.localmind.assistant.ui.theme.OledColors
@@ -59,6 +61,9 @@ fun SettingsScreen(
     onThemeModeChange: (ThemeMode) -> Unit,
     privacyScreen: Boolean,
     onPrivacyScreenChange: (Boolean) -> Unit,
+    chineseStyle: ChineseStyle,
+    onChineseScriptChange: (ChineseScript) -> Unit,
+    onRomanizationChange: (Boolean) -> Unit,
     onOpenModels: () -> Unit,
     onOpenPersonas: () -> Unit,
     onBack: () -> Unit
@@ -86,6 +91,29 @@ fun SettingsScreen(
                         detail = "Follow the tablet's light / dark setting",
                         selected = themeMode == ThemeMode.SYSTEM,
                         onClick = { onThemeModeChange(ThemeMode.SYSTEM) }
+                    )
+                }
+
+                Section("Chinese") {
+                    Text(
+                        "How the Mandarin and Cantonese tutors write. Applies from their next reply.",
+                        color = P.Muted, fontSize = 12.sp, lineHeight = 17.sp,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                    )
+                    ChineseScript.entries.forEach { script ->
+                        SettingRow(
+                            title = script.label,
+                            detail = script.detail,
+                            selected = chineseStyle.script == script,
+                            onClick = { onChineseScriptChange(script) }
+                        )
+                    }
+                    HorizontalDivider(color = P.Border, modifier = Modifier.padding(vertical = 6.dp))
+                    ToggleRow(
+                        title = "Pinyin & Jyutping",
+                        detail = "Pinyin with tone marks under Mandarin, Jyutping with tone numbers under Cantonese.",
+                        checked = chineseStyle.romanization,
+                        onCheckedChange = onRomanizationChange
                     )
                 }
 

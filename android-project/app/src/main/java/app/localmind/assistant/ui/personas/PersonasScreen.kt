@@ -53,6 +53,7 @@ import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.localmind.assistant.domain.persona.Persona
 import app.localmind.assistant.domain.persona.SpeechLanguage
+import app.localmind.assistant.domain.persona.ChineseRules
 import app.localmind.assistant.ui.models.SlothCard
 import app.localmind.assistant.ui.common.SlothTopBar
 import app.localmind.assistant.ui.theme.SlothPalette as P
@@ -198,6 +199,11 @@ private fun PersonaEditor(
                     { v -> onChange { it.copy(systemInstruction = v) } },
                     singleLine = false,
                     minLines = 8
+                )
+                Text(
+                    "With a Mandarin or Cantonese voice, the characters and Pinyin / Jyutping follow " +
+                        "Settings → Chinese: they replace ${ChineseRules.PLACEHOLDER} in the prompt, or are added at the end.",
+                    color = P.Faint, fontSize = 11.sp, lineHeight = 15.sp
                 )
 
                 LabeledSlider(
