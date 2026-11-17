@@ -26,25 +26,28 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.localmind.assistant.ui.theme.SlothPalette as P
 import kotlinx.coroutines.delay
 
 @Composable
 fun MarkdownContent(
     content: String,
     modifier: Modifier = Modifier,
-    textColor: Color = Color(0xFFF4F4F6)
+    textColor: Color = P.Text
 ) {
     val blocks = remember(content) { parseMarkdownBlocks(content) }
+    val codeBackground = P.Elevated
+    val codeColor = P.Text
 
-    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(8.dp)) {
+    Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         blocks.forEach { block ->
             when (block) {
                 is MarkdownBlock.Paragraph -> {
                     Text(
-                        text = buildAnnotatedMarkdown(block.text),
+                        text = buildAnnotatedMarkdown(block.text, codeBackground, codeColor),
                         color = textColor,
-                        fontSize = 15.sp,
-                        lineHeight = 22.sp
+                        fontSize = 16.sp,
+                        lineHeight = 24.sp
                     )
                 }
                 is MarkdownBlock.CodeFence -> {
@@ -58,12 +61,12 @@ fun MarkdownContent(
                         modifier = Modifier.padding(start = 4.dp),
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
-                        Text("•", color = Color(0xFF38BDF8), fontSize = 15.sp)
+                        Text("•", color = P.Muted, fontSize = 16.sp, lineHeight = 24.sp)
                         Text(
-                            text = buildAnnotatedMarkdown(block.text),
+                            text = buildAnnotatedMarkdown(block.text, codeBackground, codeColor),
                             color = textColor,
-                            fontSize = 15.sp,
-                            lineHeight = 22.sp
+                            fontSize = 16.sp,
+                            lineHeight = 24.sp
                         )
                     }
                 }
@@ -91,24 +94,23 @@ fun FencedCodeBlock(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFF070809))
-            .border(1.dp, Color(0xFF1E222A), RoundedCornerShape(8.dp))
+            .clip(RoundedCornerShape(12.dp))
+            .background(P.CodeBackground)
+            .border(1.dp, P.Border, RoundedCornerShape(12.dp))
     ) {
         // Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(Color(0xFF11141A))
-                .padding(horizontal = 12.dp, vertical = 6.dp),
+                .padding(start = 14.dp, end = 6.dp, top = 6.dp, bottom = 2.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically
         ) {
             Text(
                 text = language.ifBlank { "code" }.lowercase(),
-                color = Color(0xFF8E929F),
+                color = P.Faint,
                 fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold
+                fontWeight = FontWeight.Medium
             )
             IconButton(
                 onClick = {
@@ -122,7 +124,7 @@ fun FencedCodeBlock(
                 Icon(
                     imageVector = if (isCopied) Icons.Default.Done else Icons.Default.ContentCopy,
                     contentDescription = "Copy Code",
-                    tint = if (isCopied) Color(0xFF34D399) else Color(0xFF8E929F),
+                    tint = if (isCopied) P.Success else P.Faint,
                     modifier = Modifier.size(14.dp)
                 )
             }
@@ -133,11 +135,11 @@ fun FencedCodeBlock(
             modifier = Modifier
                 .fillMaxWidth()
                 .horizontalScroll(rememberScrollState())
-                .padding(12.dp)
+                .padding(start = 14.dp, end = 14.dp, bottom = 14.dp, top = 4.dp)
         ) {
             Text(
                 text = code,
-                color = Color(0xFFE2E8F0),
+                color = P.CodeText,
                 fontFamily = FontFamily.Monospace,
                 fontSize = 13.sp,
                 lineHeight = 19.sp
@@ -212,7 +214,11 @@ fun parseMarkdownBlocks(text: String): List<MarkdownBlock> {
     return blocks
 }
 
-fun buildAnnotatedMarkdown(text: String): AnnotatedString {
+fun buildAnnotatedMarkdown(
+    text: String,
+    codeBackground: Color = Color(0x1F8E929F),
+    codeColor: Color = Color.Unspecified
+): AnnotatedString {
     return buildAnnotatedString {
         var cursor = 0
         val regex = Regex("(\\*\\*(.*?)\\*\\*)|(\\*([^*]+)\\*)|(`([^`]+)`)")
@@ -241,11 +247,11 @@ fun buildAnnotatedMarkdown(text: String): AnnotatedString {
                     withStyle(
                         SpanStyle(
                             fontFamily = FontFamily.Monospace,
-                            background = Color(0xFF1E222A),
-                            color = Color(0xFF38BDF8)
+                            background = codeBackground,
+                            color = codeColor
                         )
                     ) {
-                        append(" ${match.groups[6]?.value ?: ""} ")
+                        append("\u2009${match.groups[6]?.value ?: ""}\u2009")
                     }
                 }
             }

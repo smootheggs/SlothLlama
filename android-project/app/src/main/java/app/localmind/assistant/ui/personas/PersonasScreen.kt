@@ -54,48 +54,47 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.localmind.assistant.domain.persona.Persona
 import app.localmind.assistant.domain.persona.SpeechLanguage
 import app.localmind.assistant.ui.models.SlothCard
+import app.localmind.assistant.ui.common.SlothTopBar
 import app.localmind.assistant.ui.theme.SlothPalette as P
 import kotlin.math.roundToInt
 
 @Composable
 fun PersonasScreen(
     viewModel: PersonasViewModel,
-    onChatWith: (personaId: String) -> Unit
+    onChatWith: (personaId: String) -> Unit,
+    onBack: () -> Unit
 ) {
     val personas by viewModel.personas.collectAsStateWithLifecycle()
     val draft by viewModel.draft.collectAsStateWithLifecycle()
     val pendingDelete by viewModel.pendingDelete.collectAsStateWithLifecycle()
 
-    Box(Modifier.fillMaxSize().background(P.Canvas), contentAlignment = Alignment.TopCenter) {
-        LazyColumn(
-            modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Personas", color = P.Text, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                        Text("Apply any persona to any model", color = P.Muted, fontSize = 12.sp)
-                    }
-                    Button(
-                        onClick = viewModel::createNew,
-                        colors = ButtonDefaults.buttonColors(containerColor = P.Accent, contentColor = Color.Black),
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(18.dp))
-                        Spacer(Modifier.width(6.dp))
-                        Text("Create", fontWeight = FontWeight.SemiBold)
-                    }
+    Column(Modifier.fillMaxSize().background(P.Canvas)) {
+        SlothTopBar(
+            title = "Personas",
+            subtitle = "Apply any persona to any model",
+            onBack = onBack,
+            actions = {
+                TextButton(onClick = viewModel::createNew) {
+                    Icon(Icons.Default.Add, contentDescription = null, tint = P.Accent, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(4.dp))
+                    Text("New", color = P.Accent, fontWeight = FontWeight.SemiBold)
                 }
             }
-            items(personas, key = { it.id }) { persona ->
-                PersonaCard(
-                    persona = persona,
-                    onChat = { onChatWith(persona.id) },
-                    onEdit = { viewModel.edit(persona) },
-                    onDelete = { viewModel.requestDelete(persona) }
-                )
+        )
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+            LazyColumn(
+                modifier = Modifier.widthIn(max = 760.dp).fillMaxSize(),
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                items(personas, key = { it.id }) { persona ->
+                    PersonaCard(
+                        persona = persona,
+                        onChat = { onChatWith(persona.id) },
+                        onEdit = { viewModel.edit(persona) },
+                        onDelete = { viewModel.requestDelete(persona) }
+                    )
+                }
             }
         }
     }
@@ -258,7 +257,7 @@ private fun PersonaEditor(
                     Button(
                         onClick = onSaveAndChat,
                         enabled = draft.canSave,
-                        colors = ButtonDefaults.buttonColors(containerColor = P.Accent, contentColor = Color.Black),
+                        colors = ButtonDefaults.buttonColors(containerColor = P.Accent, contentColor = P.OnAccent),
                         shape = RoundedCornerShape(12.dp)
                     ) { Text("Save & chat", fontWeight = FontWeight.SemiBold) }
                 }

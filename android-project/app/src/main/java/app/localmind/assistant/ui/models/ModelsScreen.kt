@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -54,10 +55,11 @@ import app.localmind.assistant.data.models.LocalModel
 import app.localmind.assistant.data.models.ModelFormat
 import app.localmind.assistant.data.models.ModelLibrary
 import app.localmind.assistant.domain.inference.EngineRuntimeState
+import app.localmind.assistant.ui.common.SlothTopBar
 import app.localmind.assistant.ui.theme.SlothPalette as P
 
 @Composable
-fun ModelsScreen(viewModel: ModelsViewModel) {
+fun ModelsScreen(viewModel: ModelsViewModel, onBack: () -> Unit) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -71,58 +73,58 @@ fun ModelsScreen(viewModel: ModelsViewModel) {
         }
     }
 
-    Box(Modifier.fillMaxSize().background(P.Canvas), contentAlignment = Alignment.TopCenter) {
-        LazyColumn(
-            modifier = Modifier.widthIn(max = 840.dp).fillMaxSize(),
-            contentPadding = PaddingValues(horizontal = 16.dp, vertical = 20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            item {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(Modifier.weight(1f)) {
-                        Text("Models", color = P.Text, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                        Text("On-Device Runtime · 100% offline", color = P.Muted, fontSize = 12.sp)
-                    }
-                    IconButton(onClick = viewModel::refresh) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Rescan model folders", tint = P.Muted)
-                    }
+    Column(Modifier.fillMaxSize().background(P.Canvas)) {
+        SlothTopBar(
+            title = "Models",
+            subtitle = "On-device runtime · 100% offline",
+            onBack = onBack,
+            actions = {
+                IconButton(onClick = viewModel::refresh) {
+                    Icon(Icons.Default.Refresh, contentDescription = "Rescan model folders", tint = P.Muted)
                 }
             }
+        )
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+            LazyColumn(
+                modifier = Modifier.widthIn(max = 760.dp).fillMaxSize(),
+                contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 32.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                item { RuntimeCard(state.engine) }
 
-            item { RuntimeCard(state.engine) }
-
-            item {
-                ImportCard(
-                    progress = state.importProgress,
-                    folder = state.importFolder,
-                    onImport = { picker.launch(arrayOf("*/*")) },
-                    onCancel = viewModel::cancelImport
-                )
-            }
-
-            if (state.models.isEmpty()) {
-                item { GettingStartedCard() }
-            } else {
                 item {
-                    Text(
-                        "ON THIS DEVICE · ${state.models.size}",
-                        color = P.Faint, fontSize = 11.sp, letterSpacing = 1.2.sp,
-                        modifier = Modifier.padding(top = 8.dp, start = 4.dp)
+                    ImportCard(
+                        progress = state.importProgress,
+                        folder = state.importFolder,
+                        onImport = { picker.launch(arrayOf("*/*")) },
+                        onCancel = viewModel::cancelImport
                     )
                 }
-                items(state.models, key = { it.path }) { model ->
-                    ModelCard(
-                        model = model,
-                        isActive = model.path == state.activePath ||
-                            (state.activePath == null && model == state.models.first()),
-                        engine = state.engine,
-                        onClick = { viewModel.activate(model) },
-                        onDelete = { viewModel.requestDelete(model) }
-                    )
+
+                if (state.models.isEmpty()) {
+                    item { GettingStartedCard() }
+                } else {
+                    item {
+                        Text(
+                            "ON THIS DEVICE · ${state.models.size}",
+                            color = P.Faint, fontSize = 11.sp, letterSpacing = 1.2.sp,
+                            modifier = Modifier.padding(top = 8.dp, start = 4.dp)
+                        )
+                    }
+                    items(state.models, key = { it.path }) { model ->
+                        ModelCard(
+                            model = model,
+                            isActive = model.path == state.activePath ||
+                                (state.activePath == null && model == state.models.first()),
+                            engine = state.engine,
+                            onClick = { viewModel.activate(model) },
+                            onDelete = { viewModel.requestDelete(model) }
+                        )
+                    }
                 }
             }
+            SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
         }
-        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
     }
 
     state.pendingDelete?.let { model ->
@@ -178,7 +180,7 @@ private fun ImportCard(progress: Float?, folder: String, onImport: () -> Unit, o
         if (progress == null) {
             Button(
                 onClick = onImport,
-                colors = ButtonDefaults.buttonColors(containerColor = P.Accent, contentColor = Color.Black),
+                colors = ButtonDefaults.buttonColors(containerColor = P.Accent, contentColor = P.OnAccent),
                 shape = RoundedCornerShape(12.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {

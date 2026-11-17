@@ -50,7 +50,11 @@ class ChatViewModel @Inject constructor(
         _activeConversationId,
         repository.observeConversations()
     ) { activeId, conversations ->
-        activeId ?: conversations.firstOrNull()?.id
+        when (activeId) {
+            DRAFT_ID -> null                       // a new, not-yet-sent chat
+            null -> conversations.firstOrNull()?.id
+            else -> activeId
+        }
     }.distinctUntilChanged()
 
     // kotlinx.coroutines only has typed combine() overloads for up to 5 flows,
@@ -119,18 +123,16 @@ class ChatViewModel @Inject constructor(
         _editingMessage.value = null
     }
 
-    fun createNewConversation(
-        title: String = "New Conversation",
-        personaId: String = _selectedPersonaId.value,
-        modelId: String = DEFAULT_MODEL_ID
-    ) {
-        viewModelScope.launch {
-            val newConv = repository.createConversation(title, personaId, modelId)
-            _activeConversationId.value = newConv.id
-            _isDrawerOpen.value = false
-            _inputText.value = ""
-            _editingMessage.value = null
-        }
+    /**
+     * Opens a blank chat. Nothing is written to the database until the first message is sent,
+     * so switching personas or tapping "New chat" never leaves empty conversations behind.
+     */
+    fun createNewConversation(personaId: String = _selectedPersonaId.value) {
+        _selectedPersonaId.value = personaId
+        _activeConversationId.value = DRAFT_ID
+        _isDrawerOpen.value = false
+        _inputText.value = ""
+        _editingMessage.value = null
     }
 
     /** Switching tutor starts a fresh chat, so lessons in different languages never mix. */
@@ -145,7 +147,11 @@ class ChatViewModel @Inject constructor(
         if (text.isEmpty() || _isGenerating.value) return
 
         viewModelScope.launch {
-            var convId = _activeConversationId.value ?: uiState.value.activeConversationId
+            var convId = when (val current = _activeConversationId.value) {
+                DRAFT_ID -> null
+                null -> uiState.value.activeConversationId
+                else -> current
+            }
             if (convId == null) {
                 val newConv = repository.createConversation("New Conversation", _selectedPersonaId.value, DEFAULT_MODEL_ID)
                 convId = newConv.id
@@ -335,6 +341,7 @@ class ChatViewModel @Inject constructor(
 
     private companion object {
         const val STOP_GRACE_MS = 3_000L
+        const val DRAFT_ID = "__draft__"
 
         /** "Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.task" -> "Qwen2.5-1.5B-Instruct" */
         fun prettyModelName(fileName: String): String =

@@ -3,27 +3,62 @@ package app.localmind.assistant.ui.chat.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.ime
+import androidx.compose.foundation.layout.navigationBars
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.union
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Stop
-import androidx.compose.material3.*
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.localmind.assistant.domain.model.ChatMessage
+import app.localmind.assistant.domain.persona.Persona
+import app.localmind.assistant.ui.theme.SlothPalette as P
 
+/** Reading/typing column width on tablets; phones simply use the full width. */
+val ChatColumnMaxWidth = 760.dp
+
+/**
+ * The composer: one rounded container holding the text field, the persona selector
+ * and the send / stop button — the layout Claude and most modern chat apps use.
+ */
 @Composable
 fun ChatInputBar(
     inputText: String,
@@ -34,125 +69,169 @@ fun ChatInputBar(
     editingMessage: ChatMessage?,
     onCancelEdit: () -> Unit,
     onSubmitEdit: () -> Unit,
+    activePersona: Persona,
+    personas: List<Persona>,
+    onSelectPersona: (Persona) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    Column(
+    val canSubmit = inputText.isNotBlank()
+    val submit = {
+        if (canSubmit) {
+            if (editingMessage != null) onSubmitEdit() else onSendMessage()
+        }
+    }
+
+    Box(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color(0xFF070809))
-            .border(
-                width = 1.dp,
-                color = Color(0xFF161920),
-                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp)
-            )
-            .padding(horizontal = 12.dp, vertical = 8.dp)
+            .background(P.Canvas)
+            // Sit above the gesture bar, and above the keyboard when it's open.
+            .windowInsetsPadding(WindowInsets.navigationBars.union(WindowInsets.ime))
+            .padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 12.dp),
+        contentAlignment = Alignment.BottomCenter
     ) {
-        // Editing notification bar
-        AnimatedVisibility(visible = editingMessage != null) {
-            Row(
+        Column(
+            Modifier
+                .widthIn(max = ChatColumnMaxWidth)
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(24.dp))
+                .background(P.Elevated)
+                .border(1.dp, P.Border, RoundedCornerShape(24.dp))
+                .padding(start = 16.dp, end = 8.dp, top = 12.dp, bottom = 8.dp)
+        ) {
+            AnimatedVisibility(visible = editingMessage != null) {
+                Row(
+                    Modifier.fillMaxWidth().padding(bottom = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "Editing your message",
+                        color = P.Accent, fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(onClick = onCancelEdit, modifier = Modifier.size(24.dp)) {
+                        Icon(Icons.Default.Close, contentDescription = "Cancel edit", tint = P.Muted, modifier = Modifier.size(16.dp))
+                    }
+                }
+            }
+
+            BasicTextField(
+                value = inputText,
+                onValueChange = onInputTextChanged,
+                textStyle = TextStyle(color = P.Text, fontSize = 16.sp, lineHeight = 24.sp),
+                cursorBrush = SolidColor(P.Accent),
+                maxLines = 8,
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 6.dp)
-                    .background(Color(0xFF151922), RoundedCornerShape(8.dp))
-                    .padding(horizontal = 10.dp, vertical = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween
-            ) {
-                Text(
-                    text = "Editing previous message",
-                    color = Color(0xFF38BDF8),
-                    fontSize = 12.sp,
-                    fontWeight = FontWeight.Medium
+                    .padding(end = 8.dp)
+                    .heightIn(min = 24.dp),
+                decorationBox = { inner ->
+                    Box {
+                        if (inputText.isEmpty()) {
+                            Text(
+                                if (editingMessage != null) "Edit your message" else "Message ${activePersona.name}",
+                                color = P.Faint, fontSize = 16.sp, lineHeight = 24.sp,
+                                maxLines = 1, overflow = TextOverflow.Ellipsis
+                            )
+                        }
+                        inner()
+                    }
+                }
+            )
+
+            Spacer(Modifier.size(8.dp))
+
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                PersonaChip(
+                    active = activePersona,
+                    personas = personas,
+                    enabled = !isGenerating && editingMessage == null,
+                    onSelect = onSelectPersona
                 )
-                IconButton(onClick = onCancelEdit, modifier = Modifier.size(24.dp)) {
-                    Icon(
-                        imageVector = Icons.Default.Close,
-                        contentDescription = "Cancel edit",
-                        tint = Color(0xFF8E929F),
-                        modifier = Modifier.size(14.dp)
-                    )
+                Spacer(Modifier.weight(1f))
+                if (isGenerating) {
+                    RoundAction(
+                        onClick = onStopGeneration,
+                        filled = true,
+                        contentDescription = "Stop generating"
+                    ) { tint -> Icon(Icons.Default.Stop, null, tint = tint, modifier = Modifier.size(18.dp)) }
+                } else {
+                    RoundAction(
+                        onClick = submit,
+                        filled = canSubmit,
+                        enabled = canSubmit,
+                        contentDescription = "Send"
+                    ) { tint -> Icon(Icons.Default.ArrowUpward, null, tint = tint, modifier = Modifier.size(18.dp)) }
                 }
             }
         }
+    }
+}
 
+@Composable
+private fun RoundAction(
+    onClick: () -> Unit,
+    filled: Boolean,
+    contentDescription: String,
+    enabled: Boolean = true,
+    icon: @Composable (Color) -> Unit
+) {
+    Box(
+        Modifier
+            .size(36.dp)
+            .clip(CircleShape)
+            .background(if (filled) P.Accent else P.Border)
+            .clickable(enabled = enabled, onClickLabel = contentDescription, onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        icon(if (filled) P.OnAccent else P.Faint)
+    }
+}
+
+@Composable
+private fun PersonaChip(
+    active: Persona,
+    personas: List<Persona>,
+    enabled: Boolean,
+    onSelect: (Persona) -> Unit
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+    Box {
         Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.Bottom,
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
+            Modifier
+                .clip(RoundedCornerShape(10.dp))
+                .clickable(enabled = enabled) { menuOpen = true }
+                .padding(horizontal = 8.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
         ) {
-            // Text Input
-            TextField(
-                value = inputText,
-                onValueChange = onInputTextChanged,
-                placeholder = {
-                    Text(
-                        text = if (editingMessage != null) "Edit message..." else "Ask SlothLlama anything...",
-                        color = Color(0xFF6B7280),
-                        fontSize = 15.sp
-                    )
-                },
-                modifier = Modifier
-                    .weight(1f)
-                    .heightIn(min = 44.dp, max = 140.dp)
-                    .clip(RoundedCornerShape(22.dp)),
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = Color(0xFF12151C),
-                    unfocusedContainerColor = Color(0xFF12151C),
-                    disabledContainerColor = Color(0xFF12151C),
-                    focusedIndicatorColor = Color.Transparent,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    disabledIndicatorColor = Color.Transparent,
-                    focusedTextColor = Color(0xFFF4F4F6),
-                    unfocusedTextColor = Color(0xFFF4F4F6),
-                    cursorColor = Color(0xFF38BDF8)
-                ),
-                maxLines = 5,
-                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Default),
-                keyboardActions = KeyboardActions(
-                    onSend = {
-                        if (editingMessage != null) onSubmitEdit() else onSendMessage()
-                    }
-                )
+            Text(active.badge, color = P.Accent, fontSize = 14.sp)
+            Spacer(Modifier.width(6.dp))
+            Text(
+                active.name, color = P.Muted, fontSize = 13.sp, fontWeight = FontWeight.Medium,
+                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 220.dp)
             )
-
-            // Dynamic Action Button (Send or Stop)
-            if (isGenerating) {
-                IconButton(
-                    onClick = onStopGeneration,
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(Color(0xFF2E191C))
-                        .border(1.dp, Color(0xFFF87171), CircleShape)
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Stop,
-                        contentDescription = "Stop Generation",
-                        tint = Color(0xFFF87171),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
-            } else {
-                val canSubmit = inputText.isNotBlank()
-                IconButton(
-                    onClick = {
-                        if (canSubmit) {
-                            if (editingMessage != null) onSubmitEdit() else onSendMessage()
+            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Choose persona", tint = P.Faint, modifier = Modifier.size(18.dp))
+        }
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            personas.forEach { persona ->
+                DropdownMenuItem(
+                    text = {
+                        Column(Modifier.padding(vertical = 2.dp), verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                            Text(
+                                "${persona.badge}  ${persona.name}",
+                                color = if (persona.id == active.id) P.Accent else P.Text,
+                                fontSize = 14.sp, fontWeight = FontWeight.Medium
+                            )
+                            if (persona.tagline.isNotBlank()) {
+                                Text(persona.tagline, color = P.Muted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            }
                         }
                     },
-                    enabled = canSubmit,
-                    modifier = Modifier
-                        .size(44.dp)
-                        .clip(CircleShape)
-                        .background(if (canSubmit) Color(0xFF38BDF8) else Color(0xFF1A1D24))
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.ArrowUpward,
-                        contentDescription = "Send Message",
-                        tint = if (canSubmit) Color(0xFF000000) else Color(0xFF4B5563),
-                        modifier = Modifier.size(20.dp)
-                    )
-                }
+                    onClick = {
+                        menuOpen = false
+                        onSelect(persona)
+                    }
+                )
             }
         }
     }

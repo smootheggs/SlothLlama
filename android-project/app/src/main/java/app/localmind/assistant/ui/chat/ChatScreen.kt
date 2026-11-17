@@ -1,276 +1,235 @@
 package app.localmind.assistant.ui.chat
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Menu
-import androidx.compose.material.icons.filled.PersonOutline
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material3.DrawerValue
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.ModalDrawerSheet
+import androidx.compose.material3.ModalNavigationDrawer
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDrawerState
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import app.localmind.assistant.ui.chat.components.*
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.localmind.assistant.ui.chat.components.ChatInputBar
+import app.localmind.assistant.ui.chat.components.ClearAllConversationsDialog
+import app.localmind.assistant.ui.chat.components.ConversationDrawerContent
+import app.localmind.assistant.ui.chat.components.DefaultStarterPrompts
+import app.localmind.assistant.ui.chat.components.DeleteConversationDialog
+import app.localmind.assistant.ui.chat.components.MessageList
+import app.localmind.assistant.ui.chat.components.RenameConversationDialog
 import app.localmind.assistant.ui.speech.LocalSpeakAction
 import app.localmind.assistant.ui.speech.rememberTutorSpeaker
 import kotlinx.coroutines.launch
+import app.localmind.assistant.ui.theme.SlothPalette as P
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatScreen(
     viewModel: ChatViewModel,
+    onOpenPersonas: () -> Unit,
+    onOpenModels: () -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val uiState by viewModel.uiState.collectAsState()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
-    val coroutineScope = rememberCoroutineScope()
+    val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
     val speaker = rememberTutorSpeaker()
     val persona = uiState.activePersona
     val speakAction: ((String) -> Unit)? = persona.speech?.let { language ->
         { text: String -> speaker.speak(text, language) }
     }
-    var isPersonaMenuOpen by remember { mutableStateOf(false) }
 
-    // Sync drawer state with view model if needed
     LaunchedEffect(uiState.isDrawerOpen) {
-        if (uiState.isDrawerOpen && drawerState.isClosed) {
-            drawerState.open()
-        } else if (!uiState.isDrawerOpen && drawerState.isOpen) {
-            drawerState.close()
-        }
+        if (uiState.isDrawerOpen && drawerState.isClosed) drawerState.open()
+        else if (!uiState.isDrawerOpen && drawerState.isOpen) drawerState.close()
     }
-
     LaunchedEffect(drawerState.isOpen) {
-        if (drawerState.isOpen != uiState.isDrawerOpen) {
-            viewModel.setDrawerOpen(drawerState.isOpen)
-        }
+        if (drawerState.isOpen != uiState.isDrawerOpen) viewModel.setDrawerOpen(drawerState.isOpen)
     }
-
-    // Handle error message snackbar
     LaunchedEffect(uiState.errorMessage) {
-        uiState.errorMessage?.let { error ->
-            snackbarHostState.showSnackbar(message = error)
+        uiState.errorMessage?.let {
+            snackbarHostState.showSnackbar(it)
             viewModel.clearError()
         }
+    }
+
+    fun closeDrawerThen(action: () -> Unit) {
+        scope.launch { drawerState.close() }
+        action()
     }
 
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
             ModalDrawerSheet(
-                drawerContainerColor = Color(0xFF090A0D),
-                modifier = Modifier.width(300.dp)
+                drawerContainerColor = P.Card,
+                drawerShape = androidx.compose.foundation.shape.RoundedCornerShape(topEnd = 20.dp, bottomEnd = 20.dp),
+                modifier = Modifier.width(320.dp)
             ) {
                 ConversationDrawerContent(
                     conversations = uiState.conversations,
                     archivedConversations = uiState.archivedConversations,
                     activeConversationId = uiState.activeConversationId,
-                    onSelectConversation = { id ->
-                        viewModel.selectConversation(id)
-                        coroutineScope.launch { drawerState.close() }
-                    },
-                    onNewConversation = {
-                        viewModel.createNewConversation()
-                        coroutineScope.launch { drawerState.close() }
-                    },
-                    onRenameConversation = { conv -> viewModel.requestRenameConversation(conv) },
-                    onArchiveConversation = { conv -> viewModel.archiveConversation(conv) },
-                    onDeleteConversation = { conv -> viewModel.requestDeleteConversation(conv) },
-                    onClearAll = { viewModel.requestClearAll() }
+                    onSelectConversation = { id -> closeDrawerThen { viewModel.selectConversation(id) } },
+                    onNewConversation = { closeDrawerThen { viewModel.createNewConversation() } },
+                    onRenameConversation = viewModel::requestRenameConversation,
+                    onArchiveConversation = viewModel::archiveConversation,
+                    onDeleteConversation = viewModel::requestDeleteConversation,
+                    onClearAll = viewModel::requestClearAll,
+                    onOpenPersonas = { closeDrawerThen(onOpenPersonas) },
+                    onOpenModels = { closeDrawerThen(onOpenModels) },
+                    onOpenSettings = { closeDrawerThen(onOpenSettings) },
+                    modelStatus = uiState.activeModelName
                 )
             }
         }
     ) {
         CompositionLocalProvider(LocalSpeakAction provides speakAction) {
-        Scaffold(
-            containerColor = Color.Black,
-            topBar = {
-                TopAppBar(
-                    title = {
-                        Column {
-                            Text(
-                                text = uiState.activeConversation?.title ?: "SlothLlama",
-                                color = Color(0xFFF4F4F6),
-                                fontSize = 16.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis
-                            )
-                            // Model badge
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(4.dp),
-                                modifier = Modifier.padding(top = 1.dp)
-                            ) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(6.dp)
-                                        .clip(CircleShape)
-                                        .background(
-                                            when (uiState.modelStatus) {
-                                                ModelRuntimeStatus.GENERATING -> Color(0xFF38BDF8)
-                                                ModelRuntimeStatus.READY -> Color(0xFF34D399)
-                                                ModelRuntimeStatus.NO_MODEL_LOADED -> Color(0xFFFBBF24)
-                                                ModelRuntimeStatus.ERROR -> Color(0xFFF87171)
-                                            }
-                                        )
-                                )
-                                Text(
-                                    text = "${persona.badge} ${persona.name} · " +
-                                        (if (uiState.isGenerating) "Generating..." else uiState.activeModelName),
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                    color = Color(0xFF8E929F),
-                                    fontSize = 11.sp
-                                )
-                            }
-                        }
-                    },
-                    navigationIcon = {
-                        IconButton(
-                            onClick = {
-                                coroutineScope.launch {
-                                    if (drawerState.isClosed) drawerState.open() else drawerState.close()
+            Scaffold(
+                containerColor = P.Canvas,
+                // Insets are handled once: the top bar takes the status bar, the composer
+                // takes the gesture bar and keyboard.
+                contentWindowInsets = WindowInsets(0, 0, 0, 0),
+                topBar = {
+                    Column {
+                        TopAppBar(
+                            navigationIcon = {
+                                IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                    Icon(Icons.Default.Menu, contentDescription = "Open menu", tint = P.Text)
                                 }
-                            }
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.Menu,
-                                contentDescription = "Open conversation history",
-                                tint = Color(0xFFF4F4F6)
-                            )
-                        }
-                    },
-                    actions = {
-                        Box {
-                            IconButton(
-                                onClick = { isPersonaMenuOpen = true },
-                                enabled = !uiState.isGenerating
-                            ) {
-                                Icon(
-                                    imageVector = Icons.Default.PersonOutline,
-                                    contentDescription = "Choose persona",
-                                    tint = Color(0xFF38BDF8)
-                                )
-                            }
-                            DropdownMenu(
-                                expanded = isPersonaMenuOpen,
-                                onDismissRequest = { isPersonaMenuOpen = false }
-                            ) {
-                                uiState.personas.forEach { option ->
-                                    DropdownMenuItem(
-                                        text = {
-                                            Column {
-                                                Text(
-                                                    text = "${option.badge}  ${option.name}",
-                                                    color = if (option.id == persona.id) Color(0xFF38BDF8) else Color(0xFFF4F4F6),
-                                                    fontWeight = FontWeight.SemiBold,
-                                                    fontSize = 14.sp
-                                                )
-                                                Text(
-                                                    text = option.tagline,
-                                                    color = Color(0xFF8E929F),
-                                                    fontSize = 12.sp
-                                                )
-                                            }
-                                        },
-                                        onClick = {
-                                            isPersonaMenuOpen = false
-                                            speaker.stop()
-                                            viewModel.startConversationWith(option.id)
-                                        }
+                            },
+                            title = {
+                                Column {
+                                    Text(
+                                        uiState.activeConversation?.title ?: "New chat",
+                                        color = P.Text, fontSize = 16.sp, fontWeight = FontWeight.SemiBold,
+                                        maxLines = 1, overflow = TextOverflow.Ellipsis
                                     )
+                                    ModelStatusLine(uiState)
                                 }
-                            }
+                            },
+                            actions = {
+                                IconButton(onClick = { viewModel.createNewConversation() }, enabled = !uiState.isGenerating) {
+                                    Icon(Icons.Outlined.EditNote, contentDescription = "New chat", tint = P.Text)
+                                }
+                            },
+                            colors = TopAppBarDefaults.topAppBarColors(containerColor = P.Canvas)
+                        )
+                        HorizontalDivider(color = P.Border)
+                    }
+                },
+                bottomBar = {
+                    ChatInputBar(
+                        inputText = uiState.inputText,
+                        onInputTextChanged = viewModel::onInputTextChanged,
+                        onSendMessage = viewModel::sendMessage,
+                        onStopGeneration = viewModel::stopGeneration,
+                        isGenerating = uiState.isGenerating,
+                        editingMessage = uiState.editingMessage,
+                        onCancelEdit = viewModel::cancelEditingMessage,
+                        onSubmitEdit = viewModel::submitEditedMessage,
+                        activePersona = persona,
+                        personas = uiState.personas,
+                        onSelectPersona = { selected ->
+                            speaker.stop()
+                            viewModel.startConversationWith(selected.id)
                         }
-                        IconButton(onClick = { viewModel.createNewConversation() }) {
-                            Icon(
-                                imageVector = Icons.Default.Add,
-                                contentDescription = "New Conversation",
-                                tint = Color(0xFF38BDF8)
-                            )
-                        }
-                    },
-                    colors = TopAppBarDefaults.topAppBarColors(
-                        containerColor = Color(0xFF090A0D)
                     )
-                )
-            },
-            snackbarHost = { SnackbarHost(snackbarHostState) },
-            modifier = modifier
-        ) { innerPadding ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .background(Color.Black)
-            ) {
-                // Message list occupying upper area
-                Box(modifier = Modifier.weight(1f)) {
+                },
+                snackbarHost = { SnackbarHost(snackbarHostState) },
+                modifier = modifier
+            ) { innerPadding ->
+                Box(Modifier.fillMaxSize().padding(innerPadding).background(P.Canvas)) {
                     MessageList(
-                        emptyTitle = "${persona.badge}  ${persona.name}",
-                        emptySubtitle = persona.tagline,
-                        starterPrompts = persona.starterPrompts.ifEmpty { DefaultStarterPrompts },
                         messages = uiState.messages,
                         isGenerating = uiState.isGenerating,
-                        onEditUserMessage = { msg -> viewModel.startEditingMessage(msg) },
-                        onRegenerate = { viewModel.regenerateLastResponse() },
-                        onRetry = { viewModel.regenerateLastResponse() },
+                        onEditUserMessage = viewModel::startEditingMessage,
+                        onRegenerate = viewModel::regenerateLastResponse,
+                        onRetry = viewModel::regenerateLastResponse,
                         onStarterPromptSelected = { prompt ->
                             viewModel.onInputTextChanged(prompt)
                             viewModel.sendMessage()
-                        }
+                        },
+                        emptyBadge = persona.badge,
+                        emptyTitle = persona.name,
+                        emptySubtitle = persona.tagline.ifBlank { "Private · on-device · offline" },
+                        starterPrompts = persona.starterPrompts.ifEmpty { DefaultStarterPrompts }
                     )
                 }
-
-                // Chat Input bar docked at bottom
-                ChatInputBar(
-                    inputText = uiState.inputText,
-                    onInputTextChanged = { text -> viewModel.onInputTextChanged(text) },
-                    onSendMessage = { viewModel.sendMessage() },
-                    onStopGeneration = { viewModel.stopGeneration() },
-                    isGenerating = uiState.isGenerating,
-                    editingMessage = uiState.editingMessage,
-                    onCancelEdit = { viewModel.cancelEditingMessage() },
-                    onSubmitEdit = { viewModel.submitEditedMessage() }
-                )
             }
         }
-        } // CompositionLocalProvider
     }
 
-    // Dialogs
     uiState.renameTarget?.let { conv ->
         RenameConversationDialog(
             conversation = conv,
-            onConfirm = { newTitle -> viewModel.confirmRenameConversation(newTitle) },
-            onDismiss = { viewModel.dismissRenameDialog() }
+            onConfirm = viewModel::confirmRenameConversation,
+            onDismiss = viewModel::dismissRenameDialog
         )
     }
-
     uiState.deleteTarget?.let { conv ->
         DeleteConversationDialog(
             conversation = conv,
-            onConfirm = { viewModel.confirmDeleteConversation() },
-            onDismiss = { viewModel.dismissDeleteDialog() }
+            onConfirm = viewModel::confirmDeleteConversation,
+            onDismiss = viewModel::dismissDeleteDialog
         )
     }
-
     if (uiState.isClearAllConfirmOpen) {
         ClearAllConversationsDialog(
-            onConfirm = { viewModel.confirmClearAll() },
-            onDismiss = { viewModel.dismissClearAllDialog() }
+            onConfirm = viewModel::confirmClearAll,
+            onDismiss = viewModel::dismissClearAllDialog
+        )
+    }
+}
+
+/** "● Qwen2.5-3B-Instruct" — a small coloured dot shows whether the model is ready. */
+@Composable
+private fun ModelStatusLine(uiState: ChatUiState) {
+    val dot = when (uiState.modelStatus) {
+        ModelRuntimeStatus.GENERATING -> P.Accent
+        ModelRuntimeStatus.READY -> P.Success
+        ModelRuntimeStatus.NO_MODEL_LOADED -> P.Warning
+        ModelRuntimeStatus.ERROR -> P.Danger
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Box(Modifier.size(6.dp).clip(CircleShape).background(dot))
+        Text(
+            if (uiState.isGenerating) "Generating…" else uiState.activeModelName,
+            color = P.Muted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
         )
     }
 }

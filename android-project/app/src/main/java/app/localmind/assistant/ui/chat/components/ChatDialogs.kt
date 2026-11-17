@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.localmind.assistant.ui.theme.SlothPalette as P
 import app.localmind.assistant.domain.model.Conversation
 
 @Composable
@@ -24,11 +25,11 @@ fun RenameConversationDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF11141A),
+        containerColor = P.Card,
         title = {
             Text(
                 text = "Rename conversation",
-                color = Color(0xFFF4F4F6),
+                color = P.Text,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -39,10 +40,10 @@ fun RenameConversationDialog(
                 onValueChange = { title = it },
                 singleLine = true,
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = Color(0xFF38BDF8),
-                    unfocusedBorderColor = Color(0xFF2A2E38),
-                    focusedTextColor = Color(0xFFF4F4F6),
-                    unfocusedTextColor = Color(0xFFF4F4F6)
+                    focusedBorderColor = P.Accent,
+                    unfocusedBorderColor = P.BorderStrong,
+                    focusedTextColor = P.Text,
+                    unfocusedTextColor = P.Text
                 ),
                 modifier = Modifier.fillMaxWidth()
             )
@@ -51,8 +52,8 @@ fun RenameConversationDialog(
             Button(
                 onClick = { onConfirm(title) },
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF38BDF8),
-                    contentColor = Color(0xFF000000)
+                    containerColor = P.Accent,
+                    contentColor = P.OnAccent
                 )
             ) {
                 Text("Save", fontWeight = FontWeight.SemiBold)
@@ -61,7 +62,7 @@ fun RenameConversationDialog(
         dismissButton = {
             TextButton(
                 onClick = onDismiss,
-                colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF8E929F))
+                colors = ButtonDefaults.textButtonColors(contentColor = P.Muted)
             ) {
                 Text("Cancel")
             }
@@ -77,11 +78,11 @@ fun DeleteConversationDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF11141A),
+        containerColor = P.Card,
         title = {
             Text(
                 text = "Delete conversation?",
-                color = Color(0xFFF4F4F6),
+                color = P.Text,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -89,7 +90,7 @@ fun DeleteConversationDialog(
         text = {
             Text(
                 text = "Are you sure you want to delete \"${conversation.title}\"? This action cannot be undone.",
-                color = Color(0xFF9CA3AF),
+                color = P.Muted,
                 fontSize = 14.sp
             )
         },
@@ -97,8 +98,8 @@ fun DeleteConversationDialog(
             Button(
                 onClick = onConfirm,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFDC2626),
-                    contentColor = Color(0xFFFFFFFF)
+                    containerColor = P.Danger,
+                    contentColor = Color.White
                 )
             ) {
                 Text("Delete", fontWeight = FontWeight.SemiBold)
@@ -107,7 +108,7 @@ fun DeleteConversationDialog(
         dismissButton = {
             TextButton(
                 onClick = onDismiss,
-                colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF8E929F))
+                colors = ButtonDefaults.textButtonColors(contentColor = P.Muted)
             ) {
                 Text("Cancel")
             }
@@ -122,11 +123,11 @@ fun ClearAllConversationsDialog(
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
-        containerColor = Color(0xFF11141A),
+        containerColor = P.Card,
         title = {
             Text(
                 text = "Delete all conversations?",
-                color = Color(0xFFF4F4F6),
+                color = P.Text,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.SemiBold
             )
@@ -134,7 +135,7 @@ fun ClearAllConversationsDialog(
         text = {
             Text(
                 text = "This will permanently delete all conversations and message history from your device. Model weights and personas will not be affected.",
-                color = Color(0xFF9CA3AF),
+                color = P.Muted,
                 fontSize = 14.sp
             )
         },
@@ -142,8 +143,8 @@ fun ClearAllConversationsDialog(
             Button(
                 onClick = onConfirm,
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFFDC2626),
-                    contentColor = Color(0xFFFFFFFF)
+                    containerColor = P.Danger,
+                    contentColor = Color.White
                 )
             ) {
                 Text("Delete All", fontWeight = FontWeight.SemiBold)
@@ -152,7 +153,7 @@ fun ClearAllConversationsDialog(
         dismissButton = {
             TextButton(
                 onClick = onDismiss,
-                colors = ButtonDefaults.textButtonColors(contentColor = Color(0xFF8E929F))
+                colors = ButtonDefaults.textButtonColors(contentColor = P.Muted)
             ) {
                 Text("Cancel")
             }

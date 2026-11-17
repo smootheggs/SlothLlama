@@ -1,27 +1,59 @@
 package app.localmind.assistant.ui.chat.components
 
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.DeleteOutline
+import androidx.compose.material.icons.outlined.DeleteSweep
+import androidx.compose.material.icons.outlined.DriveFileRenameOutline
+import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.Memory
+import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.PersonOutline
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Unarchive
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.localmind.assistant.domain.model.Conversation
+import app.localmind.assistant.ui.theme.SlothPalette as P
 
+/**
+ * The app's navigation, Claude-style: new chat, the main destinations, then recent chats.
+ */
 @Composable
 fun ConversationDrawerContent(
     conversations: List<Conversation>,
@@ -33,164 +65,131 @@ fun ConversationDrawerContent(
     onArchiveConversation: (Conversation) -> Unit,
     onDeleteConversation: (Conversation) -> Unit,
     onClearAll: () -> Unit,
-    modifier: Modifier = Modifier
+    onOpenPersonas: () -> Unit = {},
+    onOpenModels: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+    modelStatus: String = ""
 ) {
-    var isArchivedExpanded by remember { mutableStateOf(false) }
+    var archivedOpen by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = modifier
-            .fillMaxHeight()
-            .width(300.dp)
-            .background(Color(0xFF090A0D))
-            .padding(16.dp)
-    ) {
-        // App header
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            modifier = Modifier.padding(bottom = 16.dp, top = 8.dp)
-        ) {
-            Icon(
-                imageVector = Icons.Default.ChatBubbleOutline,
-                contentDescription = null,
-                tint = Color(0xFF38BDF8),
-                modifier = Modifier.size(24.dp)
-            )
-            Text(
-                text = "SlothLlama",
-                color = Color(0xFFF4F4F6),
-                fontSize = 18.sp,
-                fontWeight = FontWeight.Bold
-            )
-        }
-
-        // "+ New Chat" Button
-        Button(
-            onClick = onNewConversation,
-            colors = ButtonDefaults.buttonColors(
-                containerColor = Color(0xFF1E222A),
-                contentColor = Color(0xFFF4F4F6)
-            ),
-            shape = RoundedCornerShape(12.dp),
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(44.dp)
-                .border(1.dp, Color(0xFF2E3440), RoundedCornerShape(12.dp))
-        ) {
-            Icon(
-                imageVector = Icons.Default.Add,
-                contentDescription = null,
-                tint = Color(0xFF38BDF8),
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text("New Chat", fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-        }
-
-        Spacer(modifier = Modifier.height(16.dp))
-
+    Column(Modifier.fillMaxHeight().background(P.Card).padding(horizontal = 12.dp)) {
         Text(
-            text = "Conversations",
-            color = Color(0xFF6B7280),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
+            "SlothLlama",
+            color = P.Text, fontSize = 20.sp, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.padding(start = 12.dp, top = 20.dp, bottom = 16.dp)
         )
 
-        // Conversation List
-        LazyColumn(
-            modifier = Modifier
-                .weight(1f)
-                .fillMaxWidth(),
-            verticalArrangement = Arrangement.spacedBy(4.dp)
-        ) {
-            if (conversations.isEmpty() && archivedConversations.isEmpty()) {
+        NavRow(Icons.Outlined.EditNote, "New chat", onNewConversation, highlighted = true)
+        NavRow(Icons.Outlined.PersonOutline, "Personas", onOpenPersonas)
+        NavRow(Icons.Outlined.Memory, "Models", onOpenModels, trailing = modelStatus)
+        NavRow(Icons.Outlined.Settings, "Settings", onOpenSettings)
+
+        HorizontalDivider(color = P.Border, modifier = Modifier.padding(vertical = 12.dp, horizontal = 8.dp))
+
+        Text(
+            "Recent", color = P.Faint, fontSize = 12.sp, fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(start = 12.dp, bottom = 4.dp)
+        )
+
+        LazyColumn(Modifier.weight(1f)) {
+            if (conversations.isEmpty()) {
                 item {
                     Text(
-                        text = "No conversations yet",
-                        color = Color(0xFF4B5563),
-                        fontSize = 13.sp,
-                        modifier = Modifier.padding(8.dp)
+                        "No conversations yet", color = P.Faint, fontSize = 13.sp,
+                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                     )
                 }
             }
-
             items(conversations, key = { it.id }) { conversation ->
                 ConversationDrawerItem(
                     conversation = conversation,
-                    isSelected = conversation.id == activeConversationId,
+                    isActive = conversation.id == activeConversationId,
                     onSelect = { onSelectConversation(conversation.id) },
                     onRename = { onRenameConversation(conversation) },
                     onArchive = { onArchiveConversation(conversation) },
                     onDelete = { onDeleteConversation(conversation) }
                 )
             }
-
-            // Archived section
             if (archivedConversations.isNotEmpty()) {
                 item {
                     Row(
-                        modifier = Modifier
+                        Modifier
                             .fillMaxWidth()
-                            .clickable { isArchivedExpanded = !isArchivedExpanded }
-                            .padding(vertical = 8.dp, horizontal = 4.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.SpaceBetween
+                            .clip(RoundedCornerShape(10.dp))
+                            .clickable { archivedOpen = !archivedOpen }
+                            .padding(horizontal = 12.dp, vertical = 10.dp),
+                        verticalAlignment = Alignment.CenterVertically
                     ) {
                         Text(
-                            text = "Archived (${archivedConversations.size})",
-                            color = Color(0xFF8E929F),
-                            fontSize = 12.sp,
-                            fontWeight = FontWeight.Medium
+                            "Archived (${archivedConversations.size})",
+                            color = P.Faint, fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                            modifier = Modifier.weight(1f)
                         )
                         Icon(
-                            imageVector = if (isArchivedExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                            contentDescription = null,
-                            tint = Color(0xFF8E929F),
-                            modifier = Modifier.size(18.dp)
+                            if (archivedOpen) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                            contentDescription = null, tint = P.Faint, modifier = Modifier.size(18.dp)
                         )
                     }
                 }
-
-                if (isArchivedExpanded) {
-                    items(archivedConversations, key = { "archived-${it.id}" }) { conv ->
+                if (archivedOpen) {
+                    items(archivedConversations, key = { "archived-${it.id}" }) { conversation ->
                         ConversationDrawerItem(
-                            conversation = conv,
-                            isSelected = conv.id == activeConversationId,
-                            onSelect = { onSelectConversation(conv.id) },
-                            onRename = { onRenameConversation(conv) },
-                            onArchive = { onArchiveConversation(conv) },
-                            onDelete = { onDeleteConversation(conv) }
+                            conversation = conversation,
+                            isActive = conversation.id == activeConversationId,
+                            onSelect = { onSelectConversation(conversation.id) },
+                            onRename = { onRenameConversation(conversation) },
+                            onArchive = { onArchiveConversation(conversation) },
+                            onDelete = { onDeleteConversation(conversation) }
                         )
                     }
                 }
             }
         }
 
-        // Clear all conversations footer
-        Divider(color = Color(0xFF1E222A), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
+        if (conversations.isNotEmpty() || archivedConversations.isNotEmpty()) {
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 8.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .clickable(onClick = onClearAll)
+                    .padding(horizontal = 12.dp, vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(Icons.Outlined.DeleteSweep, contentDescription = null, tint = P.Faint, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(10.dp))
+                Text("Delete all conversations", color = P.Faint, fontSize = 13.sp)
+            }
+        }
+    }
+}
 
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .clip(RoundedCornerShape(8.dp))
-                .clickable(onClick = onClearAll)
-                .padding(horizontal = 8.dp, vertical = 8.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Default.DeleteSweep,
-                contentDescription = null,
-                tint = Color(0xFFF87171),
-                modifier = Modifier.size(18.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
-            Text(
-                text = "Delete all conversations",
-                color = Color(0xFFF87171),
-                fontSize = 13.sp,
-                fontWeight = FontWeight.Medium
-            )
+@Composable
+private fun NavRow(
+    icon: ImageVector,
+    label: String,
+    onClick: () -> Unit,
+    highlighted: Boolean = false,
+    trailing: String = ""
+) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 11.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(icon, contentDescription = null, tint = if (highlighted) P.Accent else P.Muted, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(14.dp))
+        Text(
+            label, color = if (highlighted) P.Accent else P.Text, fontSize = 15.sp,
+            fontWeight = if (highlighted) FontWeight.SemiBold else FontWeight.Normal,
+            modifier = Modifier.weight(1f)
+        )
+        if (trailing.isNotBlank()) {
+            Text(trailing, color = P.Faint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.padding(start = 8.dp))
         }
     }
 }
@@ -198,105 +197,57 @@ fun ConversationDrawerContent(
 @Composable
 fun ConversationDrawerItem(
     conversation: Conversation,
-    isSelected: Boolean,
+    isActive: Boolean,
     onSelect: () -> Unit,
     onRename: () -> Unit,
     onArchive: () -> Unit,
     onDelete: () -> Unit
 ) {
-    var isMenuOpen by remember { mutableStateOf(false) }
-
-    Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(8.dp))
-            .background(if (isSelected) Color(0xFF151922) else Color.Transparent)
-            .clickable(onClick = onSelect)
-            .padding(horizontal = 10.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
+    var menuOpen by remember { mutableStateOf(false) }
+    Box {
         Row(
-            modifier = Modifier.weight(1f),
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .background(if (isActive) P.Elevated else P.Card)
+                .clickable(onClick = onSelect)
+                .padding(start = 12.dp, end = 2.dp)
+                .height(44.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Icon(
-                imageVector = if (conversation.isArchived) Icons.Default.Archive else Icons.Default.ChatBubbleOutline,
-                contentDescription = null,
-                tint = if (isSelected) Color(0xFF38BDF8) else Color(0xFF6B7280),
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.width(8.dp))
             Text(
-                text = conversation.title,
-                color = if (isSelected) Color(0xFFF4F4F6) else Color(0xFF9CA3AF),
-                fontSize = 13.sp,
-                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
+                conversation.title,
+                color = if (isActive) P.Text else P.Muted,
+                fontSize = 14.sp,
+                fontWeight = if (isActive) FontWeight.Medium else FontWeight.Normal,
+                maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
             )
+            IconButton(onClick = { menuOpen = true }, modifier = Modifier.size(36.dp)) {
+                Icon(Icons.Outlined.MoreHoriz, contentDescription = "Conversation options", tint = P.Faint, modifier = Modifier.size(18.dp))
+            }
         }
-
-        Box {
-            IconButton(
-                onClick = { isMenuOpen = true },
-                modifier = Modifier.size(24.dp)
-            ) {
-                Icon(
-                    imageVector = Icons.Default.MoreVert,
-                    contentDescription = "Options",
-                    tint = Color(0xFF6B7280),
-                    modifier = Modifier.size(16.dp)
-                )
-            }
-
-            DropdownMenu(
-                expanded = isMenuOpen,
-                onDismissRequest = { isMenuOpen = false },
-                modifier = Modifier.background(Color(0xFF12151C))
-            ) {
-                DropdownMenuItem(
-                    text = { Text("Rename", color = Color(0xFFF4F4F6), fontSize = 13.sp) },
-                    leadingIcon = {
-                        Icon(Icons.Default.Edit, contentDescription = null, tint = Color(0xFF8E929F), modifier = Modifier.size(16.dp))
-                    },
-                    onClick = {
-                        isMenuOpen = false
-                        onRename()
-                    }
-                )
-                DropdownMenuItem(
-                    text = {
-                        Text(
-                            text = if (conversation.isArchived) "Unarchive" else "Archive",
-                            color = Color(0xFFF4F4F6),
-                            fontSize = 13.sp
-                        )
-                    },
-                    leadingIcon = {
-                        Icon(
-                            if (conversation.isArchived) Icons.Default.Unarchive else Icons.Default.Archive,
-                            contentDescription = null,
-                            tint = Color(0xFF8E929F),
-                            modifier = Modifier.size(16.dp)
-                        )
-                    },
-                    onClick = {
-                        isMenuOpen = false
-                        onArchive()
-                    }
-                )
-                DropdownMenuItem(
-                    text = { Text("Delete", color = Color(0xFFF87171), fontSize = 13.sp) },
-                    leadingIcon = {
-                        Icon(Icons.Default.Delete, contentDescription = null, tint = Color(0xFFF87171), modifier = Modifier.size(16.dp))
-                    },
-                    onClick = {
-                        isMenuOpen = false
-                        onDelete()
-                    }
-                )
-            }
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }, modifier = Modifier.align(Alignment.TopEnd)) {
+            DropdownMenuItem(
+                text = { Text("Rename", color = P.Text, fontSize = 14.sp) },
+                leadingIcon = { Icon(Icons.Outlined.DriveFileRenameOutline, null, tint = P.Muted, modifier = Modifier.size(18.dp)) },
+                onClick = { menuOpen = false; onRename() }
+            )
+            DropdownMenuItem(
+                text = { Text(if (conversation.isArchived) "Unarchive" else "Archive", color = P.Text, fontSize = 14.sp) },
+                leadingIcon = {
+                    Icon(
+                        if (conversation.isArchived) Icons.Outlined.Unarchive else Icons.Outlined.Archive,
+                        null, tint = P.Muted, modifier = Modifier.size(18.dp)
+                    )
+                },
+                onClick = { menuOpen = false; onArchive() }
+            )
+            DropdownMenuItem(
+                text = { Text("Delete", color = P.Danger, fontSize = 14.sp) },
+                leadingIcon = { Icon(Icons.Outlined.DeleteOutline, null, tint = P.Danger, modifier = Modifier.size(18.dp)) },
+                onClick = { menuOpen = false; onDelete() }
+            )
         }
     }
 }

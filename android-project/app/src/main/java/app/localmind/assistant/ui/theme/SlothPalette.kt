@@ -1,19 +1,29 @@
 package app.localmind.assistant.ui.theme
 
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.graphics.Color
 
-/** The SlothLlama / LocalMind palette from the AI Studio prototype: true OLED black, one sky accent. */
+/**
+ * Short names for the current theme's colours, usable anywhere inside a composable:
+ * `import app.localmind.assistant.ui.theme.SlothPalette as P` then `P.Text`, `P.Accent`, …
+ */
 object SlothPalette {
-    val Canvas = Color(0xFF000000)
-    val Card = Color(0xFF0B0C0E)
-    val Elevated = Color(0xFF121418)
-    val Border = Color(0xFF1E2028)
-    val Text = Color(0xFFF4F4F6)
-    val Muted = Color(0xFF8E929F)
-    val Faint = Color(0xFF6B7280)
-    val Accent = Color(0xFF38BDF8)
-    val AccentSoft = Color(0xFF0C2A3A)
-    val Success = Color(0xFF34D399)
-    val Warning = Color(0xFFFBBF24)
-    val Danger = Color(0xFFF87171)
+    val Canvas: Color @Composable @ReadOnlyComposable get() = LocalSlothColors.current.canvas
+    val Card: Color @Composable @ReadOnlyComposable get() = LocalSlothColors.current.surface
+    val Elevated: Color @Composable @ReadOnlyComposable get() = LocalSlothColors.current.elevated
+    val Border: Color @Composable @ReadOnlyComposable get() = LocalSlothColors.current.border
+    val BorderStrong: Color @Composable @ReadOnlyComposable get() = LocalSlothColors.current.borderStrong
+    val Text: Color @Composable @ReadOnlyComposable get() = LocalSlothColors.current.text
+    val Muted: Color @Composable @ReadOnlyComposable get() = LocalSlothColors.current.muted
+    val Faint: Color @Composable @ReadOnlyComposable get() = LocalSlothColors.current.faint
+    val Accent: Color @Composable @ReadOnlyComposable get() = LocalSlothColors.current.accent
+    val OnAccent: Color @Composable @ReadOnlyComposable get() = LocalSlothColors.current.onAccent
+    val AccentSoft: Color @Composable @ReadOnlyComposable get() = LocalSlothColors.current.accentSoft
+    val Success: Color @Composable @ReadOnlyComposable get() = LocalSlothColors.current.success
+    val Warning: Color @Composable @ReadOnlyComposable get() = LocalSlothColors.current.warning
+    val Danger: Color @Composable @ReadOnlyComposable get() = LocalSlothColors.current.danger
+    val DangerSoft: Color @Composable @ReadOnlyComposable get() = LocalSlothColors.current.dangerSoft
+    val CodeBackground: Color @Composable @ReadOnlyComposable get() = LocalSlothColors.current.codeBackground
+    val CodeText: Color @Composable @ReadOnlyComposable get() = LocalSlothColors.current.codeText
 }
