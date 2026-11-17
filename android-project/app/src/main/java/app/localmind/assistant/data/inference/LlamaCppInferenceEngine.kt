@@ -64,6 +64,7 @@ class LlamaCppInferenceEngine @Inject constructor(
             nativeChat = null
             status.set(EngineRuntimeState.Ready(file.name, loadedContext))
             Log.i(TAG, "Loaded ${file.name}, context=$loadedContext\n${LlamaNative.systemInfo()}")
+            Unit
         }.onFailure { e ->
             loadedFile = null
             status.set(EngineRuntimeState.Failed(file.name, e.message ?: e.toString()))
