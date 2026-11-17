@@ -32,6 +32,18 @@ android {
         schemaDirectory("$projectDir/schemas")
     }
 
+    // A fixed debug key (committed on purpose) so every build — on GitHub Actions or in
+    // Android Studio — installs over the previous one and keeps your chats and personas.
+    // It's the standard debug setup; don't use it for a Play Store release.
+    signingConfigs {
+        getByName("debug") {
+            storeFile = file("debug.keystore")
+            storePassword = "android"
+            keyAlias = "androiddebugkey"
+            keyPassword = "android"
+        }
+    }
+
     buildTypes {
         release {
             isMinifyEnabled = true
@@ -44,6 +56,7 @@ android {
         debug {
             isMinifyEnabled = false
             applicationIdSuffix = ".debug"
+            signingConfig = signingConfigs.getByName("debug")
         }
     }
 
