@@ -42,6 +42,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.localmind.assistant.domain.persona.BuiltInPersonas
 import app.localmind.assistant.ui.chat.components.ChatInputBar
 import app.localmind.assistant.ui.chat.components.ClearAllConversationsDialog
 import app.localmind.assistant.ui.chat.components.ConversationDrawerContent
@@ -187,7 +188,8 @@ fun ChatScreen(
                         emptyBadge = persona.badge,
                         emptyTitle = persona.name,
                         emptySubtitle = persona.tagline.ifBlank { "Private · on-device · offline" },
-                        starterPrompts = persona.starterPrompts.ifEmpty { DefaultStarterPrompts }
+                        starterPrompts = persona.starterPrompts.ifEmpty { DefaultStarterPrompts },
+                        showMascot = persona.id == BuiltInPersonas.GENERAL_ASSISTANT.id
                     )
                 }
             }

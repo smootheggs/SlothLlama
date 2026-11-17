@@ -1,5 +1,6 @@
 package app.localmind.assistant.ui.chat.components
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -36,6 +37,8 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.painterResource
+import app.localmind.assistant.R
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -73,11 +76,18 @@ fun ConversationDrawerContent(
     var archivedOpen by remember { mutableStateOf(false) }
 
     Column(Modifier.fillMaxHeight().background(P.Card).padding(horizontal = 12.dp)) {
-        Text(
-            "SlothLlama",
-            color = P.Text, fontSize = 20.sp, fontWeight = FontWeight.SemiBold,
-            modifier = Modifier.padding(start = 12.dp, top = 20.dp, bottom = 16.dp)
-        )
+        Row(
+            Modifier.padding(start = 10.dp, top = 18.dp, bottom = 14.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Image(
+                painter = painterResource(R.drawable.sloth_llama),
+                contentDescription = null,
+                modifier = Modifier.size(width = 37.dp, height = 32.dp)
+            )
+            Spacer(Modifier.width(10.dp))
+            Text("SlothLlama", color = P.Text, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+        }
 
         NavRow(Icons.Outlined.EditNote, "New chat", onNewConversation, highlighted = true)
         NavRow(Icons.Outlined.PersonOutline, "Personas", onOpenPersonas)

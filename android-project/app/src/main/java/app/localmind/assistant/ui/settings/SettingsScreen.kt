@@ -1,5 +1,6 @@
 package app.localmind.assistant.ui.settings
 
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,10 +32,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.localmind.assistant.BuildConfig
+import app.localmind.assistant.R
 import app.localmind.assistant.ui.common.SlothTopBar
 import app.localmind.assistant.ui.theme.LightColors
 import app.localmind.assistant.ui.theme.OledColors
@@ -83,7 +86,15 @@ fun SettingsScreen(
                 }
 
                 Section("About") {
-                    Text("SlothLlama ${BuildConfig.VERSION_NAME}", color = P.Text, fontSize = 15.sp)
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Image(
+                            painter = painterResource(R.drawable.sloth_llama),
+                            contentDescription = null,
+                            modifier = Modifier.size(width = 32.dp, height = 28.dp)
+                        )
+                        Spacer(Modifier.width(10.dp))
+                        Text("SlothLlama ${BuildConfig.VERSION_NAME}", color = P.Text, fontSize = 15.sp)
+                    }
                     Spacer(Modifier.height(4.dp))
                     Text(
                         "Runs entirely on this device with llama.cpp (GGUF) and Google AI Edge (.task / .litertlm). " +

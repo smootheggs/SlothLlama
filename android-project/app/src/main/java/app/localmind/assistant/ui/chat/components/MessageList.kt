@@ -3,6 +3,7 @@ package app.localmind.assistant.ui.chat.components
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -13,9 +14,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
@@ -40,10 +43,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import app.localmind.assistant.R
 import app.localmind.assistant.domain.model.ChatMessage
 import app.localmind.assistant.domain.model.MessageRole
 import kotlinx.coroutines.launch
@@ -61,7 +67,8 @@ fun MessageList(
     emptyBadge: String = "✦",
     emptyTitle: String = "How can I help?",
     emptySubtitle: String = "Private · on-device · offline",
-    starterPrompts: List<String> = DefaultStarterPrompts
+    starterPrompts: List<String> = DefaultStarterPrompts,
+    showMascot: Boolean = false
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -79,6 +86,13 @@ fun MessageList(
         if (messages.isNotEmpty() && isAtBottom) listState.scrollToItem(messages.size - 1, Int.MAX_VALUE / 2)
     }
 
+    // As the keyboard slides up, the list gets shorter; keep the newest message in view
+    // (the same thing Claude and Messages do when you tap into the composer).
+    val imeBottom = WindowInsets.ime.getBottom(LocalDensity.current)
+    LaunchedEffect(imeBottom) {
+        if (imeBottom > 0 && messages.isNotEmpty()) listState.scrollToItem(messages.size - 1, Int.MAX_VALUE / 2)
+    }
+
     Box(modifier.fillMaxSize()) {
         if (messages.isEmpty()) {
             EmptyConversationPlaceholder(
@@ -87,6 +101,7 @@ fun MessageList(
                 title = emptyTitle,
                 subtitle = emptySubtitle,
                 starterPrompts = starterPrompts,
+                showMascot = showMascot,
                 modifier = Modifier.fillMaxSize()
             )
         } else {
@@ -142,7 +157,8 @@ fun EmptyConversationPlaceholder(
     badge: String = "✦",
     title: String = "How can I help?",
     subtitle: String = "Private · on-device · offline",
-    starterPrompts: List<String> = DefaultStarterPrompts
+    starterPrompts: List<String> = DefaultStarterPrompts,
+    showMascot: Boolean = false
 ) {
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
         val twoColumns = maxWidth >= 600.dp
@@ -154,11 +170,19 @@ fun EmptyConversationPlaceholder(
                 .padding(horizontal = 20.dp, vertical = 24.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Box(
-                Modifier.size(52.dp).clip(CircleShape).background(P.AccentSoft),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(badge, color = P.Accent, fontSize = 24.sp)
+            if (showMascot) {
+                Image(
+                    painter = painterResource(R.drawable.sloth_llama),
+                    contentDescription = null,
+                    modifier = Modifier.size(width = 80.dp, height = 70.dp)
+                )
+            } else {
+                Box(
+                    Modifier.size(52.dp).clip(CircleShape).background(P.AccentSoft),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(badge, color = P.Accent, fontSize = 24.sp)
+                }
             }
             Spacer(Modifier.height(16.dp))
             Text(title, color = P.Text, fontSize = 26.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
