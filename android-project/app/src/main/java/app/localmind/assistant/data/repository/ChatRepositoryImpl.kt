@@ -315,17 +315,13 @@ class ChatRepositoryImpl @Inject constructor(
 
     override fun regenerateLastResponse(conversationId: String): Flow<ChatMessage> = flow {
         val messages = dao.getMessagesForConversation(conversationId)
-        val lastAssistant = messages.lastOrNull { it.role == MessageRole.ASSISTANT.name }
-        val lastUser = messages.lastOrNull { it.role == MessageRole.USER.name }
+        val lastUser = messages.lastOrNull { it.role == MessageRole.USER.name } ?: return@flow
 
-        if (lastAssistant != null) {
-            dao.deleteMessage(lastAssistant.id)
-        }
-
-        if (lastUser != null) {
-            sendMessage(conversationId, lastUser.content).collect {
-                emit(it)
-            }
+        // Remove the last question and its answer, then ask again: sendMessage re-adds the question,
+        // so keeping the old copy would show the model the same question twice.
+        dao.deleteMessagesFromTimestamp(conversationId, lastUser.createdAt)
+        sendMessage(conversationId, lastUser.content).collect {
+            emit(it)
         }
     }.flowOn(Dispatchers.IO)
 

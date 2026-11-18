@@ -183,5 +183,9 @@ class SecurePromptAssembler @Inject constructor(
         return cleaned
     }
 
-    fun estimateTokens(text: String): Int = ((text.length + 3) / 4).coerceAtLeast(1)
+    fun estimateTokens(text: String): Int {
+        // Chinese / Japanese characters are roughly one token each; other text about four characters per token.
+        val cjk = text.count { it.code in 0x3000..0x9FFF || it.code in 0xF900..0xFAFF || it.code in 0xFF00..0xFFEF }
+        return (cjk + (text.length - cjk + 3) / 4).coerceAtLeast(1)
+    }
 }

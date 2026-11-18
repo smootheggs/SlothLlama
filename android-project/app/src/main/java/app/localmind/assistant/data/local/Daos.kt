@@ -50,7 +50,9 @@ interface LocalMindDao {
     @Query("SELECT modelId FROM conversations ORDER BY updatedAt DESC LIMIT 1")
     suspend fun getMostRecentConversationModelId(): String?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    // @Upsert updates in place. REPLACE would delete the row first, and the foreign-key
+    // CASCADE would take every child row (e.g. all of a conversation's messages) with it.
+    @Upsert
     suspend fun upsertConversation(conversation: ConversationEntity)
 
     @Query("UPDATE conversations SET title = :title, updatedAt = :updatedAt WHERE id = :id")
@@ -74,7 +76,9 @@ interface LocalMindDao {
     @Query("SELECT * FROM messages WHERE id = :messageId LIMIT 1")
     suspend fun getMessageById(messageId: String): MessageEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    // @Upsert updates in place. REPLACE would delete the row first, and the foreign-key
+    // CASCADE would take every child row (e.g. all of a conversation's messages) with it.
+    @Upsert
     suspend fun insertMessage(message: MessageEntity)
 
     @Query("UPDATE messages SET content = :content, status = :status, errorCode = :errorCode, promptTokens = :promptTokens, completionTokens = :completionTokens, generationSpeedTps = :speedTps, updatedAt = :updatedAt WHERE id = :id")
@@ -99,7 +103,9 @@ interface LocalMindDao {
     @Query("SELECT * FROM knowledge_collections ORDER BY updatedAt DESC")
     fun observeCollections(): Flow<List<KnowledgeCollectionEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    // @Upsert updates in place. REPLACE would delete the row first, and the foreign-key
+    // CASCADE would take every child row (e.g. all of a conversation's messages) with it.
+    @Upsert
     suspend fun upsertCollection(collection: KnowledgeCollectionEntity)
 
     @Query("DELETE FROM knowledge_collections WHERE id = :collectionId")
@@ -108,7 +114,9 @@ interface LocalMindDao {
     @Query("SELECT * FROM knowledge_sources WHERE collectionId = :collectionId ORDER BY retrievedAt DESC")
     fun observeSourcesForCollection(collectionId: String): Flow<List<KnowledgeSourceEntity>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    // @Upsert updates in place. REPLACE would delete the row first, and the foreign-key
+    // CASCADE would take every child row (e.g. all of a conversation's messages) with it.
+    @Upsert
     suspend fun upsertSource(source: KnowledgeSourceEntity)
 
     @Query("DELETE FROM knowledge_sources WHERE id = :sourceId")
