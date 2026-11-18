@@ -39,6 +39,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Switch
+import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -73,6 +75,7 @@ fun ModelsScreen(viewModel: ModelsViewModel, onBack: () -> Unit) {
         uri?.let(viewModel::import)
     }
     val voiceModel by viewModel.voiceModel.collectAsStateWithLifecycle()
+    val gpu by viewModel.gpuState.collectAsStateWithLifecycle()
     val voicePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         viewModel.importVoiceModel(uris)
     }
@@ -102,6 +105,15 @@ fun ModelsScreen(viewModel: ModelsViewModel, onBack: () -> Unit) {
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 item { RuntimeCard(state.engine) }
+
+                item {
+                    GpuCard(
+                        gpu = gpu,
+                        busy = state.engine is EngineRuntimeState.Loading,
+                        onToggle = viewModel::setGpuEnabled,
+                        onRetry = viewModel::retryGpu
+                    )
+                }
 
                 item {
                     ImportCard(
@@ -210,9 +222,10 @@ private fun RuntimeCard(engine: EngineRuntimeState) {
             P.Success,
             "Loaded in Memory",
             "${engine.modelName} · ${engine.maxTokens} token context" +
+                (if (engine.modelName.endsWith(".gguf", ignoreCase = true)) " · ${engine.gpu?.let { "GPU ($it)" } ?: "CPU"}" else "") +
                 if (engine.canThink) "\nReasoning model · thinking is set in Settings → Assistant" else ""
         )
-        is EngineRuntimeState.Loading -> Triple(P.Warning, "Loading…", engine.modelName)
+        is EngineRuntimeState.Loading -> Triple(P.Warning, engine.note?.let { "$it…" } ?: "Loading…", engine.modelName)
         is EngineRuntimeState.Failed -> Triple(P.Danger, "Couldn't load ${engine.modelName}", engine.message)
         is EngineRuntimeState.NoModelFound -> Triple(P.Warning, "No model yet", "Import one below to start chatting.")
         is EngineRuntimeState.Idle -> Triple(P.Faint, "No model loaded", "Tap a model below to load it.")
@@ -231,6 +244,71 @@ private fun RuntimeCard(engine: EngineRuntimeState) {
             "GGUF → llama.cpp   ·   .task / .litertlm → MediaPipe",
             color = P.Faint, fontSize = 11.sp, fontFamily = FontFamily.Monospace
         )
+    }
+}
+
+/**
+ * The GPU switch. Explains what it does, which GPU was found, and lists any model that crashed
+ * the GPU (those run on the CPU until "Try the GPU again").
+ */
+@Composable
+private fun GpuCard(
+    gpu: GpuUiState,
+    busy: Boolean,
+    onToggle: (Boolean) -> Unit,
+    onRetry: (String) -> Unit
+) {
+    val name = gpu.gpuName
+    val available = !name.isNullOrEmpty()
+    SlothCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Use the GPU", color = P.Text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    when {
+                        name == null -> "Checking this tablet's graphics chip…"
+                        !available -> "No supported GPU found, so models run on the CPU."
+                        else -> name.replace("(TM)", "").replace("QUALCOMM", "", ignoreCase = true).trim()
+                    },
+                    color = P.Muted, fontSize = 12.sp
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Switch(
+                checked = available && gpu.enabled,
+                onCheckedChange = onToggle,
+                enabled = available && !busy,
+                colors = SwitchDefaults.colors(
+                    checkedThumbColor = P.OnAccent,
+                    checkedTrackColor = P.Accent,
+                    uncheckedThumbColor = P.Muted,
+                    uncheckedTrackColor = P.Elevated,
+                    uncheckedBorderColor = P.BorderStrong
+                )
+            )
+        }
+        if (available) {
+            Spacer(Modifier.height(8.dp))
+            Text(
+                "Runs the model on the graphics chip. Biggest win: long chats are read much faster, " +
+                    "so replies start sooner. Q4_0 files are the fastest on this GPU. The very first " +
+                    "GPU load takes about a minute while it sets up; after that it's quick. Compare the " +
+                    "tokens/s under replies with this on and off.",
+                color = P.Faint, fontSize = 12.sp, lineHeight = 17.sp
+            )
+        }
+        gpu.cpuOnlyModels.sorted().forEach { file ->
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "SlothLlama closed while $file was starting on the GPU, so it uses the CPU now.",
+                color = P.Warning, fontSize = 12.sp, lineHeight = 17.sp
+            )
+            TextButton(
+                onClick = { onRetry(file) },
+                enabled = available && !busy,
+                contentPadding = PaddingValues(horizontal = 0.dp, vertical = 0.dp)
+            ) { Text("Try the GPU again", color = P.Accent, fontSize = 13.sp) }
+        }
     }
 }
 

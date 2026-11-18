@@ -33,13 +33,18 @@ import javax.inject.Singleton
 class LlamaCppInferenceEngine @Inject constructor(
     @ApplicationContext private val context: Context,
     private val promptAssembler: SecurePromptAssembler,
-    private val status: EngineStatus
+    private val status: EngineStatus,
+    private val gpu: GpuSettings
 ) {
     /** Every native call happens on this one thread. */
     private val nativeThread = Dispatchers.IO.limitedParallelism(1)
 
     @Volatile private var loadedFile: File? = null
     @Volatile private var loadedContext: Int = 0
+    /** Whether the loaded model was asked to use the GPU (so a change of setting reloads it). */
+    @Volatile private var loadedWantsGpu: Boolean = false
+    /** The first reply after a GPU load is still part of the crash-guarded attempt. */
+    private var gpuAttemptOpen = false
     /** (role, content) pairs the native chat currently holds, or null if unknown. */
     private var nativeChat: List<Pair<String, String>>? = null
 
@@ -47,30 +52,85 @@ class LlamaCppInferenceEngine @Inject constructor(
 
     val isLoaded: Boolean get() = loadedFile != null
 
+    /** Starts the native side if needed and reports which GPU (if any) llama.cpp can use. */
+    suspend fun probeGpu(): String = withContext(nativeThread) {
+        initNative()
+        gpu.gpuName.value.orEmpty()
+    }
+
+    private fun initNative() {
+        LlamaNative.ensureInitialized(context.applicationInfo.nativeLibraryDir, gpu.kernelCacheDir)
+        if (gpu.gpuName.value == null) {
+            val name = runCatching { LlamaNative.gpuName() }.getOrDefault("")
+            gpu.reportGpu(name)
+            Log.i(TAG, if (name.isEmpty()) "No GPU backend; models run on the CPU" else "GPU available: $name")
+        }
+    }
+
     suspend fun loadFile(file: File): Result<Unit> = withContext(nativeThread) {
-        if (loadedFile == file) return@withContext Result.success(Unit)
+        runCatching { initNative() }
+        val wantGpu = gpu.shouldUseGpu(file.name)
+        if (loadedFile == file && loadedWantsGpu == wantGpu) return@withContext Result.success(Unit)
         unloadOnThread()
-        status.set(EngineRuntimeState.Loading(file.name))
         runCatching {
             ModelLibrary.ggufProblem(file)?.let { error("${file.name} can't be loaded: $it.") }
-            LlamaNative.ensureInitialized(context.applicationInfo.nativeLibraryDir)
-            check(LlamaNative.load(file.absolutePath) == 0) {
-                "llama.cpp couldn't open ${file.name} — the architecture may be unsupported or the file damaged."
-            }
-            if (LlamaNative.prepare(CONTEXT_TOKENS) != 0) {
-                LlamaNative.unload()
-                error("Not enough memory to set up ${file.name}. Try a smaller model or quantization (e.g. Q4_K_M).")
-            }
+            initNative()
+            val onGpu = if (wantGpu) loadOnGpu(file) else false
+            if (!onGpu) loadOnCpu(file)
             loadedFile = file
+            loadedWantsGpu = wantGpu
             loadedContext = LlamaNative.contextSize()
             nativeChat = null
-            status.set(EngineRuntimeState.Ready(file.name, loadedContext, canThink = LlamaNative.supportsThinking()))
-            Log.i(TAG, "Loaded ${file.name}, context=$loadedContext\n${LlamaNative.systemInfo()}")
+            val gpuName = if (onGpu) gpu.gpuName.value?.let(::shortGpuName) else null
+            status.set(
+                EngineRuntimeState.Ready(file.name, loadedContext, canThink = LlamaNative.supportsThinking(), gpu = gpuName)
+            )
+            Log.i(TAG, "Loaded ${file.name} on ${gpuName ?: "CPU"}, context=$loadedContext\n${LlamaNative.systemInfo()}")
             Unit
         }.onFailure { e ->
             loadedFile = null
+            gpu.endAttempt()
+            gpuAttemptOpen = false
             status.set(EngineRuntimeState.Failed(file.name, e.message ?: e.toString()))
             Log.e(TAG, "Load failed for ${file.absolutePath}", e)
+        }
+    }
+
+    /**
+     * Tries the whole model on the GPU. Returns false (with nothing loaded) when the GPU can't hold
+     * it, so the caller falls back to the CPU. A hard GPU crash is caught by [GpuSettings] instead.
+     */
+    private fun loadOnGpu(file: File): Boolean {
+        val note = if (gpu.firstGpuSetup()) "Setting up the GPU (first time, about a minute)" else "Loading on the GPU"
+        status.set(EngineRuntimeState.Loading(file.name, note))
+        gpu.beginAttempt(file.name)
+        if (LlamaNative.load(file.absolutePath, ALL_LAYERS) != 0) {
+            Log.w(TAG, "GPU load failed for ${file.name}; using the CPU")
+            gpu.endAttempt()
+            return false
+        }
+        val rc = LlamaNative.prepare(CONTEXT_TOKENS, /* warmup */ true)
+        if (rc != 0) {
+            Log.w(TAG, "GPU context failed for ${file.name} (rc=$rc); using the CPU")
+            LlamaNative.unload()
+            gpu.endAttempt()
+            return false
+        }
+        // Loaded and warmed up. The first reply is guarded again in generate(), because reading a
+        // real prompt uses GPU kernels the warm-up didn't.
+        gpu.endAttempt()
+        gpuAttemptOpen = true
+        return true
+    }
+
+    private fun loadOnCpu(file: File) {
+        status.set(EngineRuntimeState.Loading(file.name))
+        check(LlamaNative.load(file.absolutePath, 0) == 0) {
+            "llama.cpp couldn't open ${file.name} — the architecture may be unsupported or the file damaged."
+        }
+        if (LlamaNative.prepare(CONTEXT_TOKENS, /* warmup */ false) != 0) {
+            LlamaNative.unload()
+            error("Not enough memory to set up ${file.name}. Try a smaller model or quantization (e.g. Q4_K_M).")
         }
     }
 
@@ -82,7 +142,9 @@ class LlamaCppInferenceEngine @Inject constructor(
         }
         loadedFile = null
         loadedContext = 0
+        loadedWantsGpu = false
         nativeChat = null
+        gpuAttemptOpen = false
     }
 
     fun cancel() {
@@ -122,106 +184,125 @@ class LlamaCppInferenceEngine @Inject constructor(
         }
         emit(GenerationEvent.Started(request.modelId, plan.estimatedTokenCount))
 
-        if (nativeChat != desiredChat) {
-            val rc = LlamaNative.loadConversation(
-                desiredChat.map { it.first }.toTypedArray(),
-                desiredChat.map { it.second }.toTypedArray()
-            )
-            if (rc != 0) {
-                nativeChat = null
+        // First reply after a GPU load: guarded, so a driver crash puts this model on the CPU next time.
+        val guarded = gpuAttemptOpen
+        if (guarded) gpu.beginAttempt(file.name)
+        try {
+            if (nativeChat != desiredChat) {
+                val rc = LlamaNative.loadConversation(
+                    desiredChat.map { it.first }.toTypedArray(),
+                    desiredChat.map { it.second }.toTypedArray()
+                )
+                if (rc != 0) {
+                    nativeChat = null
+                    emit(
+                        GenerationEvent.Error(
+                            code = "CONTEXT_PREFILL_FAILED",
+                            userMessage = if (rc == 1) "This conversation is too long for the model's memory." else "The model failed to read the conversation.",
+                            recommendedAction = "Start a new chat, or use a model with a longer context.",
+                            technicalDetails = "loadConversation returned $rc"
+                        )
+                    )
+                    return@flow
+                }
+                Log.i(TAG, "Replayed ${desiredChat.size} messages")
+            }
+            // From here until a clean end-of-turn, the native chat no longer matches our mirror.
+            nativeChat = null
+
+            LlamaNative.setSampling(request.temperature, TOP_P, TOP_K)
+            if (LlamaNative.processUserPrompt(plan.userPrompt, effective.maxOutputTokens) != 0) {
                 emit(
                     GenerationEvent.Error(
-                        code = "CONTEXT_PREFILL_FAILED",
-                        userMessage = if (rc == 1) "This conversation is too long for the model's memory." else "The model failed to read the conversation.",
-                        recommendedAction = "Start a new chat, or use a model with a longer context.",
-                        technicalDetails = "loadConversation returned $rc"
+                        code = "PROMPT_FAILED",
+                        userMessage = "The model couldn't process that message.",
+                        recommendedAction = "Try again, or start a new chat.",
+                        technicalDetails = "processUserPrompt failed"
                     )
                 )
                 return@flow
             }
-            Log.i(TAG, "Replayed ${desiredChat.size} messages")
-        }
-        // From here until a clean end-of-turn, the native chat no longer matches our mirror.
-        nativeChat = null
 
-        LlamaNative.setSampling(request.temperature, TOP_P, TOP_K)
-        if (LlamaNative.processUserPrompt(plan.userPrompt, effective.maxOutputTokens) != 0) {
-            emit(
-                GenerationEvent.Error(
-                    code = "PROMPT_FAILED",
-                    userMessage = "The model couldn't process that message.",
-                    recommendedAction = "Try again, or start a new chat.",
-                    technicalDetails = "processUserPrompt failed"
-                )
-            )
-            return@flow
-        }
-
-        // When thinking, the prompt already opened "<think>", so the reply starts inside it.
-        val filter = ReplyFilter(startsThinking = thinks)
-        var pieces = 0
-        var firstTokenAt = 0L
-        try {
-            while (!cancelRequested && !filter.stopped) {
-                val piece = LlamaNative.generateNextToken() ?: break
-                if (piece.isEmpty()) continue
-                pieces++
-                if (pieces == 1) firstTokenAt = SystemClock.elapsedRealtime()
-                val visible = filter.push(piece)
-                if (visible.isNotEmpty()) emit(GenerationEvent.TokenDelta(visible))
-            }
-        } catch (e: CancellationException) {
-            throw e
-        } catch (e: Exception) {
-            emit(
-                GenerationEvent.Error(
-                    code = "RUNTIME_EXCEPTION",
-                    userMessage = "The model stopped with an error.",
-                    recommendedAction = "Try again; if it repeats, reload the model from the Models tab.",
-                    technicalDetails = e.message ?: e.toString()
-                )
-            )
-            return@flow
-        }
-
-        val (tail, visibleReply) = filter.finish()
-        if (tail.isNotEmpty()) emit(GenerationEvent.TokenDelta(tail))
-
-        if (cancelRequested) {
-            emit(GenerationEvent.Canceled(visibleReply))
-            return@flow
-        }
-
-        // Clean end-of-turn: the native chat now equals history + this exchange.
-        val endedCleanly = LlamaNative.lastStopWasEog()
-        if (endedCleanly) {
-            nativeChat = desiredChat + listOf("user" to plan.userPrompt, "assistant" to visibleReply)
-        }
-        // Generation speed only (from the first token), not the wait while the prompt is read.
-        val decodeStart = if (firstTokenAt > 0) firstTokenAt else startTime
-        val elapsedSec = (SystemClock.elapsedRealtime() - decodeStart).coerceAtLeast(100) / 1000f
-        emit(
-            GenerationEvent.Completed(
-                fullText = visibleReply,
-                citationsUsed = plan.includedPassages,
-                tokensGenerated = pieces,
-                tokensPerSecond = if (pieces > 1) (pieces - 1) / elapsedSec else 0f,
-                peakMemoryMb = usedMemoryMb(),
-                contextUsed = LlamaNative.usedTokens(),
-                contextSize = loadedContext,
-                stoppedAtLimit = !endedCleanly && !filter.stopped && pieces > 0,
-                historyTrimmed = plan.history.size < effective.recentMessages.count {
-                    it.role.equals("USER", ignoreCase = true) || it.role.equals("ASSISTANT", ignoreCase = true)
+            // When thinking, the prompt already opened "<think>", so the reply starts inside it.
+            val filter = ReplyFilter(startsThinking = thinks)
+            var pieces = 0
+            var firstTokenAt = 0L
+            try {
+                while (!cancelRequested && !filter.stopped) {
+                    val piece = LlamaNative.generateNextToken() ?: break
+                    if (piece.isEmpty()) continue
+                    pieces++
+                    if (pieces == 1) {
+                        firstTokenAt = SystemClock.elapsedRealtime()
+                        // The GPU has now read a real prompt and written a token: it works with this model.
+                        gpuAttemptOpen = false
+                    }
+                    val visible = filter.push(piece)
+                    if (visible.isNotEmpty()) emit(GenerationEvent.TokenDelta(visible))
                 }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                emit(
+                    GenerationEvent.Error(
+                        code = "RUNTIME_EXCEPTION",
+                        userMessage = "The model stopped with an error.",
+                        recommendedAction = "Try again; if it repeats, reload the model from the Models tab.",
+                        technicalDetails = e.message ?: e.toString()
+                    )
+                )
+                return@flow
+            }
+
+            val (tail, visibleReply) = filter.finish()
+            if (tail.isNotEmpty()) emit(GenerationEvent.TokenDelta(tail))
+
+            if (cancelRequested) {
+                emit(GenerationEvent.Canceled(visibleReply))
+                return@flow
+            }
+
+            // Clean end-of-turn: the native chat now equals history + this exchange.
+            val endedCleanly = LlamaNative.lastStopWasEog()
+            if (endedCleanly) {
+                nativeChat = desiredChat + listOf("user" to plan.userPrompt, "assistant" to visibleReply)
+            }
+            // Generation speed only (from the first token), not the wait while the prompt is read.
+            val decodeStart = if (firstTokenAt > 0) firstTokenAt else startTime
+            val elapsedSec = (SystemClock.elapsedRealtime() - decodeStart).coerceAtLeast(100) / 1000f
+            emit(
+                GenerationEvent.Completed(
+                    fullText = visibleReply,
+                    citationsUsed = plan.includedPassages,
+                    tokensGenerated = pieces,
+                    tokensPerSecond = if (pieces > 1) (pieces - 1) / elapsedSec else 0f,
+                    peakMemoryMb = usedMemoryMb(),
+                    contextUsed = LlamaNative.usedTokens(),
+                    contextSize = loadedContext,
+                    stoppedAtLimit = !endedCleanly && !filter.stopped && pieces > 0,
+                    historyTrimmed = plan.history.size < effective.recentMessages.count {
+                        it.role.equals("USER", ignoreCase = true) || it.role.equals("ASSISTANT", ignoreCase = true)
+                    }
+                )
             )
-        )
+        } finally {
+            // Any ending we get to see (done, error, cancel) wasn't a crash.
+            if (guarded) gpu.endAttempt()
+        }
     }.flowOn(nativeThread)
 
     private fun usedMemoryMb(): Int =
         (android.os.Debug.getNativeHeapAllocatedSize() / (1024 * 1024)).toInt()
 
+    /** "QUALCOMM Adreno(TM) 750" → "Adreno 750". */
+    private fun shortGpuName(raw: String): String =
+        raw.replace("(TM)", "").replace("QUALCOMM", "", ignoreCase = true)
+            .replace(Regex("\\s+"), " ").trim().ifEmpty { "GPU" }
+
     private companion object {
         const val TAG = "LlamaCppEngine"
+        /** n_gpu_layers = -1: every layer on the GPU. */
+        const val ALL_LAYERS = -1
         /**
          * Tokens of context. 6144 leaves room for longer tutoring sessions and for thinking, while a
          * 7B Q4 model plus its cache still fits comfortably in a 12 GB tablet.

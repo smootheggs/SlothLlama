@@ -16,8 +16,8 @@ android {
         applicationId = "app.localmind.assistant"
         minSdk = 33 // required by the llama.cpp module
         targetSdk = 35
-        versionCode = 6
-        versionName = "1.5.0"
+        versionCode = 7
+        versionName = "1.6.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -109,6 +109,9 @@ android {
             // llama.cpp loads its CPU backends (libggml-cpu-*.so) from nativeLibraryDir at runtime,
             // so native libraries must be extracted on install.
             useLegacyPackaging = true
+            // The OpenCL loader is only linked against at build time. The tablet's own driver must
+            // be the one that loads, so never ship a copy.
+            excludes += "**/libOpenCL.so"
         }
     }
 }

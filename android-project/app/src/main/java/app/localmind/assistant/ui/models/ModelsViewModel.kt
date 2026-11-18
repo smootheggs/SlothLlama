@@ -4,6 +4,8 @@ import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.localmind.assistant.data.inference.EngineStatus
+import app.localmind.assistant.data.inference.GpuSettings
+import app.localmind.assistant.data.inference.LlamaCppInferenceEngine
 import app.localmind.assistant.data.models.LocalModel
 import app.localmind.assistant.data.models.ModelLibrary
 import app.localmind.assistant.data.voice.VoiceModelState
@@ -36,13 +38,47 @@ data class ModelsUiState(
     val fingerprint: Pair<LocalModel, String>? = null
 )
 
+/** The GPU switch on the Models screen. [gpuName] null = still checking, "" = no usable GPU. */
+data class GpuUiState(
+    val gpuName: String? = null,
+    val enabled: Boolean = true,
+    val cpuOnlyModels: Set<String> = emptySet()
+)
+
 @HiltViewModel
 class ModelsViewModel @Inject constructor(
     private val library: ModelLibrary,
     private val engine: LocalInferenceEngine,
     status: EngineStatus,
-    private val voice: VoiceTranscriber
+    private val voice: VoiceTranscriber,
+    private val gpu: GpuSettings,
+    private val llama: LlamaCppInferenceEngine
 ) : ViewModel() {
+
+    val gpuState: StateFlow<GpuUiState> = combine(gpu.gpuName, gpu.enabled, gpu.cpuOnlyModels) { name, on, cpuOnly ->
+        GpuUiState(gpuName = name, enabled = on, cpuOnlyModels = cpuOnly)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), GpuUiState())
+
+    fun setGpuEnabled(on: Boolean) {
+        gpu.setEnabled(on)
+        reloadForGpuChange()
+    }
+
+    /** Lets a model that crashed on the GPU try it again. */
+    fun retryGpu(modelFile: String) {
+        gpu.retry(modelFile)
+        reloadForGpuChange()
+    }
+
+    /** Reloads the model in memory so a GPU change takes effect now rather than on the next load. */
+    private fun reloadForGpuChange() {
+        val loaded = uiState.value.engine as? EngineRuntimeState.Ready ?: return
+        viewModelScope.launch {
+            engine.loadModel(loaded.modelName).onFailure { e ->
+                local.update { it.copy(message = e.message ?: "Couldn't reload ${loaded.modelName}") }
+            }
+        }
+    }
 
     /** The offline speech-recognition model used for voice input. */
     val voiceModel: StateFlow<VoiceModelState> = voice.state
@@ -71,6 +107,7 @@ class ModelsViewModel @Inject constructor(
 
     init {
         refresh()
+        viewModelScope.launch { runCatching { llama.probeGpu() } }
     }
 
     fun refresh() {

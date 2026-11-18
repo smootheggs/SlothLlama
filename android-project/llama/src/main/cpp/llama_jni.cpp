@@ -8,6 +8,7 @@
 #include <iomanip>
 #include <cmath>
 #include <string>
+#include <cstdlib>
 #include <unistd.h>
 #include <sampling.h>
 
@@ -48,14 +49,24 @@ static bool                               g_last_stop_eog = false;
 // Reasoning models (Qwen3 / Qwen3.5, DeepSeek-R1 distills, …): their chat template mentions <think>.
 static bool                               g_template_thinks = false;
 static bool                               g_thinking_enabled = false;
+// Layers placed on the GPU for the loaded model: -1 = all, 0 = CPU only.
+static int                                g_gpu_layers = 0;
 
 extern "C"
 JNIEXPORT void JNICALL
-Java_app_localmind_llama_LlamaNative_init(JNIEnv *env, jobject /*unused*/, jstring nativeLibDir) {
+Java_app_localmind_llama_LlamaNative_init(JNIEnv *env, jobject /*unused*/, jstring nativeLibDir,
+                                          jstring kernelCacheDir) {
     // Set llama log handler to Android
     llama_log_set(aichat_android_log_callback, nullptr);
 
-    // Loading all CPU backend variants
+    // Compiled GPU kernels are cached in the app's code cache, so only the first GPU load is slow.
+    // (Android apps have no TMPDIR, so without this the OpenCL backend would not cache at all.)
+    const auto *cache_dir = env->GetStringUTFChars(kernelCacheDir, 0);
+    setenv("GGML_OPENCL_KERNEL_CACHE_DIR", cache_dir, /* overwrite */ 1);
+    env->ReleaseStringUTFChars(kernelCacheDir, cache_dir);
+
+    // Loading all backend variants: the CPU ones, and the GPU (OpenCL) one when this build has it
+    // and the tablet's driver can be opened. A missing driver is skipped silently.
     const auto *path_to_backend = env->GetStringUTFChars(nativeLibDir, 0);
     LOGi("Loading backends from %s", path_to_backend);
     ggml_backend_load_all_from_path(path_to_backend);
@@ -68,8 +79,15 @@ Java_app_localmind_llama_LlamaNative_init(JNIEnv *env, jobject /*unused*/, jstri
 
 extern "C"
 JNIEXPORT jint JNICALL
-Java_app_localmind_llama_LlamaNative_load(JNIEnv *env, jobject, jstring jmodel_path) {
+Java_app_localmind_llama_LlamaNative_load(JNIEnv *env, jobject, jstring jmodel_path, jint gpu_layers) {
     llama_model_params model_params = llama_model_default_params();
+    // An empty device list keeps everything on the CPU, including the large-batch work that
+    // llama.cpp would otherwise hand to a GPU even with zero layers offloaded.
+    static ggml_backend_dev_t no_devices[] = { nullptr };
+    if (gpu_layers == 0) {
+        model_params.devices = no_devices;
+    }
+    model_params.n_gpu_layers = gpu_layers;
 
     const auto *model_path = env->GetStringUTFChars(jmodel_path, 0);
     LOGd("%s: Loading model from: \n%s\n", __func__, model_path);
@@ -80,7 +98,23 @@ Java_app_localmind_llama_LlamaNative_load(JNIEnv *env, jobject, jstring jmodel_p
         return 1;
     }
     g_model = model;
+    g_gpu_layers = gpu_layers;
     return 0;
+}
+
+/** The GPU llama.cpp can use (e.g. "QUALCOMM Adreno(TM) 750"), or "" if there is none. */
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_app_localmind_llama_LlamaNative_gpuName(JNIEnv *env, jobject /*unused*/) {
+    for (size_t i = 0; i < ggml_backend_dev_count(); i++) {
+        ggml_backend_dev_t dev = ggml_backend_dev_get(i);
+        const auto type = ggml_backend_dev_type(dev);
+        if (type == GGML_BACKEND_DEVICE_TYPE_GPU || type == GGML_BACKEND_DEVICE_TYPE_IGPU) {
+            const char *description = ggml_backend_dev_description(dev);
+            return env->NewStringUTF(description ? description : ggml_backend_dev_name(dev));
+        }
+    }
+    return env->NewStringUTF("");
 }
 
 static llama_context *init_context(llama_model *model, const int n_ctx = DEFAULT_CONTEXT_SIZE) {
@@ -122,7 +156,7 @@ static common_sampler *new_sampler(float temp) {
 
 extern "C"
 JNIEXPORT jint JNICALL
-Java_app_localmind_llama_LlamaNative_prepare(JNIEnv * /*env*/, jobject /*unused*/, jint n_ctx) {
+Java_app_localmind_llama_LlamaNative_prepare(JNIEnv * /*env*/, jobject /*unused*/, jint n_ctx, jboolean warmup) {
     g_n_ctx = n_ctx > 0 ? (int) n_ctx : DEFAULT_CONTEXT_SIZE;
     const int trained_context_size = llama_model_n_ctx_train(g_model);
     if (trained_context_size > 0 && g_n_ctx > trained_context_size) {
@@ -136,6 +170,30 @@ Java_app_localmind_llama_LlamaNative_prepare(JNIEnv * /*env*/, jobject /*unused*
     const char *raw_template = llama_model_chat_template(g_model, /* name */ nullptr);
     g_template_thinks = raw_template != nullptr && std::string(raw_template).find("<think>") != std::string::npos;
     g_sampler = new_sampler(DEFAULT_SAMPLER_TEMP);
+
+    // Like llama.cpp's own warm-up: one tiny decode so the GPU builds its pipelines now, while the
+    // app shows "Loading", instead of during the first reply. Its memory is cleared afterwards.
+    if (warmup) {
+        const llama_vocab *vocab = llama_model_get_vocab(g_model);
+        llama_tokens tmp;
+        const llama_token bos = llama_vocab_bos(vocab);
+        const llama_token eos = llama_vocab_eos(vocab);
+        if (bos != LLAMA_TOKEN_NULL) { tmp.push_back(bos); }
+        if (eos != LLAMA_TOKEN_NULL) { tmp.push_back(eos); }
+        if (tmp.empty()) { tmp.push_back(0); }
+        g_batch.clear();
+        for (size_t i = 0; i < tmp.size(); i++) {
+            g_batch.add(tmp[i], (llama_pos) i, 0, i == tmp.size() - 1);
+        }
+        const int rc = llama_process(g_context, LLAMA_PROCESS_TYPE_DECODE, g_batch.get());
+        llama_memory_clear(llama_get_memory(g_context), true);
+        llama_synchronize(g_context);
+        llama_perf_context_reset(g_context);
+        if (rc != 0) {
+            LOGe("%s: warm-up decode failed w/ %d", __func__, rc);
+            return 2;
+        }
+    }
     return 0;
 }
 

@@ -439,7 +439,7 @@ class ChatViewModel @Inject constructor(
         )
         is EngineRuntimeState.Loading -> copy(
             modelStatus = ModelRuntimeStatus.NO_MODEL_LOADED,
-            activeModelName = "Loading ${prettyModelName(engine.modelName)}…"
+            activeModelName = engine.note?.let { "$it…" } ?: "Loading ${prettyModelName(engine.modelName)}…"
         )
         is EngineRuntimeState.Ready -> copy(
             modelStatus = if (isGenerating) ModelRuntimeStatus.GENERATING else ModelRuntimeStatus.READY,

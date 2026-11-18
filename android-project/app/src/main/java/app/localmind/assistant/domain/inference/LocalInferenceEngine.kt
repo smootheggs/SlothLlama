@@ -22,9 +22,18 @@ interface LocalInferenceEngine {
 
 sealed interface EngineRuntimeState {
     data object Idle : EngineRuntimeState
-    data class Loading(val modelName: String) : EngineRuntimeState
-    /** [canThink]: a reasoning model whose thinking can be switched on or off. */
-    data class Ready(val modelName: String, val maxTokens: Int, val canThink: Boolean = false) : EngineRuntimeState
+    /** [note]: what's taking the time, e.g. the GPU setting itself up on first use. */
+    data class Loading(val modelName: String, val note: String? = null) : EngineRuntimeState
+    /**
+     * [canThink]: a reasoning model whose thinking can be switched on or off.
+     * [gpu]: the GPU running the model, or null when it runs on the CPU.
+     */
+    data class Ready(
+        val modelName: String,
+        val maxTokens: Int,
+        val canThink: Boolean = false,
+        val gpu: String? = null
+    ) : EngineRuntimeState
     data class NoModelFound(val sideloadPath: String) : EngineRuntimeState
     data class Failed(val modelName: String, val message: String) : EngineRuntimeState
 }

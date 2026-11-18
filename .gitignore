@@ -10,3 +10,5 @@ coverage/
 # Downloaded by android-project/scripts/fetch-sherpa-onnx.sh
 android-project/app/libs/*.aar
 android-project/app/libs/*.part
+# Prepared by android-project/scripts/fetch-opencl.sh
+android-project/third_party/opencl/

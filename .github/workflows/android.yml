@@ -55,6 +55,9 @@ jobs:
       - name: Fetch sherpa-onnx (offline voice input), checksum-verified
         run: android-project/scripts/fetch-sherpa-onnx.sh
 
+      - name: Prepare OpenCL for the GPU backend (pinned commits)
+        run: android-project/scripts/fetch-opencl.sh
+
       - name: Build APK
         working-directory: android-project
         env:
@@ -74,6 +77,14 @@ jobs:
             gradle :app:assembleDebug --stacktrace
             cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/out/SlothLlama.apk"
           fi
+
+      # The GPU backend must be inside the APK, and the build-time OpenCL loader must not be.
+      - name: Check the GPU backend is packaged
+        run: |
+          APK="$RUNNER_TEMP/out/SlothLlama.apk"
+          unzip -l "$APK" | grep -q 'lib/arm64-v8a/libggml-opencl.so' || { echo "::error::libggml-opencl.so is missing from the APK"; exit 1; }
+          if unzip -l "$APK" | grep -q 'lib/arm64-v8a/libOpenCL.so'; then echo "::error::libOpenCL.so must not be packaged"; exit 1; fi
+          echo "GPU backend packaged; OpenCL comes from the tablet's driver"
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

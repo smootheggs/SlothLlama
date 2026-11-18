@@ -11,22 +11,36 @@ object LlamaNative {
     @Volatile
     private var initialized = false
 
-    /** Loads the native libraries and CPU backends once. [nativeLibDir] = applicationInfo.nativeLibraryDir */
+    /**
+     * Loads the native libraries and backends (CPU, and the GPU one when the tablet has a usable
+     * OpenCL driver) once. [nativeLibDir] = applicationInfo.nativeLibraryDir; compiled GPU kernels
+     * are cached in [kernelCacheDir].
+     */
     @Synchronized
-    fun ensureInitialized(nativeLibDir: String) {
+    fun ensureInitialized(nativeLibDir: String, kernelCacheDir: String) {
         if (initialized) return
         System.loadLibrary("llama-jni")
-        init(nativeLibDir)
+        init(nativeLibDir, kernelCacheDir)
         initialized = true
     }
 
-    private external fun init(nativeLibDir: String)
+    private external fun init(nativeLibDir: String, kernelCacheDir: String)
 
-    /** Returns 0 on success, non-zero if the file can't be loaded (unsupported architecture or damaged). */
-    external fun load(modelPath: String): Int
+    /** The GPU llama.cpp can use (e.g. "QUALCOMM Adreno(TM) 750"), or "" when there is none. */
+    external fun gpuName(): String
 
-    /** Creates the context ([nCtx] tokens, capped at the model's trained size). 0 on success. */
-    external fun prepare(nCtx: Int): Int
+    /**
+     * Returns 0 on success, non-zero if the file can't be loaded (unsupported architecture, damaged,
+     * or not enough memory). [gpuLayers]: -1 = every layer on the GPU, 0 = CPU only.
+     */
+    external fun load(modelPath: String, gpuLayers: Int): Int
+
+    /**
+     * Creates the context ([nCtx] tokens, capped at the model's trained size). With [warmup], runs
+     * one tiny decode so a GPU sets itself up now rather than during the first reply.
+     * 0 on success, 1 = no memory for the context, 2 = the warm-up failed.
+     */
+    external fun prepare(nCtx: Int, warmup: Boolean): Int
 
     /** The context size actually in use after [prepare]. */
     external fun contextSize(): Int

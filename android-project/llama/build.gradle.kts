@@ -5,6 +5,16 @@ plugins {
 
 // llama.cpp for Android (GGUF models). Native code is built from the pinned
 // git submodule at ../third_party/llama.cpp — run `git submodule update --init` first.
+
+// GPU: llama.cpp's OpenCL backend (tuned for Qualcomm Adreno) is built when
+// scripts/fetch-opencl.sh has prepared the pinned OpenCL headers and loader (CI always runs it).
+// Without them the app builds CPU-only. At runtime the backend is optional: if the tablet's
+// OpenCL driver can't be opened, llama.cpp quietly stays on the CPU.
+val openClDir = rootProject.file("third_party/opencl")
+val openClLibrary = openClDir.resolve("lib/arm64-v8a/libOpenCL.so")
+val withOpenCl = openClLibrary.isFile && openClDir.resolve("include/CL/cl.h").isFile
+logger.lifecycle(if (withOpenCl) "llama.cpp: building with the GPU (OpenCL) backend" else "llama.cpp: CPU only (run scripts/fetch-opencl.sh for the GPU backend)")
+
 android {
     namespace = "app.localmind.llama"
     compileSdk = 35
@@ -35,6 +45,13 @@ android {
                 arguments += "-DGGML_BACKEND_DL=ON"
                 arguments += "-DGGML_CPU_ALL_VARIANTS=ON"
                 arguments += "-DGGML_LLAMAFILE=OFF"
+                if (withOpenCl) {
+                    arguments += "-DGGML_OPENCL=ON"
+                    arguments += "-DGGML_OPENCL_EMBED_KERNELS=ON"
+                    arguments += "-DGGML_OPENCL_USE_ADRENO_KERNELS=ON"
+                    arguments += "-DOpenCL_INCLUDE_DIR=${openClDir.resolve("include").absolutePath}"
+                    arguments += "-DOpenCL_LIBRARY=${openClLibrary.absolutePath}"
+                }
             }
         }
     }

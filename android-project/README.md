@@ -28,8 +28,14 @@ through **personas** (built-in or your own). Language tutors are built-in person
 ### Runtimes
 | File | Runtime | Where models come from |
 |---|---|---|
-| `.gguf` | **llama.cpp** (CPU, Arm KleidiAI) | Almost every open model on Hugging Face (Qwen, Gemma, Llama, Mistral, Phi, DeepSeek…) |
+| `.gguf` | **llama.cpp** (Adreno GPU via OpenCL, or CPU with Arm KleidiAI) | Almost every open model on Hugging Face (Qwen, Gemma, Llama, Mistral, Phi, DeepSeek…) |
 | `.task` / `.litertlm` | Google AI Edge MediaPipe | `litert-community` on Hugging Face |
+
+**GPU.** On Snapdragon tablets, GGUF models run on the Adreno GPU (Models → Use the GPU, on by
+default). The first GPU load compiles the GPU kernels (about a minute) and caches them. Q4_0
+files are the fastest on Adreno; Q4_K_M works too. If the GPU driver ever takes the app down,
+that model is moved to the CPU automatically and the Models screen offers to try again. A
+model too big for the GPU falls back to the CPU on its own.
 
 ## Building
 1. **Get the llama.cpp sources** (pinned submodule, once):
@@ -43,7 +49,10 @@ through **personas** (built-in or your own). Language tutors are built-in person
    ```
 2. In Android Studio → **SDK Manager → SDK Tools** (tick *Show Package Details*), install
    **NDK 29.0.13113456** and **CMake 3.31.6**.
-3. Open `android-project/`, sync Gradle, press ▶ with the tablet selected.
+3. Optional, for the GPU backend: run `scripts/fetch-opencl.sh` (with `ANDROID_HOME` set). It
+   fetches the Khronos OpenCL headers and loader at pinned commits; CI always runs it. Without
+   it the app builds CPU-only.
+4. Open `android-project/`, sync Gradle, press ▶ with the tablet selected.
    The first build compiles llama.cpp and takes several minutes; later builds are quick.
    The app needs Android 13+ (minSdk 33).
 
