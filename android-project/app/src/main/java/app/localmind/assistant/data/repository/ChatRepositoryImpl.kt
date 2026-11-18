@@ -365,7 +365,9 @@ class ChatRepositoryImpl @Inject constructor(
     }.flowOn(Dispatchers.IO)
 
     private fun deriveAutoTitle(prompt: String): String {
-        val clean = prompt.trim().lines().firstOrNull { it.isNotBlank() } ?: "New Chat"
+        // Photos and documents are carried in the text; the title uses what was typed.
+        val clean = app.localmind.assistant.domain.attachments.Attachments.summary(prompt)
+            .trim().lines().firstOrNull { it.isNotBlank() } ?: "New Chat"
         return if (clean.length > 32) {
             clean.take(30).trimEnd() + "…"
         } else {

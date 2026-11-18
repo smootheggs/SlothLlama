@@ -27,12 +27,14 @@ sealed interface EngineRuntimeState {
     /**
      * [canThink]: a reasoning model whose thinking can be switched on or off.
      * [gpu]: the GPU running the model, or null when it runs on the CPU.
+     * [canSee]: a vision projector (mmproj) was added for this model, so it can look at photos.
      */
     data class Ready(
         val modelName: String,
         val maxTokens: Int,
         val canThink: Boolean = false,
-        val gpu: String? = null
+        val gpu: String? = null,
+        val canSee: Boolean = false
     ) : EngineRuntimeState
     data class NoModelFound(val sideloadPath: String) : EngineRuntimeState
     data class Failed(val modelName: String, val message: String) : EngineRuntimeState

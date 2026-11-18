@@ -76,6 +76,10 @@ import app.localmind.assistant.ui.practice.PracticeSentencePicker
 import app.localmind.assistant.ui.practice.SpeakingPracticeSheet
 import app.localmind.assistant.ui.speech.TutorSpeaker
 import androidx.compose.runtime.DisposableEffect
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.PickVisualMediaRequest
+import androidx.activity.result.contract.ActivityResultContracts
+import app.localmind.assistant.ui.chat.components.LocalPhotoFile
 import app.localmind.assistant.ui.theme.SlothPalette as P
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -116,6 +120,14 @@ fun ChatScreen(
     var practiseSentences by remember { mutableStateOf<List<String>>(emptyList()) }
     var practiseTarget by remember { mutableStateOf<String?>(null) }
     val handsFree by viewModel.handsFree.collectAsStateWithLifecycle()
+    val attachments by viewModel.attachments.collectAsStateWithLifecycle()
+    // The system photo picker needs no permission and only shares the photo chosen.
+    val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+        uri?.let(viewModel::attachPhoto)
+    }
+    val documentPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let(viewModel::attachDocument)
+    }
     LaunchedEffect(dictionaryMessage) {
         dictionaryMessage?.let {
             snackbarHostState.showSnackbar(it)
@@ -206,7 +218,8 @@ fun ChatScreen(
                 onContinue = viewModel::continueReply,
                 onPractise = if (persona.speech != null) openPractice else null
             ),
-            LocalWordTapAction provides wordTap
+            LocalWordTapAction provides wordTap,
+            LocalPhotoFile provides viewModel::photoFile
         ) {
             Scaffold(
                 containerColor = P.Canvas,
@@ -278,7 +291,16 @@ fun ChatScreen(
                         onStopHandsFree = {
                             viewModel.stopHandsFree()
                             speaker.stop()
-                        }
+                        },
+                        attachments = attachments,
+                        onAttachPhoto = {
+                            photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
+                        },
+                        onAttachDocument = {
+                            documentPicker.launch(arrayOf("application/pdf", "text/*", "application/json", "application/x-subrip"))
+                        },
+                        onRemovePhoto = viewModel::removePhoto,
+                        onRemoveDocument = viewModel::removeDocument
                     )
                 },
                 snackbarHost = { SnackbarHost(snackbarHostState) },

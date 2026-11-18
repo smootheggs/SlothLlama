@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material.icons.outlined.PhotoCamera
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -46,7 +47,9 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -59,6 +62,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.localmind.assistant.data.inference.GpuSettings
 import app.localmind.assistant.data.models.LocalModel
 import app.localmind.assistant.data.models.ModelFormat
 import app.localmind.assistant.data.models.ModelLibrary
@@ -76,6 +80,13 @@ fun ModelsScreen(viewModel: ModelsViewModel, onBack: () -> Unit) {
     }
     val voiceModel by viewModel.voiceModel.collectAsStateWithLifecycle()
     val gpu by viewModel.gpuState.collectAsStateWithLifecycle()
+    // Which model the vision-file picker is choosing for.
+    var visionFor by remember { mutableStateOf<LocalModel?>(null) }
+    val visionPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        val model = visionFor
+        visionFor = null
+        if (uri != null && model != null) viewModel.addVision(model, uri)
+    }
     val voicePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         viewModel.importVoiceModel(uris)
     }
@@ -151,7 +162,14 @@ fun ModelsScreen(viewModel: ModelsViewModel, onBack: () -> Unit) {
                             hashProgress = state.hashing?.takeIf { it.first.path == model.path }?.second,
                             onClick = { viewModel.activate(model) },
                             onVerify = { viewModel.verify(model) },
-                            onDelete = { viewModel.requestDelete(model) }
+                            onDelete = { viewModel.requestDelete(model) },
+                            hasVision = model.path in state.withVision,
+                            visionProgress = state.visionImport?.takeIf { it.first == model.path }?.second,
+                            onAddVision = {
+                                visionFor = model
+                                visionPicker.launch(arrayOf("*/*"))
+                            },
+                            onRemoveVision = { viewModel.removeVision(model) }
                         )
                     }
                 }
@@ -299,8 +317,11 @@ private fun GpuCard(
         }
         gpu.cpuOnlyModels.sorted().forEach { file ->
             Spacer(Modifier.height(10.dp))
+            val photos = file.endsWith(GpuSettings.VISION_SUFFIX)
+            val model = file.removeSuffix(GpuSettings.VISION_SUFFIX)
             Text(
-                "SlothLlama closed while $file was starting on the GPU, so it uses the CPU now.",
+                if (photos) "SlothLlama closed while $model was reading a photo on the GPU, so its photos use the CPU now."
+                else "SlothLlama closed while $model was starting on the GPU, so it uses the CPU now.",
                 color = P.Warning, fontSize = 12.sp, lineHeight = 17.sp
             )
             TextButton(
@@ -410,7 +431,11 @@ private fun ModelCard(
     hashProgress: Float?,
     onClick: () -> Unit,
     onVerify: () -> Unit,
-    onDelete: () -> Unit
+    onDelete: () -> Unit,
+    hasVision: Boolean = false,
+    visionProgress: Float? = null,
+    onAddVision: () -> Unit = {},
+    onRemoveVision: () -> Unit = {}
 ) {
     // A persona may have its own model, so "loaded" doesn't have to be the default.
     val loadedHere = engine is EngineRuntimeState.Ready && engine.modelName == model.file.name
@@ -464,6 +489,26 @@ private fun ModelCard(
             }
             IconButton(onClick = onDelete) {
                 Icon(Icons.Default.DeleteOutline, contentDescription = "Delete model", tint = P.Faint)
+            }
+        }
+        if (model.format == ModelFormat.GGUF) {
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Icon(Icons.Outlined.PhotoCamera, contentDescription = null, tint = if (hasVision) P.Success else P.Faint, modifier = Modifier.size(16.dp))
+                Spacer(Modifier.width(8.dp))
+                Text(
+                    when {
+                        visionProgress != null -> "Adding vision file… ${(visionProgress * 100).toInt()}%"
+                        hasVision -> "Photos: on"
+                        else -> "Photos: add the model's vision file (mmproj)"
+                    },
+                    color = if (hasVision) P.Text else P.Muted, fontSize = 12.sp, modifier = Modifier.weight(1f)
+                )
+                if (visionProgress == null) {
+                    TextButton(onClick = if (hasVision) onRemoveVision else onAddVision) {
+                        Text(if (hasVision) "Remove" else "Add", color = if (hasVision) P.Muted else P.Accent, fontSize = 13.sp)
+                    }
+                }
             }
         }
     }

@@ -35,7 +35,11 @@ data class ModelsUiState(
     /** Model whose SHA-256 is being computed, with progress 0..1. */
     val hashing: Pair<LocalModel, Float>? = null,
     /** Finished fingerprint to show: model and its SHA-256 hex. */
-    val fingerprint: Pair<LocalModel, String>? = null
+    val fingerprint: Pair<LocalModel, String>? = null,
+    /** Paths of models that have a vision projector (can see photos). */
+    val withVision: Set<String> = emptySet(),
+    /** A vision projector being copied in: model path and progress 0..1. */
+    val visionImport: Pair<String, Float>? = null
 )
 
 /** The GPU switch on the Models screen. [gpuName] null = still checking, "" = no usable GPU. */
@@ -108,6 +112,53 @@ class ModelsViewModel @Inject constructor(
     init {
         refresh()
         viewModelScope.launch { runCatching { llama.probeGpu() } }
+        viewModelScope.launch { library.models.collect { refreshVision(it) } }
+    }
+
+    private suspend fun refreshVision(models: List<LocalModel> = library.models.value) {
+        val withVision = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+            models.filter { it.format == app.localmind.assistant.data.models.ModelFormat.GGUF && library.projectorFor(it.file) != null }
+                .map { it.path }.toSet()
+        }
+        local.update { it.copy(withVision = withVision) }
+    }
+
+    /** Adds the vision file (mmproj) that lets [model] see photos. */
+    fun addVision(model: LocalModel, uri: Uri) {
+        if (local.value.visionImport != null) return
+        viewModelScope.launch {
+            local.update { it.copy(visionImport = model.path to 0f) }
+            try {
+                library.importProjector(model, uri) { p -> local.update { s -> s.copy(visionImport = model.path to p) } }
+                refreshVision()
+                local.update { it.copy(message = "${model.displayName} can see photos now. Attach one with + in a chat.") }
+                reloadIfLoaded(model)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                local.update { it.copy(message = e.message ?: "Couldn't add the vision file") }
+            } finally {
+                local.update { it.copy(visionImport = null) }
+            }
+        }
+    }
+
+    fun removeVision(model: LocalModel) {
+        viewModelScope.launch {
+            // Unload first if it's in memory, so its vision file isn't open while being deleted.
+            val loaded = (uiState.value.engine as? EngineRuntimeState.Ready)?.modelName == model.file.name
+            if (loaded) engine.unloadModel()
+            library.removeProjector(model)
+            refreshVision()
+            if (loaded) engine.loadModel(model.file.name)
+        }
+    }
+
+    private suspend fun reloadIfLoaded(model: LocalModel) {
+        val ready = uiState.value.engine as? EngineRuntimeState.Ready ?: return
+        if (ready.modelName != model.file.name) return
+        engine.unloadModel()
+        engine.loadModel(model.file.name)
     }
 
     fun refresh() {

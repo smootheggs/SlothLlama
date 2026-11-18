@@ -7,6 +7,15 @@ import app.localmind.assistant.domain.persona.Persona
 
 enum class VoiceInputState { IDLE, LISTENING, TRANSCRIBING }
 
+/** A photo and/or document waiting to be sent with the next message. [busy]: one is being read. */
+data class PendingAttachments(
+    val photo: String? = null,
+    val document: app.localmind.assistant.domain.attachments.DocumentText? = null,
+    val busy: Boolean = false
+) {
+    val isEmpty: Boolean get() = photo == null && document == null
+}
+
 /** Hands-free conversation: the app listens, sends, reads the reply aloud, and listens again. */
 enum class HandsFreeState { OFF, LISTENING, TRANSCRIBING, THINKING, SPEAKING }
 
@@ -36,6 +45,8 @@ data class ChatUiState(
     val personas: List<Persona> = BuiltInPersonas.all,
     /** The loaded model's context size in tokens (0 until a model is ready). */
     val contextSize: Int = 0,
+    /** The loaded model has a vision file (null while no model is loaded). */
+    val canSeePhotos: Boolean? = null,
     /** The active conversation's persona, or the one new chats will use. */
     val activePersona: Persona = BuiltInPersonas.default
 ) {

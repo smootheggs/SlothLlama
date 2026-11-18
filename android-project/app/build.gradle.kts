@@ -16,8 +16,8 @@ android {
         applicationId = "app.localmind.assistant"
         minSdk = 33 // required by the llama.cpp module
         targetSdk = 35
-        versionCode = 8
-        versionName = "1.7.0"
+        versionCode = 9
+        versionName = "1.8.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -104,6 +104,8 @@ android {
     packaging {
         resources {
             excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            // Several libraries (PDFBox among them) carry their own copies of these.
+            pickFirsts += listOf("/META-INF/DEPENDENCIES", "/META-INF/LICENSE*", "/META-INF/NOTICE*")
         }
         jniLibs {
             // llama.cpp loads its CPU backends (libggml-cpu-*.so) from nativeLibraryDir at runtime,
@@ -152,6 +154,11 @@ dependencies {
     // Networking & HTML Sanitization
     implementation(libs.okhttp)
     implementation(libs.jsoup)
+    // PDF text for document attachments. Bouncy Castle is only for certificate-encrypted PDFs,
+    // which the app doesn't open, so it's left out (about 8 MB).
+    implementation(libs.pdfbox.android) {
+        exclude(group = "org.bouncycastle")
+    }
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.kotlinx.coroutines.android)
 

@@ -15,7 +15,9 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
+import app.localmind.assistant.data.attachments.AttachmentStore
 import app.localmind.assistant.data.models.ModelLibrary
+import app.localmind.assistant.domain.attachments.Attachments
 import java.io.File
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -34,7 +36,9 @@ class LlamaCppInferenceEngine @Inject constructor(
     @ApplicationContext private val context: Context,
     private val promptAssembler: SecurePromptAssembler,
     private val status: EngineStatus,
-    private val gpu: GpuSettings
+    private val gpu: GpuSettings,
+    private val library: ModelLibrary,
+    private val attachments: AttachmentStore
 ) {
     /** Every native call happens on this one thread. */
     private val nativeThread = Dispatchers.IO.limitedParallelism(1)
@@ -43,6 +47,8 @@ class LlamaCppInferenceEngine @Inject constructor(
     @Volatile private var loadedContext: Int = 0
     /** Whether the loaded model was asked to use the GPU (so a change of setting reloads it). */
     @Volatile private var loadedWantsGpu: Boolean = false
+    /** The loaded model really is on the GPU (it may have fallen back to the CPU). */
+    @Volatile private var loadedOnGpu: Boolean = false
     /** The first reply after a GPU load is still part of the crash-guarded attempt. */
     private var gpuAttemptOpen = false
     /** (role, content) pairs the native chat currently holds, or null if unknown. */
@@ -79,11 +85,15 @@ class LlamaCppInferenceEngine @Inject constructor(
             if (!onGpu) loadOnCpu(file)
             loadedFile = file
             loadedWantsGpu = wantGpu
+            loadedOnGpu = onGpu
             loadedContext = LlamaNative.contextSize()
             nativeChat = null
             val gpuName = if (onGpu) gpu.gpuName.value?.let(::shortGpuName) else null
             status.set(
-                EngineRuntimeState.Ready(file.name, loadedContext, canThink = LlamaNative.supportsThinking(), gpu = gpuName)
+                EngineRuntimeState.Ready(
+                    file.name, loadedContext, canThink = LlamaNative.supportsThinking(), gpu = gpuName,
+                    canSee = library.projectorFor(file) != null
+                )
             )
             Log.i(TAG, "Loaded ${file.name} on ${gpuName ?: "CPU"}, context=$loadedContext\n${LlamaNative.systemInfo()}")
             Unit
@@ -143,6 +153,7 @@ class LlamaCppInferenceEngine @Inject constructor(
         loadedFile = null
         loadedContext = 0
         loadedWantsGpu = false
+        loadedOnGpu = false
         nativeChat = null
         gpuAttemptOpen = false
     }
@@ -171,23 +182,84 @@ class LlamaCppInferenceEngine @Inject constructor(
         val thinks = request.allowThinking && LlamaNative.supportsThinking()
         LlamaNative.setThinking(thinks)
 
-        // Budget against the real context; keep room for the reply.
+        // A photo in this message (only the first counts) takes several hundred positions.
+        val photo = Attachments.photosIn(request.userPrompt).firstOrNull()
+
+        // Budget against the real context; keep room for the reply (and the photo).
         val effective = request.copy(
-            totalContextBudgetTokens = loadedContext,
+            totalContextBudgetTokens = loadedContext - if (photo != null) PHOTO_TOKENS else 0,
             maxOutputTokens = if (thinks) minOf(request.maxOutputTokens + THINKING_TOKENS, loadedContext / 2)
             else minOf(request.maxOutputTokens, loadedContext / 3)
         )
         val plan = promptAssembler.planChat(effective)
+        // Earlier photos are only mentioned (the model saw them when they were sent and, while
+        // the chat stays loaded, still remembers them); documents are marked as reference data.
         val desiredChat = buildList {
             add("system" to plan.systemText)
-            plan.history.forEach { add(it.role.lowercase() to it.content) }
+            plan.history.forEach { add(it.role.lowercase() to forModel(it.content, EARLIER_PHOTO)) }
         }
+        val userText = forModel(plan.userPrompt, "")
         emit(GenerationEvent.Started(request.modelId, plan.estimatedTokenCount))
 
-        // First reply after a GPU load: guarded, so a driver crash puts this model on the CPU next time.
-        val guarded = gpuAttemptOpen
-        if (guarded) gpu.beginAttempt(file.name)
+        val projector = if (photo != null) library.projectorFor(file) else null
+        if (photo != null && projector == null) {
+            emit(
+                GenerationEvent.Error(
+                    code = "NO_VISION",
+                    userMessage = "${file.nameWithoutExtension} can't see photos yet.",
+                    recommendedAction = "Models → this model → Photos: add its vision file (mmproj) from the same Hugging Face page.",
+                    technicalDetails = "no mmproj for ${file.name}"
+                )
+            )
+            return@flow
+        }
+        val image = photo?.let { attachments.rgbFor(it) }
+        if (photo != null && image == null) {
+            emit(
+                GenerationEvent.Error(
+                    code = "PHOTO_MISSING",
+                    userMessage = "That photo isn't on the tablet any more.",
+                    recommendedAction = "Attach it again.",
+                    technicalDetails = "missing $photo"
+                )
+            )
+            return@flow
+        }
+
+        // First reply after a GPU load, or the first photo on the GPU: guarded, so a driver crash
+        // puts that model (or its photos) on the CPU next time.
+        val visionKey = file.name + GpuSettings.VISION_SUFFIX
+        val visionOnGpu = photo != null && loadedOnGpu && gpu.shouldUseGpu(visionKey)
+        val guardKey = when {
+            visionOnGpu && !LlamaNative.hasProjector() -> visionKey
+            gpuAttemptOpen -> file.name
+            else -> null
+        }
+        if (guardKey != null) gpu.beginAttempt(guardKey)
+        val guarded = guardKey != null
         try {
+            if (projector != null && !LlamaNative.hasProjector()) {
+                status.set(EngineRuntimeState.Loading(file.name, "Getting ready to see photos"))
+                val rc = LlamaNative.loadProjector(projector.absolutePath, visionOnGpu)
+                status.set(
+                    EngineRuntimeState.Ready(
+                        file.name, loadedContext, canThink = LlamaNative.supportsThinking(),
+                        gpu = if (loadedOnGpu) gpu.gpuName.value?.let(::shortGpuName) else null, canSee = rc == 0
+                    )
+                )
+                if (rc != 0) {
+                    emit(
+                        GenerationEvent.Error(
+                            code = "VISION_LOAD_FAILED",
+                            userMessage = if (rc == 2) "The vision file added to this model isn't a vision projector."
+                            else "The vision file couldn't be loaded with this model; it may be for a different model.",
+                            recommendedAction = "Models → this model → Photos: remove it and add the mmproj from the model's own Hugging Face page.",
+                            technicalDetails = "loadProjector returned $rc"
+                        )
+                    )
+                    return@flow
+                }
+            }
             if (nativeChat != desiredChat) {
                 val rc = LlamaNative.loadConversation(
                     desiredChat.map { it.first }.toTypedArray(),
@@ -211,13 +283,25 @@ class LlamaCppInferenceEngine @Inject constructor(
             nativeChat = null
 
             LlamaNative.setSampling(request.temperature, TOP_P, TOP_K)
-            if (LlamaNative.processUserPrompt(plan.userPrompt, effective.maxOutputTokens) != 0) {
+            val promptRc = if (image != null) {
+                LlamaNative.processUserPromptWithImage(
+                    userText.ifBlank { "Describe this photo." }, image.rgb, image.width, image.height, effective.maxOutputTokens
+                )
+            } else {
+                LlamaNative.processUserPrompt(userText, effective.maxOutputTokens)
+            }
+            if (promptRc != 0) {
                 emit(
                     GenerationEvent.Error(
                         code = "PROMPT_FAILED",
-                        userMessage = "The model couldn't process that message.",
-                        recommendedAction = "Try again, or start a new chat.",
-                        technicalDetails = "processUserPrompt failed"
+                        userMessage = when {
+                            image != null && promptRc == 1 -> "The photo doesn't fit in the model's memory with this chat."
+                            image != null && promptRc == 4 -> "The model couldn't read that photo."
+                            else -> "The model couldn't process that message."
+                        },
+                        recommendedAction = if (image != null && promptRc == 1) "Start a new chat and attach the photo there."
+                        else "Try again, or start a new chat.",
+                        technicalDetails = "processUserPrompt failed ($promptRc)"
                     )
                 )
                 return@flow
@@ -265,7 +349,9 @@ class LlamaCppInferenceEngine @Inject constructor(
             // Clean end-of-turn: the native chat now equals history + this exchange.
             val endedCleanly = LlamaNative.lastStopWasEog()
             if (endedCleanly) {
-                nativeChat = desiredChat + listOf("user" to plan.userPrompt, "assistant" to visibleReply)
+                // Recorded as the next turn's history will describe it, so no replay is needed
+                // (and the model keeps the photo it actually saw).
+                nativeChat = desiredChat + listOf("user" to forModel(plan.userPrompt, EARLIER_PHOTO), "assistant" to visibleReply)
             }
             // Generation speed only (from the first token), not the wait while the prompt is read.
             val decodeStart = if (firstTokenAt > 0) firstTokenAt else startTime
@@ -294,6 +380,10 @@ class LlamaCppInferenceEngine @Inject constructor(
     private fun usedMemoryMb(): Int =
         (android.os.Debug.getNativeHeapAllocatedSize() / (1024 * 1024)).toInt()
 
+    /** Message text as the model reads it (see [Attachments.forModel]). */
+    private fun forModel(content: String, photoNote: String): String =
+        Attachments.forModel(content, photoNote) { text -> promptAssembler.sanitizeUntrustedPassage(text) {} }
+
     /** "QUALCOMM Adreno(TM) 750" → "Adreno 750". */
     private fun shortGpuName(raw: String): String =
         raw.replace("(TM)", "").replace("QUALCOMM", "", ignoreCase = true)
@@ -303,6 +393,9 @@ class LlamaCppInferenceEngine @Inject constructor(
         const val TAG = "LlamaCppEngine"
         /** n_gpu_layers = -1: every layer on the GPU. */
         const val ALL_LAYERS = -1
+        /** Room kept for a photo (a ~900 px photo is a few hundred tokens for Qwen-VL style models). */
+        const val PHOTO_TOKENS = 900
+        const val EARLIER_PHOTO = "[The learner shared a photo here.]"
         /**
          * Tokens of context. 6144 leaves room for longer tutoring sessions and for thinking, while a
          * 7B Q4 model plus its cache still fits comfortably in a 12 GB tablet.

@@ -33,6 +33,8 @@ import app.localmind.assistant.data.study.ReviewReminder
 import app.localmind.assistant.data.ask.AskInbox
 import app.localmind.assistant.data.ask.LaunchRequest
 import app.localmind.assistant.data.persona.ChineseStyleStore
+import app.localmind.assistant.data.attachments.AttachmentStore
+import kotlinx.coroutines.launch
 import app.localmind.assistant.ui.dictionary.DictionaryScreen
 import app.localmind.assistant.ui.dictionary.DictionaryViewModel
 import app.localmind.assistant.ui.study.FlashcardsScreen
@@ -61,6 +63,7 @@ class LocalMindApp : Application(), Configuration.Provider {
 
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var assistantSettings: AssistantSettingsStore
+    @Inject lateinit var attachmentStore: AttachmentStore
 
     // WorkManager starts on demand with Hilt's worker factory (the default initializer is removed
     // in the manifest), so workers such as the flashcard reminder get their dependencies injected.
@@ -72,6 +75,10 @@ class LocalMindApp : Application(), Configuration.Provider {
         AppShortcuts.publish(this)
         // Keep the daily review reminder scheduled (or cancelled) to match the setting.
         ReviewReminder.schedule(this, assistantSettings.reviewReminder.value, assistantSettings.reminderHour.value, replace = false)
+        // Tidy photos left behind by deleted chats, in the background.
+        kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.SupervisorJob() + kotlinx.coroutines.Dispatchers.IO).launch {
+            runCatching { attachmentStore.cleanUp() }
+        }
     }
 }
 

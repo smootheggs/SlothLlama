@@ -107,7 +107,72 @@ class ModelLibrary @Inject constructor(
             _activePath.value = null
         }
         model.file.delete()
+        projectorFor(model.file)?.delete()
         refresh()
+    }
+
+    /** The vision projector (mmproj) added for [modelFile], if any. Lets that model see photos. */
+    fun projectorFor(modelFile: File): File? = projectorFile(modelFile).takeIf { it.isFile }
+
+    private fun projectorFile(modelFile: File) =
+        File(modelFile.parentFile ?: importFolder, "mmproj-for-${modelFile.nameWithoutExtension}.gguf")
+
+    /**
+     * Adds a vision projector (an "mmproj" .gguf from the same Hugging Face page as the model) to
+     * [model], so it can look at photos. Stored next to the model and hidden from the model list.
+     */
+    suspend fun importProjector(model: LocalModel, uri: Uri, onProgress: (Float) -> Unit): File = withContext(Dispatchers.IO) {
+        val (name, size) = describe(uri)
+        if (!name.endsWith(".gguf", ignoreCase = true)) error("$name isn't a .gguf file. Pick the mmproj .gguf for ${model.displayName}.")
+        val target = projectorFile(model.file)
+        copyIn(uri, target, size, onProgress) { partial ->
+            ggufProblem(partial)?.let { error("$name: $it") }
+            if (ggufArchitecture(partial) != "clip") {
+                error("$name isn't a vision projector. On the model's Hugging Face page, look for a file with \"mmproj\" in its name.")
+            }
+        }
+        target
+    }
+
+    suspend fun removeProjector(model: LocalModel) = withContext(Dispatchers.IO) {
+        projectorFor(model.file)?.delete()
+        Unit
+    }
+
+    /** Copies [uri] to [target] via a .part file; [validate] can reject it before it's kept. */
+    private suspend fun copyIn(uri: Uri, target: File, size: Long, onProgress: (Float) -> Unit, validate: (File) -> Unit) {
+        val dir = target.parentFile ?: importFolder
+        if (size > 0 && dir.usableSpace < size + FREE_SPACE_MARGIN) {
+            error("Not enough free space: ${formatBytes(size)} needed, ${formatBytes(dir.usableSpace)} free.")
+        }
+        val partial = File(dir, "${target.name}.part")
+        try {
+            val input = context.contentResolver.openInputStream(uri) ?: error("Can't open the selected file")
+            input.use { inp ->
+                partial.outputStream().use { out ->
+                    val buf = ByteArray(4 shl 20)
+                    var copied = 0L
+                    var lastPct = -1
+                    while (true) {
+                        kotlin.coroutines.coroutineContext.ensureActive()
+                        val n = inp.read(buf)
+                        if (n < 0) break
+                        out.write(buf, 0, n)
+                        copied += n
+                        if (size > 0) {
+                            val pct = (copied * 100 / size).toInt()
+                            if (pct != lastPct) { lastPct = pct; onProgress(pct / 100f) }
+                        }
+                    }
+                }
+            }
+            validate(partial)
+            target.delete()
+            check(partial.renameTo(target)) { "Couldn't save ${target.name}" }
+        } catch (e: Throwable) {
+            partial.delete()
+            throw e
+        }
     }
 
     /** Copies a model picked with the system file picker (Downloads, an SSD, …) into the app's folder. */
@@ -144,7 +209,12 @@ class ModelLibrary @Inject constructor(
                     }
                 }
             }
-            if (format == ModelFormat.GGUF) ggufProblem(partial)?.let { error("$name: $it") }
+            if (format == ModelFormat.GGUF) {
+                ggufProblem(partial)?.let { error("$name: $it") }
+                if (ggufArchitecture(partial) == "clip") {
+                    error("$name is a vision file (mmproj), not a chat model. Add it with \"Photos\" on its model's card.")
+                }
+            }
             target.delete()
             check(partial.renameTo(target)) { "Couldn't save $name" }
             rememberSha256(target, digest.digest().toHex())
@@ -236,6 +306,65 @@ class ModelLibrary @Inject constructor(
                 null
             }
         }.getOrElse { "couldn't read the file (${it.message})" }
+
+        /**
+         * The GGUF's general.architecture ("qwen35", "llama", "clip" for vision projectors…),
+         * read from the metadata at the start of the file, or null if it isn't there.
+         */
+        fun ggufArchitecture(file: File): String? = runCatching {
+            java.io.DataInputStream(java.io.BufferedInputStream(file.inputStream(), 1 shl 16)).use { input ->
+                val header = ByteArray(24)
+                input.readFully(header)
+                if (String(header, 0, 4, Charsets.US_ASCII) != "GGUF") return null
+                val count = le64(header, 16).coerceAtMost(256)
+                val word = ByteArray(8)
+                // (InputStream.skipNBytes needs Android 14; this works on 13 too.)
+                fun skipN(n: Long) {
+                    var left = n
+                    while (left > 0) {
+                        val skipped = input.skip(left)
+                        if (skipped > 0) left -= skipped
+                        else if (input.read() < 0) error("unexpected end") else left--
+                    }
+                }
+                fun u32(): Long { input.readFully(word, 0, 4); return le32(word, 0).toLong() and 0xFFFFFFFFL }
+                fun u64(): Long { input.readFully(word, 0, 8); return le64(word, 0) }
+                fun str(limit: Int = 4096): String? {
+                    val len = u64()
+                    if (len < 0 || len > 1_000_000) error("bad string")
+                    if (len > limit) { skipN(len); return null }
+                    val b = ByteArray(len.toInt())
+                    input.readFully(b)
+                    return String(b, Charsets.UTF_8)
+                }
+                fun skip(type: Long) {
+                    when (type) {
+                        0L, 1L, 7L -> skipN(1)
+                        2L, 3L -> skipN(2)
+                        4L, 5L, 6L -> skipN(4)
+                        10L, 11L, 12L -> skipN(8)
+                        8L -> str(0)
+                        9L -> {
+                            val inner = u32()
+                            val n = u64()
+                            if (n < 0 || n > 10_000_000) error("bad array")
+                            if (inner == 8L) repeat(n.toInt()) { str(0) } else {
+                                val width = when (inner) { 0L, 1L, 7L -> 1L; 2L, 3L -> 2L; 4L, 5L, 6L -> 4L; 10L, 11L, 12L -> 8L; else -> error("bad type") }
+                                skipN(width * n)
+                            }
+                        }
+                        else -> error("bad type $type")
+                    }
+                }
+                repeat(count.toInt()) {
+                    val key = str() ?: ""
+                    val type = u32()
+                    if (key == "general.architecture" && type == 8L) return str()
+                    skip(type)
+                }
+                null
+            }
+        }.getOrNull()
 
         private fun le32(b: ByteArray, at: Int): Int =
             (b[at].toInt() and 0xFF) or ((b[at + 1].toInt() and 0xFF) shl 8) or

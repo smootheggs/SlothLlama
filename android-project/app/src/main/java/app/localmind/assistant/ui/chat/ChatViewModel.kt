@@ -1,8 +1,12 @@
 package app.localmind.assistant.ui.chat
 
+import android.net.Uri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.localmind.assistant.data.attachments.AttachmentStore
 import app.localmind.assistant.data.repository.DEFAULT_MODEL_ID
+import app.localmind.assistant.domain.attachments.Attachments
+import app.localmind.assistant.domain.attachments.DocumentText
 import app.localmind.assistant.domain.inference.EngineRuntimeState
 import app.localmind.assistant.domain.model.ChatMessage
 import app.localmind.assistant.domain.model.MessageRole
@@ -36,8 +40,52 @@ class ChatViewModel @Inject constructor(
     personaRepository: PersonaRepository,
     private val transcriber: VoiceTranscriber,
     private val recorder: VoiceRecorder,
-    chineseStyleStore: ChineseStyleStore
+    chineseStyleStore: ChineseStyleStore,
+    private val attachmentStore: AttachmentStore
 ) : ViewModel() {
+
+    private val _attachments = MutableStateFlow(PendingAttachments())
+    /** The photo / document waiting to go with the next message. */
+    val attachments: StateFlow<PendingAttachments> = _attachments.asStateFlow()
+
+    fun attachPhoto(uri: Uri) = attach("photo") {
+        val name = attachmentStore.savePhoto(uri)
+        _attachments.update { it.copy(photo = name, busy = false) }
+        if (uiState.value.canSeePhotos == false) {
+            _errorMessage.value = "This model can't see photos until you add its vision file: Models → its card → Photos → Add."
+        }
+    }
+
+    fun attachDocument(uri: Uri) = attach("document") {
+        val doc = attachmentStore.readDocument(uri)
+        _attachments.update { it.copy(document = doc, busy = false) }
+        if (doc.truncated) {
+            _errorMessage.value = "${doc.name} is long, so only the first part fits in the model's memory."
+        }
+    }
+
+    private fun attach(what: String, block: suspend () -> Unit) {
+        if (_attachments.value.busy) return
+        viewModelScope.launch {
+            _attachments.update { it.copy(busy = true) }
+            try {
+                block()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                _errorMessage.value = e.message?.takeIf { it.isNotBlank() } ?: "Couldn't add that $what."
+            } finally {
+                _attachments.update { it.copy(busy = false) }
+            }
+        }
+    }
+
+    fun removePhoto() = _attachments.update { it.copy(photo = null) }
+
+    fun removeDocument() = _attachments.update { it.copy(document = null) }
+
+    /** A stored photo, for thumbnails. */
+    fun photoFile(name: String): java.io.File? = attachmentStore.photoFile(name)
 
     private val _searchQuery = MutableStateFlow("")
     /** Drawer search text. */
@@ -198,7 +246,19 @@ class ChatViewModel @Inject constructor(
         createNewConversation(personaId = personaId)
     }
 
-    fun sendMessage() = send(_inputText.value, fromInputBox = true)
+    /** Sends what's in the box, with any attached photo or document. */
+    fun sendMessage() {
+        if (_isGenerating.value) return
+        val pending = _attachments.value
+        if (pending.busy) return
+        val typed = _inputText.value.trim()
+        if (typed.isEmpty() && pending.isEmpty) return
+        val text = typed.ifEmpty {
+            if (pending.photo != null) DEFAULT_PHOTO_PROMPT else DEFAULT_DOCUMENT_PROMPT
+        }
+        _attachments.value = PendingAttachments()
+        send(Attachments.compose(text, pending.photo, pending.document), fromInputBox = true)
+    }
 
     /** "Continue" after a reply stopped at the length limit. Leaves the input box alone. */
     fun continueReply() = send("Continue.", fromInputBox = false)
@@ -287,18 +347,28 @@ class ChatViewModel @Inject constructor(
 
     fun startEditingMessage(message: ChatMessage) {
         _editingMessage.value = message
-        _inputText.value = message.content
+        // The text goes in the box; a photo or document stays attached (and can be removed).
+        val parsed = Attachments.parse(message.content)
+        _inputText.value = parsed.text
+        _attachments.value = PendingAttachments(photo = parsed.photos.firstOrNull(), document = parsed.documents.firstOrNull())
     }
 
     fun cancelEditingMessage() {
         _editingMessage.value = null
         _inputText.value = ""
+        _attachments.value = PendingAttachments()
     }
 
     fun submitEditedMessage() {
         val message = _editingMessage.value ?: return
-        val newText = _inputText.value.trim()
-        if (newText.isEmpty() || _isGenerating.value) return
+        val pending = _attachments.value
+        val typed = _inputText.value.trim()
+        if ((typed.isEmpty() && pending.isEmpty) || _isGenerating.value || pending.busy) return
+        val newText = Attachments.compose(
+            typed.ifEmpty { if (pending.photo != null) DEFAULT_PHOTO_PROMPT else DEFAULT_DOCUMENT_PROMPT },
+            pending.photo, pending.document
+        )
+        _attachments.value = PendingAttachments()
 
         val convId = _activeConversationId.value ?: message.conversationId
 
@@ -543,7 +613,8 @@ class ChatViewModel @Inject constructor(
         is EngineRuntimeState.Ready -> copy(
             modelStatus = if (isGenerating) ModelRuntimeStatus.GENERATING else ModelRuntimeStatus.READY,
             activeModelName = prettyModelName(engine.modelName),
-            contextSize = engine.maxTokens
+            contextSize = engine.maxTokens,
+            canSeePhotos = engine.canSee
         )
         is EngineRuntimeState.NoModelFound -> copy(
             modelStatus = ModelRuntimeStatus.NO_MODEL_LOADED,
@@ -556,6 +627,8 @@ class ChatViewModel @Inject constructor(
     }
 
     private companion object {
+        const val DEFAULT_PHOTO_PROMPT = "What's in this photo?"
+        const val DEFAULT_DOCUMENT_PROMPT = "Summarise this document."
         const val STOP_GRACE_MS = 3_000L
         /** One hands-free turn can't run longer than this. */
         const val HANDS_FREE_MAX_SECONDS = 45

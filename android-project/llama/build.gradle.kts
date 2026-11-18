@@ -39,6 +39,9 @@ android {
                 arguments += "-DLLAMA_BUILD_EXAMPLES=OFF"
                 arguments += "-DLLAMA_BUILD_SERVER=OFF"
                 arguments += "-DLLAMA_BUILD_TOOLS=OFF"
+                // Photos: libmtmd (vision projectors / mmproj) on its own, without the other tools.
+                arguments += "-DLLAMA_BUILD_MTMD=ON"
+                arguments += "-DMTMD_VIDEO=OFF"
                 arguments += "-DLLAMA_OPENSSL=OFF"
                 arguments += "-DLLAMA_CURL=OFF"
                 arguments += "-DGGML_NATIVE=OFF"

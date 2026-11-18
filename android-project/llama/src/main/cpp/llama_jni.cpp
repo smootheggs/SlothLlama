@@ -16,6 +16,8 @@
 #include "chat.h"
 #include "common.h"
 #include "llama.h"
+#include "mtmd.h"
+#include "mtmd-helper.h"
 
 template<class T>
 static std::string join(const std::vector<T> &values, const std::string &delim) {
@@ -51,6 +53,8 @@ static bool                               g_template_thinks = false;
 static bool                               g_thinking_enabled = false;
 // Layers placed on the GPU for the loaded model: -1 = all, 0 = CPU only.
 static int                                g_gpu_layers = 0;
+// Vision projector (mmproj) for the loaded model, loaded the first time a photo is sent.
+static mtmd_context                     * g_mtmd = nullptr;
 
 extern "C"
 JNIEXPORT void JNICALL
@@ -115,6 +119,10 @@ Java_app_localmind_llama_LlamaNative_gpuName(JNIEnv *env, jobject /*unused*/) {
         }
     }
     return env->NewStringUTF("");
+}
+
+static int thread_count() {
+    return std::max(N_THREADS_MIN, std::min(N_THREADS_MAX, (int) sysconf(_SC_NPROCESSORS_ONLN) - N_THREADS_HEADROOM));
 }
 
 static llama_context *init_context(llama_model *model, const int n_ctx = DEFAULT_CONTEXT_SIZE) {
@@ -537,6 +545,118 @@ Java_app_localmind_llama_LlamaNative_processUserPrompt(
     return 0;
 }
 
+/**
+ * Loads the vision projector (mmproj) that lets the loaded model see photos. 0 = ready,
+ * 1 = couldn't load it (wrong file, or made for another model), 2 = it isn't a vision projector.
+ */
+extern "C"
+JNIEXPORT jint JNICALL
+Java_app_localmind_llama_LlamaNative_loadProjector(JNIEnv *env, jobject /*unused*/, jstring jpath, jboolean use_gpu) {
+    if (!g_model) { return 1; }
+    if (g_mtmd) { return 0; }
+    mtmd_context_params params = mtmd_context_params_default();
+    params.use_gpu = use_gpu;
+    params.print_timings = false;
+    params.n_threads = thread_count();
+    params.warmup = false;
+    const auto *path = env->GetStringUTFChars(jpath, nullptr);
+    g_mtmd = mtmd_init_from_file(path, g_model, params);
+    env->ReleaseStringUTFChars(jpath, path);
+    if (!g_mtmd) {
+        LOGe("%s: couldn't load the vision projector", __func__);
+        return 1;
+    }
+    if (!mtmd_support_vision(g_mtmd)) {
+        mtmd_free(g_mtmd);
+        g_mtmd = nullptr;
+        return 2;
+    }
+    return 0;
+}
+
+/**
+ * Like processUserPrompt, with one photo ([rgb]: width x height x 3 bytes) placed before the text.
+ * 0 = ok, 1 = too long for the context, 2 = decode failed, 3 = no projector, 4 = the photo
+ * couldn't be prepared.
+ */
+extern "C"
+JNIEXPORT jint JNICALL
+Java_app_localmind_llama_LlamaNative_processUserPromptWithImage(
+        JNIEnv *env,
+        jobject /*unused*/,
+        jstring juser_prompt,
+        jbyteArray jrgb,
+        jint width,
+        jint height,
+        jint n_predict
+) {
+    if (!g_mtmd) { return 3; }
+    if (width <= 0 || height <= 0 || env->GetArrayLength(jrgb) != (jsize) width * height * 3) { return 4; }
+    reset_short_term_states();
+    g_last_stop_eog = false;
+
+    const auto *const user_prompt = env->GetStringUTFChars(juser_prompt, nullptr);
+    const std::string content = std::string(mtmd_default_marker()) + "\n" + user_prompt;
+    env->ReleaseStringUTFChars(juser_prompt, user_prompt);
+
+    std::string formatted = content;
+    const bool has_chat_template = common_chat_templates_was_explicit(g_chat_templates.get());
+    if (has_chat_template) {
+        formatted = chat_add_and_format(ROLE_USER, content);
+        if (g_template_thinks) {
+            formatted += g_thinking_enabled ? "<think>\n" : "<think>\n\n</think>\n\n";
+        }
+    }
+
+    jbyte *pixels = env->GetByteArrayElements(jrgb, nullptr);
+    mtmd_bitmap *bitmap = mtmd_bitmap_init((uint32_t) width, (uint32_t) height, (const unsigned char *) pixels);
+    env->ReleaseByteArrayElements(jrgb, pixels, JNI_ABORT);
+    if (!bitmap) { return 4; }
+
+    mtmd_input_text text;
+    text.text = formatted.c_str();
+    text.text_len = formatted.size();
+    text.add_special = has_chat_template;
+    text.parse_special = true;
+
+    mtmd_input_chunks *chunks = mtmd_input_chunks_init();
+    const mtmd_bitmap *bitmaps[] = { bitmap };
+    const int32_t tokenized = mtmd_tokenize(g_mtmd, chunks, &text, bitmaps, 1);
+    mtmd_bitmap_free(bitmap);
+    if (tokenized != 0) {
+        LOGe("%s: mtmd_tokenize failed w/ %d", __func__, tokenized);
+        mtmd_input_chunks_free(chunks);
+        return 4;
+    }
+
+    // The photo plus the text must fit, with room left for the reply.
+    const llama_pos needed = mtmd_helper_get_n_pos(chunks);
+    if (current_position + needed + std::min((int) n_predict, 256) >= g_n_ctx - OVERFLOW_HEADROOM) {
+        LOGw("%s: photo and prompt need %d positions; only %d left", __func__, (int) needed, g_n_ctx - current_position);
+        mtmd_input_chunks_free(chunks);
+        return 1;
+    }
+
+    llama_pos new_position = current_position;
+    const int32_t evaluated = mtmd_helper_eval_chunks(
+            g_mtmd, g_context, chunks, current_position, /* seq_id */ 0, BATCH_SIZE, /* logits_last */ true, &new_position);
+    mtmd_input_chunks_free(chunks);
+    if (evaluated != 0) {
+        LOGe("%s: mtmd_helper_eval_chunks failed w/ %d", __func__, evaluated);
+        return 2;
+    }
+    current_position = new_position;
+    stop_generation_position = current_position + n_predict;
+    return 0;
+}
+
+/** True once a vision projector is loaded for the current model. */
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_app_localmind_llama_LlamaNative_hasProjector(JNIEnv * /*env*/, jobject /*unused*/) {
+    return g_mtmd != nullptr;
+}
+
 static bool is_valid_utf8(const char *string) {
     if (!string) { return true; }
 
@@ -753,6 +873,8 @@ Java_app_localmind_llama_LlamaNative_unload(JNIEnv * /*unused*/, jobject /*unuse
     reset_short_term_states();
 
     // Free up resources (null-safe, so a failed prepare() can be cleaned up too)
+    if (g_mtmd) { mtmd_free(g_mtmd); }
+    g_mtmd = nullptr;
     if (g_sampler) { common_sampler_free(g_sampler); }
     g_sampler = nullptr;
     g_chat_templates.reset();

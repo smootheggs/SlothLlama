@@ -38,6 +38,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -51,6 +52,7 @@ import androidx.compose.ui.unit.sp
 import app.localmind.assistant.domain.model.ChatMessage
 import app.localmind.assistant.domain.model.MessageRole
 import app.localmind.assistant.domain.model.MessageStatus
+import app.localmind.assistant.domain.attachments.Attachments
 import app.localmind.assistant.ui.speech.LocalSpeakAction
 import app.localmind.assistant.ui.study.LocalSaveWordAction
 import app.localmind.assistant.domain.model.MessageNotes
@@ -87,18 +89,28 @@ fun UserMessageBubble(message: ChatMessage, onEdit: () -> Unit, modifier: Modifi
         modifier.fillMaxWidth().padding(top = 12.dp, bottom = 4.dp),
         horizontalAlignment = Alignment.End
     ) {
-        SelectionContainer {
-            Text(
-                text = message.content,
-                color = P.Text,
-                fontSize = 16.sp,
-                lineHeight = 24.sp,
-                modifier = Modifier
-                    .widthIn(max = 560.dp)
-                    .clip(RoundedCornerShape(20.dp))
-                    .background(P.Elevated)
-                    .padding(horizontal = 16.dp, vertical = 10.dp)
-            )
+        // Photos and documents ride inside the text; show them as a picture and a chip.
+        val parsed = remember(message.content) { Attachments.parse(message.content) }
+        parsed.photos.forEach { name ->
+            PhotoThumbnail(name, maxSide = 240.dp, modifier = Modifier.padding(bottom = 6.dp))
+        }
+        parsed.documents.forEach { doc ->
+            DocumentChip(doc, modifier = Modifier.padding(bottom = 6.dp))
+        }
+        if (parsed.text.isNotBlank()) {
+            SelectionContainer {
+                Text(
+                    text = parsed.text,
+                    color = P.Text,
+                    fontSize = 16.sp,
+                    lineHeight = 24.sp,
+                    modifier = Modifier
+                        .widthIn(max = 560.dp)
+                        .clip(RoundedCornerShape(20.dp))
+                        .background(P.Elevated)
+                        .padding(horizontal = 16.dp, vertical = 10.dp)
+                )
+            }
         }
         ActionIcon(Icons.Outlined.Edit, "Edit message", Modifier.padding(top = 2.dp), onClick = onEdit)
     }

@@ -78,9 +78,11 @@ class GpuSettings @Inject constructor(@ApplicationContext context: Context) {
         _cpuOnlyModels.value = updated
     }
 
-    private companion object {
-        const val KEY_ENABLED = "enabled"
-        const val KEY_CPU_ONLY = "cpu_only_models"
-        const val KEY_PENDING = "pending_attempt"
+    companion object {
+        /** Added to a model's file name for its vision projector's entry in the CPU-only list. */
+        const val VISION_SUFFIX = "#photos"
+        private const val KEY_ENABLED = "enabled"
+        private const val KEY_CPU_ONLY = "cpu_only_models"
+        private const val KEY_PENDING = "pending_attempt"
     }
 }

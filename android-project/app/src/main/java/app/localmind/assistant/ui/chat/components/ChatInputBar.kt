@@ -33,7 +33,10 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.HeadsetMic
+import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -60,6 +63,7 @@ import androidx.compose.ui.unit.sp
 import app.localmind.assistant.domain.model.ChatMessage
 import app.localmind.assistant.domain.persona.Persona
 import app.localmind.assistant.ui.chat.HandsFreeState
+import app.localmind.assistant.ui.chat.PendingAttachments
 import app.localmind.assistant.ui.chat.VoiceInputState
 import app.localmind.assistant.ui.theme.SlothPalette as P
 
@@ -93,6 +97,11 @@ fun ChatInputBar(
     handsFree: HandsFreeState = HandsFreeState.OFF,
     onStartHandsFree: () -> Unit = {},
     onStopHandsFree: () -> Unit = {},
+    attachments: PendingAttachments = PendingAttachments(),
+    onAttachPhoto: () -> Unit = {},
+    onAttachDocument: () -> Unit = {},
+    onRemovePhoto: () -> Unit = {},
+    onRemoveDocument: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -110,7 +119,8 @@ fun ChatInputBar(
         if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) onStartHandsFree()
         else handsFreePermission.launch(Manifest.permission.RECORD_AUDIO)
     }
-    val canSubmit = inputText.isNotBlank()
+    // A photo or document can go on its own (it gets a default question).
+    val canSubmit = (inputText.isNotBlank() || !attachments.isEmpty) && !attachments.busy
     val submit = {
         if (canSubmit) {
             if (editingMessage != null) onSubmitEdit() else onSendMessage()
@@ -162,6 +172,9 @@ fun ChatInputBar(
             } else if (voiceState != VoiceInputState.IDLE) {
                 VoiceBar(voiceState, voiceLevel, onFinishVoice, onCancelVoice)
             } else {
+                if (!attachments.isEmpty || attachments.busy) {
+                    PendingAttachmentRow(attachments, onRemovePhoto, onRemoveDocument)
+                }
                 BasicTextField(
                     value = inputText,
                     onValueChange = onInputTextChanged,
@@ -189,6 +202,12 @@ fun ChatInputBar(
                 Spacer(Modifier.size(8.dp))
 
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    AttachButton(
+                        enabled = !isGenerating && !attachments.busy,
+                        onPhoto = onAttachPhoto,
+                        onDocument = onAttachDocument
+                    )
+                    Spacer(Modifier.width(4.dp))
                     PersonaChip(
                         active = activePersona,
                         personas = personas,
@@ -227,6 +246,34 @@ fun ChatInputBar(
                 }
             }
         }
+        }
+    }
+}
+
+/** "+": attach a photo (for models with a vision file) or a document (PDF or text). */
+@Composable
+private fun AttachButton(enabled: Boolean, onPhoto: () -> Unit, onDocument: () -> Unit) {
+    var menuShown by remember { mutableStateOf(false) }
+    Box {
+        IconButton(onClick = { menuShown = true }, enabled = enabled, modifier = Modifier.size(36.dp)) {
+            Icon(Icons.Outlined.Add, contentDescription = "Attach a photo or document", tint = if (enabled) P.Muted else P.Faint)
+        }
+        DropdownMenu(expanded = menuShown, onDismissRequest = { menuShown = false }) {
+            DropdownMenuItem(
+                text = { Text("Photo", color = P.Text) },
+                leadingIcon = { Icon(Icons.Outlined.PhotoLibrary, contentDescription = null, tint = P.Muted) },
+                onClick = { menuShown = false; onPhoto() }
+            )
+            DropdownMenuItem(
+                text = {
+                    Column {
+                        Text("Document", color = P.Text)
+                        Text("PDF or text file", color = P.Faint, fontSize = 12.sp)
+                    }
+                },
+                leadingIcon = { Icon(Icons.Outlined.Description, contentDescription = null, tint = P.Muted) },
+                onClick = { menuShown = false; onDocument() }
+            )
         }
     }
 }

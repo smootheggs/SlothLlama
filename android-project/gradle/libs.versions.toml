@@ -19,6 +19,7 @@ coroutines = "1.9.0"
 securityCrypto = "1.1.0-alpha06"
 mediapipeTasksGenai = "0.10.27"
 jsoup = "1.18.1"
+pdfboxAndroid = "2.0.27.0"
 listenableFuture = "1.0"
 junit = "4.13.2"
 junitVersion = "1.2.1"
@@ -67,6 +68,8 @@ androidx-work-testing = { group = "androidx.work", name = "work-testing", versio
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 okhttp-mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver", version.ref = "okhttp" }
 jsoup = { group = "org.jsoup", name = "jsoup", version.ref = "jsoup" }
+# Reads the text of PDFs attached to a chat (Apache 2.0)
+pdfbox-android = { group = "com.tom-roush", name = "pdfbox-android", version.ref = "pdfboxAndroid" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }

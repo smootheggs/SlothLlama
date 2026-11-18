@@ -58,6 +58,22 @@ object LlamaNative {
     /** Adds the user turn and prepares generation of up to [predictLength] tokens. 0 on success. */
     external fun processUserPrompt(userPrompt: String, predictLength: Int): Int
 
+    /**
+     * Loads the vision projector (mmproj) for the loaded model so it can see photos.
+     * 0 = ready, 1 = couldn't load it (wrong file or made for another model), 2 = not a vision projector.
+     */
+    external fun loadProjector(path: String, useGpu: Boolean): Int
+
+    /** True once [loadProjector] has succeeded for the current model. */
+    external fun hasProjector(): Boolean
+
+    /**
+     * [processUserPrompt] with one photo before the text. [rgb] = [width] x [height] pixels,
+     * 3 bytes each. 0 = ok, 1 = too long for the context, 2 = decode failed, 3 = no projector,
+     * 4 = the photo couldn't be prepared.
+     */
+    external fun processUserPromptWithImage(userPrompt: String, rgb: ByteArray, width: Int, height: Int, predictLength: Int): Int
+
     /** Next piece of text; "" while a multi-byte character is incomplete; null when generation ends. */
     external fun generateNextToken(): String?
 

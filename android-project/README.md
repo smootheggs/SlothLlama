@@ -78,6 +78,16 @@ model too big for the GPU falls back to the CPU on its own.
   count, and simplified / traditional don't matter. Needs the voice model.
 - **Hands-free conversation.** The headset button in the composer: talk, pause, and the reply is
   read aloud, then it listens again. Stop with ■, or it pauses after two silent turns.
+- **Photos.** Models that can see (Qwen3.5, Gemma 3/4, Qwen2.5-VL, MiniCPM-V…) ship a separate
+  vision file with "mmproj" in its name on the same Hugging Face page. Download it, then
+  **Models → the model's card → Photos → Add**. In a chat, **+ → Photo** (the system photo
+  picker; no gallery permission). Photos are re-saved without location data in the app's
+  private storage; the model sees one photo per message, and remembers it while the chat stays
+  open. Backups don't include photos.
+- **Documents.** **+ → Document**: a PDF or any text file (.txt, .md, .csv, subtitles). Its text
+  goes into the message as reference material (instructions inside it are not followed).
+  About 2,600 tokens fit, roughly 10,000 English characters or 2,600 Chinese characters;
+  longer documents are cut and the chip says "first part only". Scanned PDFs have no text.
 - **Start page.** The time, today in Chinese (weekday, lunar date, zodiac year — computed on the
   tablet, no weather because the app stays offline), a hello, and quick ways in.
 - **Backups.** Settings → Backup: one file with chats, custom personas, flashcards and settings,
