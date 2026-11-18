@@ -3,6 +3,7 @@ package app.slothlobster.ui
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -167,6 +168,24 @@ fun SettingsScreen(
                 )
             }
 
+            Section("Look") {
+                Panel {
+                    ThemeChoice.entries.forEachIndexed { i, choice ->
+                        if (i > 0) Divider()
+                        Radio(
+                            choice.label,
+                            when (choice) {
+                                ThemeChoice.SYSTEM -> "White by day, black at night, as the tablet is set"
+                                ThemeChoice.WHITE -> "Easy to read in daylight"
+                                ThemeChoice.OLED -> "True black: kind to the eyes and the battery at night"
+                            },
+                            selected = ThemeChoice.of(s.theme) == choice,
+                            onClick = { onSettings { it.copy(theme = choice.id) } }
+                        )
+                    }
+                }
+            }
+
             Section("Brain") {
                 Panel {
                     Radio(
@@ -280,10 +299,18 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun Radio(title: String, line: String, selected: Boolean, enabled: Boolean = true, trailing: (@Composable () -> Unit)? = null) {
+private fun Radio(
+    title: String,
+    line: String,
+    selected: Boolean,
+    enabled: Boolean = true,
+    onClick: (() -> Unit)? = null,
+    trailing: (@Composable () -> Unit)? = null
+) {
     Row(
         Modifier
             .fillMaxWidth()
+            .then(if (onClick != null && enabled) Modifier.clickable(role = androidx.compose.ui.semantics.Role.RadioButton, onClick = onClick) else Modifier)
             .padding(16.dp)
             .semantics { contentDescription = "$title, ${if (selected) "selected" else if (enabled) "not selected" else "not available"}" },
         horizontalArrangement = Arrangement.spacedBy(12.dp)

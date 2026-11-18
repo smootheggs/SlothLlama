@@ -154,7 +154,9 @@ data class Settings(
     val stayAwake: Boolean = true,
     /** Paused here while there's no mailbox (with one, the STOP file is the switch). */
     val pausedHere: Boolean = false,
-    val lastBriefDay: String? = null
+    val lastBriefDay: String? = null,
+    /** Settings → Look: "oled", "white" or "system". */
+    val theme: String = "oled"
 ) {
     companion object {
         val DEFAULT_FEEDS = listOf(

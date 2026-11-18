@@ -27,6 +27,17 @@ New in 1.1:
 - **Sturdier search**: Brave and Mojeek join DuckDuckGo and Bing; Settings shows which answer.
 - **Read it all here**: everything brought back opens in full in the Lobster.
 
+New in 1.3:
+
+- **White or OLED black**: Settings → Look (or match the tablet). Same coral, readable in both.
+- **A Deck that does more on one page**: give orders right there (research shows the searches it
+  will run as you type), Today in numbers (brought back, watches, the next brief, search
+  engines answering), the job in hand with Send now, and what's coming up.
+- **Better pages for research**: every search's results are weighed together; original sources
+  (public bodies, universities, journals, documentation, established news) come first, answer
+  farms, paywalled document sites and index pages last, one page per site.
+- **A proper settings gear**, labelled, in the rail.
+
 New in 1.2:
 
 - **Diagnostics**: Settings → Diagnostics shows the version, device, battery setting, recent

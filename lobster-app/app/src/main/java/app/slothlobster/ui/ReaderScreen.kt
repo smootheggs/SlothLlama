@@ -173,17 +173,17 @@ private fun Block(b: Md) {
         )
         is Md.Bullet -> Row(Modifier.padding(start = 20.dp, end = 16.dp, bottom = 6.dp)) {
             Text("•", color = Sea.Coral, fontSize = 15.sp, modifier = Modifier.width(16.dp))
-            SelectionContainer { Text(inline(b.text), color = Sea.Soft, fontSize = 15.sp, lineHeight = 22.sp) }
+            SelectionContainer { Text(richText(b.text), color = Sea.Soft, fontSize = 15.sp, lineHeight = 22.sp) }
         }
         is Md.Quote -> Row(Modifier.padding(start = 16.dp, end = 16.dp, bottom = 8.dp)) {
             Box(Modifier.width(3.dp).height(22.dp).background(Sea.Coral))
             SelectionContainer {
-                Text(inline(b.text), modifier = Modifier.padding(start = 10.dp), color = Sea.Muted, fontSize = 15.sp, fontStyle = FontStyle.Italic)
+                Text(richText(b.text), modifier = Modifier.padding(start = 10.dp), color = Sea.Muted, fontSize = 15.sp, fontStyle = FontStyle.Italic)
             }
         }
         is Md.Para -> SelectionContainer {
             Text(
-                inline(b.text),
+                richText(b.text),
                 modifier = Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 10.dp),
                 color = if (b.quiet) Sea.Muted else Sea.Soft,
                 fontSize = if (b.quiet) 13.sp else 15.sp,
@@ -198,15 +198,22 @@ private fun Block(b: Md) {
 private val INLINE = Regex("""\[([^\]]+)\]\((https?://[^)\s]+)\)|\*\*([^*]+)\*\*|(https://[^\s)]+)""")
 
 /** Links you can tap (they open in the browser) and **bold**; everything else as written. */
-private fun inline(text: String): AnnotatedString = buildAnnotatedString {
-    val linkStyle = TextLinkStyles(SpanStyle(color = Sea.Coral, textDecoration = TextDecoration.Underline))
+@Composable
+private fun richText(text: String): AnnotatedString {
+    val link = Sea.Coral
+    val strong = Sea.Text
+    return remember(text, link, strong) { richText(text, link, strong) }
+}
+
+private fun richText(text: String, link: androidx.compose.ui.graphics.Color, strong: androidx.compose.ui.graphics.Color): AnnotatedString = buildAnnotatedString {
+    val linkStyle = TextLinkStyles(SpanStyle(color = link, textDecoration = TextDecoration.Underline))
     var at = 0
     for (m in INLINE.findAll(text)) {
         append(text.substring(at, m.range.first))
         val (label, url, bold, bare) = m.destructured
         when {
             url.isNotEmpty() -> withLink(LinkAnnotation.Url(url, linkStyle)) { append(label) }
-            bold.isNotEmpty() -> withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = Sea.Text)) { append(bold) }
+            bold.isNotEmpty() -> withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = strong)) { append(bold) }
             else -> withLink(LinkAnnotation.Url(bare, linkStyle)) { append(bare) }
         }
         at = m.range.last + 1

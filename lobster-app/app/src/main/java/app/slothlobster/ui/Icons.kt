@@ -31,7 +31,20 @@ object LobsterIcons {
     val Orders = line("orders", "M6 5h12a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z", "M4 7l8 6 8-6")
     val Watch = line("watch", "M2 12s4-7 10-7 10 7 10 7-4 7-10 7S2 12 2 12z", RING3)
     val Log = line("log", "M6 3h9l4 4v14H6z", "M9 11h7M9 15h7")
-    val Settings = line("settings", RING3, "M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1")
+    // A gear (the old rays read as a brightness icon).
+    val Settings = line(
+        "settings",
+        "M10.3 4.3c.4-1.8 3-1.8 3.4 0a1.7 1.7 0 0 0 2.6 1.1c1.5-.9 3.3.8 2.4 2.4a1.7 1.7 0 0 0 1 2.5c1.8.4 1.8 3 0 3.4a1.7 1.7 0 0 0-1 2.6c.9 1.5-.9 3.3-2.4 2.4a1.7 1.7 0 0 0-2.6 1c-.4 1.8-3 1.8-3.4 0a1.7 1.7 0 0 0-2.6-1c-1.5.9-3.3-.9-2.4-2.4a1.7 1.7 0 0 0-1-2.6c-1.8-.4-1.8-3 0-3.4a1.7 1.7 0 0 0 1-2.5c-.9-1.6.9-3.3 2.4-2.4a1.7 1.7 0 0 0 2.6-1.1z",
+        RING3
+    )
+    val Pause = line("pause", "M8 5v14M16 5v14", width = 1.9f)
+    val Inbox = line("inbox", "M4 13h4l1.5 3h5L16 13h4", "M4 13l2-8h12l2 8v6H4z")
+    val Clock = line("clock", "M3,12a9,9 0 1,0 18,0a9,9 0 1,0 -18,0", "M12 7v5l3 3")
+    val Globe = line("globe", "M3,12a9,9 0 1,0 18,0a9,9 0 1,0 -18,0", "M3 12h18", "M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18")
+    val Search = line("search", "M4,10a6,6 0 1,0 12,0a6,6 0 1,0 -12,0", "M20 20l-5.5-5.5")
+    val News = line("news", "M5 5h11v14H6a1 1 0 0 1-1-1z", "M16 9h3v9a1 1 0 0 1-1 1h-2", "M8 9h5M8 13h5M8 16h3")
+    val Repeat = line("repeat", "M4 12V9a3 3 0 0 1 3-3h11M15 3l3 3-3 3", "M20 12v3a3 3 0 0 1-3 3H6M9 21l-3-3 3-3")
+    val Chevron = line("chevron", "M9 6l6 6-6 6", width = 1.8f)
     val Back = line("back", "M15 5l-7 7 7 7", width = 1.8f)
     val Plus = line("plus", "M12 5v14M5 12h14", width = 1.8f)
     val Lock = line("lock", "M7 11h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2z", "M8 11V7a4 4 0 0 1 8 0v4")

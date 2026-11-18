@@ -204,12 +204,12 @@ fun Chip(text: String, selected: Boolean, onClick: () -> Unit, enabled: Boolean 
             .clip(shape)
             .background(
                 when {
-                    selected -> Sea.Coral
+                    selected -> Sea.CoralSoft
                     enabled -> Sea.Raised
                     else -> Color.Transparent
                 }
             )
-            .border(1.dp, if (selected) Sea.Coral else if (enabled) Color(0xFF2A2A30) else Sea.Off, shape)
+            .border(1.dp, if (selected) Sea.CoralSoft else if (enabled) Sea.BorderStrong else Sea.Off, shape)
             .clickable(enabled = enabled, role = Role.RadioButton, onClick = onClick)
             .padding(horizontal = 14.dp),
         contentAlignment = Alignment.Center
@@ -217,9 +217,9 @@ fun Chip(text: String, selected: Boolean, onClick: () -> Unit, enabled: Boolean 
         Text(
             text,
             color = when {
-                selected -> Sea.OnCoral
+                selected -> Sea.Coral
                 enabled -> Sea.Soft
-                else -> Color(0xFF6B6B73)
+                else -> Sea.Faint
             },
             fontSize = 13.sp,
             fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Normal
@@ -247,7 +247,7 @@ fun StatusDot(on: Boolean) {
         Modifier
             .size(10.dp)
             .clip(CircleShape)
-            .background(if (on) Sea.Coral else Sea.Faint)
+            .background(if (on) Sea.Awake else Sea.Faint)
     )
 }
 

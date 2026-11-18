@@ -103,7 +103,7 @@ fun OrdersScreen(
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
                             focusedBorderColor = Sea.Coral,
-                            unfocusedBorderColor = androidx.compose.ui.graphics.Color(0xFF2A2A30),
+                            unfocusedBorderColor = Sea.BorderStrong,
                             focusedLabelColor = Sea.Coral,
                             cursorColor = Sea.Coral,
                             focusedContainerColor = Sea.Canvas,

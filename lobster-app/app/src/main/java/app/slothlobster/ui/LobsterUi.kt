@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -191,6 +192,10 @@ fun LobsterUi(vm: LobsterViewModel) {
                                 onSeeAll = { listOpen = true },
                                 onPause = vm::setPaused,
                                 onPair = { settingsOpen = true },
+                                onSend = { kind, text -> vm.send(kind, text, false, null) },
+                                onSendNow = vm::sendNow,
+                                onWatches = { pickTab(Tab.WATCH) },
+                                onOrders = { pickTab(Tab.ORDERS) },
                                 modifier = m
                             )
                         }
@@ -260,38 +265,50 @@ private fun BottomBar(tab: Tab?, onTab: (Tab) -> Unit) {
 private fun Rail(tab: Tab, settingsOpen: Boolean, onTab: (Tab) -> Unit, onSettings: () -> Unit) {
     Column(
         Modifier
-            .width(104.dp)
+            .width(96.dp)
             .fillMaxHeight()
             .padding(vertical = 16.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(8.dp)
+        verticalArrangement = Arrangement.spacedBy(6.dp)
     ) {
         Image(
             painterResource(R.drawable.sloth_lobster),
             contentDescription = "SlothLobster: a sloth riding a lobster",
-            modifier = Modifier.size(width = 72.dp, height = 63.dp)
+            modifier = Modifier.size(width = 64.dp, height = 56.dp)
         )
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(14.dp))
         Tab.entries.forEach { t ->
-            val on = t == tab && !settingsOpen
-            Column(
-                Modifier
-                    .width(76.dp)
-                    .height(62.dp)
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(if (on) Sea.CoralSoft else Sea.Canvas)
-                    .clickable(role = Role.Tab) { onTab(t) }
-                    .semantics { selected = on },
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically)
-            ) {
-                Icon(t.icon, contentDescription = null, tint = if (on) Sea.Coral else Sea.Muted, modifier = Modifier.size(22.dp))
-                Text(t.label, color = if (on) Sea.Coral else Sea.Muted, fontSize = 12.sp, fontWeight = if (on) FontWeight.SemiBold else FontWeight.Normal)
-            }
+            RailItem(t.icon, t.label, selected = t == tab && !settingsOpen) { onTab(t) }
         }
         Spacer(Modifier.weight(1f))
-        IconButton(onClick = onSettings) {
-            Icon(LobsterIcons.Settings, contentDescription = "Settings", tint = if (settingsOpen) Sea.Coral else Sea.Muted)
+        RailItem(LobsterIcons.Settings, "Settings", selected = settingsOpen, onClick = onSettings)
+    }
+}
+
+/** A rail entry: icon over label; the chosen one gets a coral mark at the edge. */
+@Composable
+private fun RailItem(icon: androidx.compose.ui.graphics.vector.ImageVector, label: String, selected: Boolean, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .width(96.dp)
+            .heightIn(min = 64.dp)
+            .clickable(role = Role.Tab, onClick = onClick)
+            .semantics { this.selected = selected },
+        contentAlignment = Alignment.Center
+    ) {
+        if (selected) {
+            Box(
+                Modifier
+                    .align(Alignment.CenterStart)
+                    .width(3.dp)
+                    .height(36.dp)
+                    .clip(RoundedCornerShape(topEnd = 3.dp, bottomEnd = 3.dp))
+                    .background(Sea.Coral)
+            )
+        }
+        Column(horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Icon(icon, contentDescription = null, tint = if (selected) Sea.Coral else Sea.Muted, modifier = Modifier.size(24.dp))
+            Text(label, color = if (selected) Sea.Text else Sea.Muted, fontSize = 13.sp, fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal)
         }
     }
 }

@@ -69,6 +69,26 @@ object Repeats {
         return now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE) >= hour * 60 + minute
     }
 
+    /**
+     * When it next runs: [now] itself if it's due, else the next matching day at its time.
+     * Also used for the daily brief (every day, its own time).
+     */
+    fun next(everyDays: Int, weekday: Int, hour: Int, minute: Int, lastRunDay: String?, now: Calendar): Calendar {
+        for (i in 0..14) {
+            val day = (now.clone() as Calendar).apply {
+                add(Calendar.DAY_OF_YEAR, i)
+                set(Calendar.HOUR_OF_DAY, hour)
+                set(Calendar.MINUTE, minute)
+                set(Calendar.SECOND, 0)
+                set(Calendar.MILLISECOND, 0)
+            }
+            if (everyDays == 7 && day.get(Calendar.DAY_OF_WEEK) != weekday) continue
+            if (lastRunDay == dayKey(day)) continue
+            return if (i == 0 && day.before(now)) now.clone() as Calendar else day
+        }
+        return now.clone() as Calendar
+    }
+
     fun dayKey(c: Calendar): String =
         "%04d-%02d-%02d".format(c.get(Calendar.YEAR), c.get(Calendar.MONTH) + 1, c.get(Calendar.DAY_OF_MONTH))
 }

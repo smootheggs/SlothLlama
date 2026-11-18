@@ -12,7 +12,12 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.slothlobster.ui.LobsterTheme
+import app.slothlobster.ui.ThemeChoice
+import app.slothlobster.ui.seaColors
 import app.slothlobster.ui.LobsterUi
 import app.slothlobster.ui.LobsterViewModel
 
@@ -29,7 +34,15 @@ class MainActivity : ComponentActivity() {
         if (savedInstanceState == null) takeShared(intent)
         askForNotifications()
         setContent {
-            LobsterTheme { LobsterUi(vm) }
+            val saved by vm.saved.collectAsStateWithLifecycle()
+            val colors = seaColors(ThemeChoice.of(saved.settings.theme))
+            // System bar icons follow the theme: light icons on black, dark icons on white.
+            LaunchedEffect(colors.isDark) {
+                val style = if (colors.isDark) SystemBarStyle.dark(Color.TRANSPARENT)
+                else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
+                enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+            }
+            LobsterTheme(colors) { LobsterUi(vm) }
         }
     }
 

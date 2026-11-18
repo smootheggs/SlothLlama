@@ -268,22 +268,22 @@ class Engine(private val lobster: Lobster) {
         setSources(job.id, read.map { it.first })
         checkpoint(job.id)
 
-        // Each search adds its share of pages, never the same site twice.
+        // Every search's results go into one pool, and the best pages across them are read
+        // (see Picks): one per site, original sources first, answer farms and index pages last.
         val total = if (job.deep) 7 else 4
         val per = Plans.perSearch(total, searches.size)
-        val seen = HashSet<String>()
-        val hits = ArrayList<Hit>()
-        for (q in searches) {
+        val pool = ArrayList<Picks.Candidate>()
+        searches.forEachIndexed { i, q ->
             checkpoint(job.id)
             val (engine, found) = runCatching { Search.web(q, per + 4, engineOrder(), ::recordEngine) }.getOrElse {
                 store.log("problem", "Web search didn't answer", friendly(it))
                 "" to emptyList<Hit>()
             }
             if (engine.isNotEmpty()) store.log("search", "Searched $engine", q)
-            hits += found.filter { seen.add(Web.site(it.url)) }.take(per)
-            if (hits.size >= total + 2) break
+            found.forEachIndexed { position, hit -> pool += Picks.Candidate(hit, i, position) }
         }
-        while (hits.size > total) hits.removeAt(hits.lastIndex)
+        // Wikipedia was already read above, so its pages don't take a place here.
+        val hits = Picks.rank(if (wiki.isEmpty()) pool else pool.filterNot { Picks.site(it.hit.url).endsWith("wikipedia.org") }, question, total)
         setSources(job.id, read.map { it.first } + hits.map { SourceState(it.title, it.url, Web.site(it.url)) })
 
         for (hit in hits) {
