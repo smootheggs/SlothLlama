@@ -102,7 +102,7 @@ model too big for the GPU falls back to the CPU on its own.
   (Models → Voice input: European languages; three files, about 375 MB).
 - **Home page.** Opens by default: the time, today in Chinese, a hello, Continue and New chat,
   **Today** (flashcards due, what the Lobster brought back, the weekly backup), the tutors one
-  chip per language, your things with live status, and recent chats (Settings → Appearance →
+  chip per language and your things with live status, all on one screen (Settings → Appearance →
   Open on the Home page). OLED black with a moss-green accent, kept for the main action and live
   numbers; coral is the Lobster's.
   Back returns to where you came from; Home is in the menu.
