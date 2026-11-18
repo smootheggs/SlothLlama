@@ -7,6 +7,9 @@ import app.localmind.assistant.domain.persona.Persona
 
 enum class VoiceInputState { IDLE, LISTENING, TRANSCRIBING }
 
+/** Hands-free conversation: the app listens, sends, reads the reply aloud, and listens again. */
+enum class HandsFreeState { OFF, LISTENING, TRANSCRIBING, THINKING, SPEAKING }
+
 enum class ModelRuntimeStatus {
     READY,
     GENERATING,

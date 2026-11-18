@@ -67,6 +67,17 @@ model too big for the GPU falls back to the CPU on its own.
 - **Ask SlothLlama.** Select text in any app → **Ask SlothLlama** opens a new chat with the
   question waiting in the box.
 - **A model per persona.** Personas → Model, e.g. a Cantonese model for the Cantonese tutors.
+- **Dictionary (offline).** Tap any Chinese character in a reply to look up the word that starts
+  there: characters in your script, Pinyin and Jyutping, meanings, Listen, Practise, and ☆ to
+  save it as a flashcard. Drawer → Dictionary searches by characters, pinyin (`nihao`,
+  `ni3 hao3`) or English. Built from CC-CEDICT (CC BY-SA 4.0) with Jyutping from ToJyutping;
+  CI fetches both at pinned checksums (`scripts/fetch-dictionary.sh`).
+- **Repeat after me.** The 🗣 button under a tutor reply (or Practise in the dictionary): pick a
+  sentence, tap Listen, then Say it. It stops listening when you pause, then colours each
+  character green (heard) or red (missed) with a score. Homophones the recogniser picks still
+  count, and simplified / traditional don't matter. Needs the voice model.
+- **Hands-free conversation.** The headset button in the composer: talk, pause, and the reply is
+  read aloud, then it listens again. Stop with ■, or it pauses after two silent turns.
 - **Start page.** The time, today in Chinese (weekday, lunar date, zodiac year — computed on the
   tablet, no weather because the app stays offline), a hello, and quick ways in.
 - **Backups.** Settings → Backup: one file with chats, custom personas, flashcards and settings,

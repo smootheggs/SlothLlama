@@ -6,6 +6,7 @@ import android.content.Context
 import android.widget.Toast
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -19,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.*
 import androidx.compose.ui.text.font.FontFamily
@@ -29,6 +31,36 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.TextUnit
 import app.localmind.assistant.ui.theme.SlothPalette as P
 import kotlinx.coroutines.delay
+
+/**
+ * (text, offset) when a reply is tapped, for the dictionary: [text] is the paragraph as shown and
+ * [offset] the character under the finger. Null turns tap-to-look-up off.
+ */
+val LocalWordTapAction = compositionLocalOf<((String, Int) -> Unit)?> { null }
+
+/** Text that reports which character was tapped (see [LocalWordTapAction]). */
+@Composable
+private fun TappableText(text: AnnotatedString, color: Color, lineHeight: TextUnit) {
+    val onTap = LocalWordTapAction.current
+    var layout by remember { mutableStateOf<TextLayoutResult?>(null) }
+    val tapModifier = if (onTap == null) Modifier else Modifier.pointerInput(text, onTap) {
+        detectTapGestures { position ->
+            val l = layout ?: return@detectTapGestures
+            val caret = l.getOffsetForPosition(position)
+            // The caret can land after the character that was tapped, so check both sides.
+            val hit = listOf(caret, caret - 1).firstOrNull { it in text.text.indices && l.getBoundingBox(it).contains(position) }
+            if (hit != null) onTap(text.text, hit)
+        }
+    }
+    Text(
+        text = text,
+        color = color,
+        fontSize = 16.sp,
+        lineHeight = lineHeight,
+        onTextLayout = { layout = it },
+        modifier = tapModifier
+    )
+}
 
 @Composable
 fun MarkdownContent(
@@ -45,10 +77,9 @@ fun MarkdownContent(
         blocks.forEach { block ->
             when (block) {
                 is MarkdownBlock.Paragraph -> {
-                    Text(
+                    TappableText(
                         text = buildAnnotatedMarkdown(block.text, codeBackground, codeColor).scaleHan(hanScale),
                         color = textColor,
-                        fontSize = 16.sp,
                         lineHeight = lineHeightFor(block.text, hanScale)
                     )
                 }
@@ -64,10 +95,9 @@ fun MarkdownContent(
                         horizontalArrangement = Arrangement.spacedBy(8.dp)
                     ) {
                         Text("•", color = P.Muted, fontSize = 16.sp, lineHeight = 24.sp)
-                        Text(
+                        TappableText(
                             text = buildAnnotatedMarkdown(block.text, codeBackground, codeColor).scaleHan(hanScale),
                             color = textColor,
-                            fontSize = 16.sp,
                             lineHeight = lineHeightFor(block.text, hanScale)
                         )
                     }

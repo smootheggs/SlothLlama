@@ -58,6 +58,9 @@ jobs:
       - name: Prepare OpenCL for the GPU backend (pinned commits)
         run: android-project/scripts/fetch-opencl.sh
 
+      - name: Build the offline dictionary (CC-CEDICT + Jyutping, checksum-verified)
+        run: android-project/scripts/fetch-dictionary.sh
+
       - name: Build APK
         working-directory: android-project
         env:
@@ -78,13 +81,14 @@ jobs:
             cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/out/SlothLlama.apk"
           fi
 
-      # The GPU backend must be inside the APK, and the build-time OpenCL loader must not be.
-      - name: Check the GPU backend is packaged
+      # The GPU backend and dictionary must be inside the APK; the build-time OpenCL loader must not be.
+      - name: Check the APK contents
         run: |
           APK="$RUNNER_TEMP/out/SlothLlama.apk"
           unzip -l "$APK" | grep -q 'lib/arm64-v8a/libggml-opencl.so' || { echo "::error::libggml-opencl.so is missing from the APK"; exit 1; }
           if unzip -l "$APK" | grep -q 'lib/arm64-v8a/libOpenCL.so'; then echo "::error::libOpenCL.so must not be packaged"; exit 1; fi
           echo "GPU backend packaged; OpenCL comes from the tablet's driver"
+          unzip -l "$APK" | grep -q 'assets/dictionary/dictionary.db' || { echo "::error::The dictionary is missing from the APK"; exit 1; }
 
       - name: Upload APK
         uses: actions/upload-artifact@v4

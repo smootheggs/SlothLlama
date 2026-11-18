@@ -5,9 +5,12 @@ import androidx.lifecycle.viewModelScope
 import app.localmind.assistant.data.repository.DEFAULT_MODEL_ID
 import app.localmind.assistant.domain.inference.EngineRuntimeState
 import app.localmind.assistant.domain.model.ChatMessage
+import app.localmind.assistant.domain.model.MessageRole
+import app.localmind.assistant.domain.model.MessageStatus
 import app.localmind.assistant.domain.model.Conversation
 import app.localmind.assistant.data.persona.PersonaRepository
 import app.localmind.assistant.data.persona.ChineseStyleStore
+import app.localmind.assistant.data.voice.Endpointing
 import app.localmind.assistant.data.voice.VoiceRecorder
 import app.localmind.assistant.domain.persona.ChineseStyle
 import app.localmind.assistant.data.voice.VoiceTranscriber
@@ -19,7 +22,9 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeoutOrNull
 import javax.inject.Inject
@@ -204,8 +209,14 @@ class ChatViewModel @Inject constructor(
     private fun send(rawText: String, fromInputBox: Boolean) {
         val text = rawText.trim()
         if (text.isEmpty() || _isGenerating.value) return
+        viewModelScope.launch { sendAndAwait(text, fromInputBox) }
+    }
 
-        viewModelScope.launch {
+    /** Sends [text] and returns the finished reply (null if nothing came back). */
+    private suspend fun sendAndAwait(text: String, fromInputBox: Boolean): ChatMessage? {
+        if (_isGenerating.value) return null
+        var reply: ChatMessage? = null
+        coroutineScope {
             var convId = when (val current = _activeConversationId.value) {
                 DRAFT_ID -> null
                 null -> uiState.value.activeConversationId
@@ -220,11 +231,14 @@ class ChatViewModel @Inject constructor(
             if (fromInputBox) _inputText.value = ""
             _isGenerating.value = true
 
-            activeGenerationJob = launch {
+            val job = launch {
                 try {
                     repository.sendMessage(convId, text).collect { message ->
                         _streamingMessageId.value = message.id
+                        reply = message
                     }
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
                     _errorMessage.value = e.message ?: "Failed to generate response"
                 } finally {
@@ -232,7 +246,12 @@ class ChatViewModel @Inject constructor(
                     _streamingMessageId.value = null
                 }
             }
+            activeGenerationJob = job
+            job.join()
         }
+        // The stream ends with the saved reply; read it back in case the last emission was partial.
+        val id = reply?.id ?: return null
+        return uiState.value.messages.firstOrNull { it.id == id }?.takeIf { it.status != MessageStatus.STREAMING } ?: reply
     }
 
     fun stopGeneration() {
@@ -385,12 +404,7 @@ class ChatViewModel @Inject constructor(
             _errorMessage.value = "Voice input needs the speech model: Models → Voice input → Import."
             return
         }
-        // A language hint helps a learner's accent be heard as the language being practised.
-        val language = when (uiState.value.activePersona.speech) {
-            SpeechLanguage.MANDARIN -> "zh"
-            SpeechLanguage.CANTONESE -> "yue"
-            null -> "auto"
-        }
+        val language = speechLanguageCode()
         voiceJob = viewModelScope.launch {
             try {
                 _voiceState.value = VoiceInputState.LISTENING
@@ -417,6 +431,90 @@ class ChatViewModel @Inject constructor(
         }
     }
 
+    private val _handsFree = MutableStateFlow(HandsFreeState.OFF)
+    /** Hands-free conversation mode and what it's doing right now. */
+    val handsFree: StateFlow<HandsFreeState> = _handsFree.asStateFlow()
+    private var handsFreeJob: Job? = null
+    /** Identifies the current hands-free session; cleared by [stopHandsFree]. */
+    @Volatile private var handsFreeSession: Any? = null
+
+    /**
+     * Hands-free conversation: listen until the learner pauses, send what they said, read the
+     * reply aloud with [speak], then listen again, until [stopHandsFree] or two silent turns in a
+     * row. The caller has the microphone permission. [speak] returns once the reply has been read.
+     */
+    fun startHandsFree(speak: suspend (text: String) -> Boolean) {
+        if (handsFreeJob?.isActive == true || _isGenerating.value) return
+        if (!transcriber.isReady) {
+            _errorMessage.value = "Hands-free needs the speech model: Models → Voice input → Import."
+            return
+        }
+        cancelVoiceInput()
+        val session = Any()
+        handsFreeSession = session
+        handsFreeJob = viewModelScope.launch {
+            var silentTurns = 0
+            try {
+                while (isActive && handsFreeSession === session) {
+                    _handsFree.value = HandsFreeState.LISTENING
+                    val samples = recorder.record(maxSeconds = HANDS_FREE_MAX_SECONDS, endpointing = Endpointing())
+                    if (!isActive || handsFreeSession !== session) break
+                    val heard = if (samples.size < VoiceTranscriber.SAMPLE_RATE / 3) "" else {
+                        _handsFree.value = HandsFreeState.TRANSCRIBING
+                        transcriber.transcribe(samples, speechLanguageCode())
+                    }
+                    if (heard.isBlank()) {
+                        if (++silentTurns >= 2) {
+                            _errorMessage.value = "Hands-free paused: I didn't hear anything."
+                            break
+                        }
+                        continue
+                    }
+                    silentTurns = 0
+                    _handsFree.value = HandsFreeState.THINKING
+                    val reply = sendAndAwait(heard, fromInputBox = false) ?: break
+                    if (reply.role != MessageRole.ASSISTANT || reply.status != MessageStatus.COMPLETE || reply.content.isBlank()) break
+                    if (handsFreeSession !== session) break
+                    _handsFree.value = HandsFreeState.SPEAKING
+                    if (!speak(reply.content)) {
+                        _errorMessage.value = "Hands-free stopped: there's no voice to read the reply aloud."
+                        break
+                    }
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                _errorMessage.value = "Hands-free stopped: ${e.message ?: e.javaClass.simpleName}"
+            } finally {
+                recorder.stop()
+                if (handsFreeSession === session) handsFreeSession = null
+                if (handsFreeSession == null) _handsFree.value = HandsFreeState.OFF
+            }
+        }
+    }
+
+    fun stopHandsFree() {
+        val job = handsFreeJob ?: return
+        handsFreeJob = null
+        handsFreeSession = null
+        recorder.stop()
+        if (job.isActive && _isGenerating.value) {
+            // Mid-reply: stop it the normal way (the partial reply is kept), then let the loop end.
+            stopGeneration()
+            viewModelScope.launch { if (withTimeoutOrNull(STOP_GRACE_MS + 1_000) { job.join() } == null) job.cancel() }
+        } else {
+            job.cancel()
+        }
+        _handsFree.value = HandsFreeState.OFF
+    }
+
+    /** A language hint helps a learner's accent be heard as the language being practised. */
+    private fun speechLanguageCode() = when (uiState.value.activePersona.speech) {
+        SpeechLanguage.MANDARIN -> "zh"
+        SpeechLanguage.CANTONESE -> "yue"
+        null -> "auto"
+    }
+
     /** Stops listening and transcribes what was said. */
     fun finishVoiceInput() = recorder.stop()
 
@@ -428,6 +526,7 @@ class ChatViewModel @Inject constructor(
     }
 
     override fun onCleared() {
+        handsFreeJob?.cancel()
         recorder.stop()
         super.onCleared()
     }
@@ -458,6 +557,8 @@ class ChatViewModel @Inject constructor(
 
     private companion object {
         const val STOP_GRACE_MS = 3_000L
+        /** One hands-free turn can't run longer than this. */
+        const val HANDS_FREE_MAX_SECONDS = 45
         const val DRAFT_ID = "__draft__"
 
         /** "Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.task" -> "Qwen2.5-1.5B-Instruct" */

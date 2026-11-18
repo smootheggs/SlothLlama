@@ -29,6 +29,7 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.VolumeUp
 import androidx.compose.material.icons.outlined.ContentCopy
+import androidx.compose.material.icons.outlined.RecordVoiceOver
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Share
@@ -115,6 +116,7 @@ fun AssistantMessageBubble(
     val context = LocalContext.current
     val speak = LocalSpeakAction.current
     val saveWord = LocalSaveWordAction.current
+    val practise = LocalChatActions.current.onPractise
 
     Column(modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp)) {
         when (message.status) {
@@ -167,6 +169,9 @@ fun AssistantMessageBubble(
                 }
                 if (saveWord != null && HAN_CHARS.containsMatchIn(message.content)) {
                     ActionIcon(Icons.Outlined.StarOutline, "Save words to flashcards") { saveWord(message.content) }
+                }
+                if (practise != null && HAN_CHARS.containsMatchIn(message.content)) {
+                    ActionIcon(Icons.Outlined.RecordVoiceOver, "Practise saying it") { practise(message.content) }
                 }
                 ActionIcon(Icons.Outlined.Share, "Share") {
                     val send = Intent(Intent.ACTION_SEND).apply {

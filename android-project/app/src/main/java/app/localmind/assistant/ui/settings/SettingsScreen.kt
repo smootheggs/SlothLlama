@@ -23,6 +23,12 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+import app.localmind.assistant.data.dictionary.ChineseDictionary
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Check
@@ -99,6 +105,8 @@ fun SettingsScreen(
         }
     }
     val context = LocalContext.current
+    var dictionarySources by remember { mutableStateOf<String?>(null) }
+    val dictionaryLicense = remember { ChineseDictionary.licenseText(context) }
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         vm.setReviewReminder(granted)
     }
@@ -261,9 +269,26 @@ fun SettingsScreen(
                             "Conversations never leave the tablet.",
                         color = P.Muted, fontSize = 13.sp, lineHeight = 19.sp
                     )
+                    dictionaryLicense?.let { text ->
+                        LinkRow("Dictionary sources", "CC-CEDICT (CC BY-SA 4.0) and ToJyutping") { dictionarySources = text }
+                    }
                 }
             }
         }
+    }
+    dictionarySources?.let { text ->
+        AlertDialog(
+            onDismissRequest = { dictionarySources = null },
+            confirmButton = { TextButton(onClick = { dictionarySources = null }) { Text("Close", color = P.Accent) } },
+            title = { Text("Dictionary sources", color = P.Text) },
+            text = {
+                Text(
+                    text, color = P.Muted, fontSize = 12.sp, lineHeight = 17.sp,
+                    modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState())
+                )
+            },
+            containerColor = P.Card
+        )
     }
 }
 

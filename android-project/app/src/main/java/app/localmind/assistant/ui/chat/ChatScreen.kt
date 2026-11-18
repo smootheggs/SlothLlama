@@ -67,6 +67,15 @@ import app.localmind.assistant.domain.model.MessageRole
 import app.localmind.assistant.ui.chat.components.defaultStartTiles
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
+import app.localmind.assistant.domain.persona.SpeechLanguage
+import app.localmind.assistant.domain.practice.SpeakingCheck
+import app.localmind.assistant.ui.chat.components.LocalWordTapAction
+import app.localmind.assistant.ui.dictionary.DictionaryViewModel
+import app.localmind.assistant.ui.dictionary.WordLookupSheet
+import app.localmind.assistant.ui.practice.PracticeSentencePicker
+import app.localmind.assistant.ui.practice.SpeakingPracticeSheet
+import app.localmind.assistant.ui.speech.TutorSpeaker
+import androidx.compose.runtime.DisposableEffect
 import app.localmind.assistant.ui.theme.SlothPalette as P
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,6 +86,7 @@ fun ChatScreen(
     onOpenModels: () -> Unit,
     onOpenSettings: () -> Unit,
     onOpenFlashcards: () -> Unit,
+    onOpenDictionary: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -97,6 +107,38 @@ fun ChatScreen(
     val flashcardState by flashcards.uiState.collectAsStateWithLifecycle()
     val flashcardMessage by flashcards.message.collectAsStateWithLifecycle()
     var saveWordsFrom by remember { mutableStateOf<String?>(null) }
+
+    // Dictionary: tap a character in a reply. Practice: repeat a sentence after the tutor.
+    val dictionary: DictionaryViewModel = hiltViewModel()
+    val lookup by dictionary.lookup.collectAsStateWithLifecycle()
+    val dictionaryMessage by dictionary.message.collectAsStateWithLifecycle()
+    val studyLanguage = persona.speech ?: SpeechLanguage.MANDARIN
+    var practiseSentences by remember { mutableStateOf<List<String>>(emptyList()) }
+    var practiseTarget by remember { mutableStateOf<String?>(null) }
+    val handsFree by viewModel.handsFree.collectAsStateWithLifecycle()
+    LaunchedEffect(dictionaryMessage) {
+        dictionaryMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            dictionary.clearMessage()
+        }
+    }
+    // Leaving the chat ends a hands-free conversation (the speaker goes with the screen).
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.stopHandsFree()
+            dictionary.dismiss()
+        }
+    }
+    val wordTap: ((String, Int) -> Unit)? = dictionary::lookUpAt.takeIf { dictionary.isAvailable }
+    val openPractice: (String) -> Unit = { reply ->
+        viewModel.stopHandsFree()
+        val sentences = SpeakingCheck.sentencesFrom(TutorSpeaker.chineseOnly(reply))
+        when (sentences.size) {
+            0 -> Unit
+            1 -> practiseTarget = sentences.first()
+            else -> practiseSentences = sentences
+        }
+    }
     LaunchedEffect(flashcardMessage) {
         flashcardMessage?.let {
             snackbarHostState.showSnackbar(it)
@@ -149,6 +191,7 @@ fun ChatScreen(
                     onOpenModels = { closeDrawerThen(onOpenModels) },
                     onOpenSettings = { closeDrawerThen(onOpenSettings) },
                     onOpenFlashcards = { closeDrawerThen(onOpenFlashcards) },
+                    onOpenDictionary = { closeDrawerThen(onOpenDictionary) },
                     flashcardsDue = flashcardState.dueCount,
                     modelStatus = uiState.activeModelName
                 )
@@ -160,8 +203,10 @@ fun ChatScreen(
             LocalSaveWordAction provides { text: String -> saveWordsFrom = text },
             LocalChatActions provides ChatActions(
                 contextSize = uiState.contextSize,
-                onContinue = viewModel::continueReply
-            )
+                onContinue = viewModel::continueReply,
+                onPractise = if (persona.speech != null) openPractice else null
+            ),
+            LocalWordTapAction provides wordTap
         ) {
             Scaffold(
                 containerColor = P.Canvas,
@@ -223,7 +268,17 @@ fun ChatScreen(
                         // Follow-ups make sense once the persona has replied at least once.
                         quickActions = if (uiState.messages.any { it.role == MessageRole.ASSISTANT && it.status == MessageStatus.COMPLETE })
                             QuickActions.forPersona(persona) else emptyList(),
-                        onQuickAction = { action -> viewModel.sendQuickAction(action.prompt) }
+                        onQuickAction = { action -> viewModel.sendQuickAction(action.prompt) },
+                        handsFree = handsFree,
+                        onStartHandsFree = {
+                            speaker.stop()
+                            val voice = persona.speech
+                            viewModel.startHandsFree { reply -> speaker.speakAndWait(reply, voice) }
+                        },
+                        onStopHandsFree = {
+                            viewModel.stopHandsFree()
+                            speaker.stop()
+                        }
                     )
                 },
                 snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -291,6 +346,34 @@ fun ChatScreen(
             onSave = flashcards::add,
             onDismiss = { saveWordsFrom = null }
         )
+    }
+    lookup?.let { found ->
+        WordLookupSheet(
+            lookup = found,
+            script = chineseStyle.script,
+            language = studyLanguage,
+            onSpeak = { speaker.speak(it, studyLanguage) },
+            onPractise = {
+                dictionary.dismiss()
+                viewModel.stopHandsFree()
+                practiseTarget = it
+            },
+            onSave = { dictionary.save(it, studyLanguage) },
+            onDismiss = dictionary::dismiss
+        )
+    }
+    if (practiseSentences.isNotEmpty()) {
+        PracticeSentencePicker(
+            sentences = practiseSentences,
+            onPick = {
+                practiseSentences = emptyList()
+                practiseTarget = it
+            },
+            onDismiss = { practiseSentences = emptyList() }
+        )
+    }
+    practiseTarget?.let { target ->
+        SpeakingPracticeSheet(target = target, language = studyLanguage, speaker = speaker, onDismiss = { practiseTarget = null })
     }
     if (uiState.isClearAllConfirmOpen) {
         ClearAllConversationsDialog(

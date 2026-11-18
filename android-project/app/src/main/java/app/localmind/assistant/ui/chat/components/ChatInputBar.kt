@@ -33,6 +33,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.outlined.HeadsetMic
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
@@ -58,6 +59,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.localmind.assistant.domain.model.ChatMessage
 import app.localmind.assistant.domain.persona.Persona
+import app.localmind.assistant.ui.chat.HandsFreeState
 import app.localmind.assistant.ui.chat.VoiceInputState
 import app.localmind.assistant.ui.theme.SlothPalette as P
 
@@ -88,6 +90,9 @@ fun ChatInputBar(
     onCancelVoice: () -> Unit,
     quickActions: List<QuickAction> = emptyList(),
     onQuickAction: (QuickAction) -> Unit = {},
+    handsFree: HandsFreeState = HandsFreeState.OFF,
+    onStartHandsFree: () -> Unit = {},
+    onStopHandsFree: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -97,6 +102,13 @@ fun ChatInputBar(
     val startVoice = {
         if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) onStartVoice()
         else micPermission.launch(Manifest.permission.RECORD_AUDIO)
+    }
+    val handsFreePermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) onStartHandsFree()
+    }
+    val startHandsFree = {
+        if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) onStartHandsFree()
+        else handsFreePermission.launch(Manifest.permission.RECORD_AUDIO)
     }
     val canSubmit = inputText.isNotBlank()
     val submit = {
@@ -117,7 +129,7 @@ fun ChatInputBar(
         Column(Modifier.widthIn(max = ChatColumnMaxWidth).fillMaxWidth()) {
         // One-tap follow-ups, only when there's nothing else going on in the composer.
         val showQuick = quickActions.isNotEmpty() && inputText.isEmpty() && !isGenerating &&
-            editingMessage == null && voiceState == VoiceInputState.IDLE
+            editingMessage == null && voiceState == VoiceInputState.IDLE && handsFree == HandsFreeState.OFF
         AnimatedVisibility(visible = showQuick) {
             QuickActionRow(quickActions, onQuickAction, Modifier.padding(bottom = 8.dp))
         }
@@ -145,7 +157,9 @@ fun ChatInputBar(
                 }
             }
 
-            if (voiceState != VoiceInputState.IDLE) {
+            if (handsFree != HandsFreeState.OFF) {
+                HandsFreeBar(handsFree, voiceLevel, onStopHandsFree)
+            } else if (voiceState != VoiceInputState.IDLE) {
                 VoiceBar(voiceState, voiceLevel, onFinishVoice, onCancelVoice)
             } else {
                 BasicTextField(
@@ -191,6 +205,12 @@ fun ChatInputBar(
                     } else {
                         if (editingMessage == null) {
                             RoundAction(
+                                onClick = startHandsFree,
+                                filled = false,
+                                contentDescription = "Hands-free conversation"
+                            ) { _ -> Icon(Icons.Outlined.HeadsetMic, null, tint = P.Muted, modifier = Modifier.size(19.dp)) }
+                            Spacer(Modifier.width(8.dp))
+                            RoundAction(
                                 onClick = startVoice,
                                 filled = false,
                                 contentDescription = "Speak"
@@ -207,6 +227,43 @@ fun ChatInputBar(
                 }
             }
         }
+        }
+    }
+}
+
+/** Hands-free conversation in progress: what it's doing, and a way out. */
+@Composable
+private fun HandsFreeBar(state: HandsFreeState, level: Float, onStop: () -> Unit) {
+    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
+            if (state == HandsFreeState.LISTENING) {
+                Box(
+                    Modifier
+                        .size((10 + 18 * level).dp)
+                        .clip(CircleShape)
+                        .background(P.Danger.copy(alpha = 0.25f + 0.5f * level))
+                )
+                Box(Modifier.size(10.dp).clip(CircleShape).background(P.Danger))
+            } else {
+                CircularProgressIndicator(color = P.Accent, strokeWidth = 2.dp, modifier = Modifier.size(18.dp))
+            }
+        }
+        Spacer(Modifier.width(8.dp))
+        Column(Modifier.weight(1f)) {
+            Text(
+                when (state) {
+                    HandsFreeState.LISTENING -> "Listening… just talk"
+                    HandsFreeState.TRANSCRIBING -> "Got it…"
+                    HandsFreeState.THINKING -> "Thinking…"
+                    HandsFreeState.SPEAKING -> "Speaking…"
+                    HandsFreeState.OFF -> ""
+                },
+                color = P.Text, fontSize = 15.sp
+            )
+            Text("Hands-free · pause to send", color = P.Faint, fontSize = 12.sp)
+        }
+        RoundAction(onClick = onStop, filled = true, contentDescription = "Stop hands-free") { tint ->
+            Icon(Icons.Default.Stop, null, tint = tint, modifier = Modifier.size(18.dp))
         }
     }
 }

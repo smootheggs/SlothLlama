@@ -33,6 +33,8 @@ import app.localmind.assistant.data.study.ReviewReminder
 import app.localmind.assistant.data.ask.AskInbox
 import app.localmind.assistant.data.ask.LaunchRequest
 import app.localmind.assistant.data.persona.ChineseStyleStore
+import app.localmind.assistant.ui.dictionary.DictionaryScreen
+import app.localmind.assistant.ui.dictionary.DictionaryViewModel
 import app.localmind.assistant.ui.study.FlashcardsScreen
 import app.localmind.assistant.ui.study.FlashcardsViewModel
 import app.localmind.assistant.data.settings.AssistantSettingsStore
@@ -158,7 +160,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Destination { CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS }
+private enum class Destination { CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY }
 
 /**
  * Chat is home. Personas, Models and Settings open from the drawer as full screens;
@@ -209,7 +211,8 @@ private fun SlothRoot(
                     onOpenPersonas = { destination = Destination.PERSONAS },
                     onOpenModels = { destination = Destination.MODELS },
                     onOpenSettings = { destination = Destination.SETTINGS },
-                    onOpenFlashcards = { destination = Destination.FLASHCARDS }
+                    onOpenFlashcards = { destination = Destination.FLASHCARDS },
+                    onOpenDictionary = { destination = Destination.DICTIONARY }
                 )
                 Destination.PERSONAS -> PersonasScreen(
                     viewModel = hiltViewModel<PersonasViewModel>(),
@@ -221,6 +224,7 @@ private fun SlothRoot(
                 )
                 Destination.MODELS -> ModelsScreen(viewModel = hiltViewModel<ModelsViewModel>(), onBack = goHome)
                 Destination.FLASHCARDS -> FlashcardsScreen(viewModel = hiltViewModel<FlashcardsViewModel>(), onBack = goHome)
+                Destination.DICTIONARY -> DictionaryScreen(viewModel = hiltViewModel<DictionaryViewModel>(), onBack = goHome)
                 Destination.SETTINGS -> SettingsScreen(
                     themeMode = themeMode,
                     onThemeModeChange = onThemeModeChange,

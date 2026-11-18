@@ -3,6 +3,7 @@ package app.localmind.assistant.ui.speech
 import android.content.Context
 import android.content.Intent
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -10,7 +11,13 @@ import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import app.localmind.assistant.domain.persona.SpeechLanguage
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Reads tutor replies aloud with Android's own text-to-speech engine (offline once the
@@ -22,6 +29,24 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
     private val appContext = context.applicationContext
     private val tts = TextToSpeech(appContext, this)
     @Volatile private var ready = false
+    /** Utterances someone is waiting on (hands-free mode, repeat-after-me). */
+    private val waiting = ConcurrentHashMap<String, CompletableDeferred<Unit>>()
+    private val nextId = AtomicInteger()
+
+    init {
+        tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+            override fun onStart(utteranceId: String?) = Unit
+            override fun onDone(utteranceId: String?) = finished(utteranceId)
+            @Deprecated("Deprecated in Java")
+            override fun onError(utteranceId: String?) = finished(utteranceId)
+            override fun onError(utteranceId: String?, errorCode: Int) = finished(utteranceId)
+            override fun onStop(utteranceId: String?, interrupted: Boolean) = finished(utteranceId)
+        })
+    }
+
+    private fun finished(utteranceId: String?) {
+        utteranceId?.let { waiting.remove(it)?.complete(Unit) }
+    }
 
     override fun onInit(status: Int) {
         ready = status == TextToSpeech.SUCCESS
@@ -32,25 +57,77 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
             toast("Text-to-speech is still starting — try again in a second")
             return
         }
-        val spoken = chineseOnly(text)
-        if (spoken.isBlank()) {
-            toast("Nothing to read aloud in this reply")
-            return
+        when (val p = prepare(text, language)) {
+            Prepared.NothingToSay -> toast("Nothing to read aloud in this reply")
+            Prepared.NoVoice -> {
+                toast("No ${language.label} voice installed. Opening voice settings…")
+                openVoiceInstaller()
+            }
+            is Prepared.Ready -> tts.speak(p.text, TextToSpeech.QUEUE_FLUSH, null, "tutor-reply")
         }
+    }
+
+    /**
+     * Speaks [text] and returns once it has been said (or stopped). For a Chinese [language] only
+     * the Chinese is read, as with [speak]; with null the whole text is read in the tablet's own
+     * language. Returns false if nothing could be said (no voice installed, nothing to read).
+     * Cancelling the caller stops the speech.
+     */
+    suspend fun speakAndWait(text: String, language: SpeechLanguage?, rate: Float = LEARNER_RATE): Boolean {
+        withTimeoutOrNull(3_000) { while (!ready) delay(100) } ?: return false
+        val p = if (language != null) prepare(text, language, rate) else prepareNative(text, rate)
+        if (p !is Prepared.Ready) return false
+        val id = "wait-${nextId.incrementAndGet()}"
+        val done = CompletableDeferred<Unit>()
+        waiting[id] = done
+        if (tts.speak(p.text, TextToSpeech.QUEUE_FLUSH, null, id) != TextToSpeech.SUCCESS) {
+            waiting.remove(id)
+            return false
+        }
+        try {
+            done.await()
+        } catch (e: CancellationException) {
+            waiting.remove(id)
+            tts.stop()
+            throw e
+        }
+        return true
+    }
+
+    private sealed interface Prepared {
+        data object NothingToSay : Prepared
+        data object NoVoice : Prepared
+        data class Ready(val text: String) : Prepared
+    }
+
+    private fun prepare(text: String, language: SpeechLanguage, rate: Float = LEARNER_RATE): Prepared {
+        val spoken = chineseOnly(text)
+        if (spoken.isBlank()) return Prepared.NothingToSay
         val locale = language.localeTags
             .map { Locale.forLanguageTag(it) }
             .firstOrNull { isUsable(tts.isLanguageAvailable(it)) }
-        if (locale == null || !isUsable(tts.setLanguage(locale))) {
-            toast("No ${language.label} voice installed. Opening voice settings…")
-            openVoiceInstaller()
-            return
-        }
-        tts.setSpeechRate(0.85f) // a little slower for learners
-        tts.speak(spoken, TextToSpeech.QUEUE_FLUSH, null, "tutor-reply")
+        if (locale == null || !isUsable(tts.setLanguage(locale))) return Prepared.NoVoice
+        tts.setSpeechRate(rate)
+        return Prepared.Ready(spoken)
+    }
+
+    /** For personas without a Chinese voice: the reply without Markdown, in the tablet's language. */
+    private fun prepareNative(text: String, rate: Float): Prepared {
+        val spoken = text
+            .replace(Regex("```[\\s\\S]*?```"), " ")
+            .replace(Regex("[*_`#>|]+"), "")
+            .replace(Regex("\\[([^\\]]*)]\\([^)]*\\)"), "$1")
+            .trim()
+        if (spoken.isBlank()) return Prepared.NothingToSay
+        if (!isUsable(tts.setLanguage(Locale.getDefault()))) return Prepared.NoVoice
+        tts.setSpeechRate(maxOf(rate, 1f))
+        return Prepared.Ready(spoken)
     }
 
     fun stop() {
         tts.stop()
+        waiting.values.forEach { it.complete(Unit) }
+        waiting.clear()
     }
 
     fun shutdown() {
@@ -75,6 +152,8 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
     }
 
     companion object {
+        /** A little slower than normal speech, for learners. */
+        const val LEARNER_RATE = 0.85f
         private val HAN = Regex("[\\u3400-\\u4DBF\\u4E00-\\u9FFF\\uF900-\\uFAFF]")
         private val NOT_CHINESE = Regex("[^\\u3000-\\u303F\\u3400-\\u4DBF\\u4E00-\\u9FFF\\uF900-\\uFAFF\\uFF00-\\uFFEF]+")
 
