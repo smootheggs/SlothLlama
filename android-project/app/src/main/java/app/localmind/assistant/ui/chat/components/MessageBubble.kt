@@ -100,6 +100,9 @@ fun UserMessageBubble(message: ChatMessage, onEdit: () -> Unit, modifier: Modifi
         if (parsed.library.isNotEmpty()) {
             LibraryChip(parsed.library, modifier = Modifier.padding(bottom = 6.dp))
         }
+        if (parsed.tools.isNotEmpty()) {
+            ToolChips(parsed.tools, modifier = Modifier.padding(bottom = 6.dp))
+        }
         if (parsed.text.isNotBlank()) {
             SelectionContainer {
                 Text(

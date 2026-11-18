@@ -48,8 +48,8 @@ class ContextBudgetManager @Inject constructor() {
 
         for (i in historyTurns.indices.reversed()) {
             val turn = historyTurns[i]
-            // Earlier library lookups only appear as their titles (see Attachments.libraryNote).
-            val turnTokens = estimateTokens("${turn.role}: ${Attachments.libraryNote(turn.content)}")
+            // Earlier library lookups only appear as their titles (see Attachments.historyNote).
+            val turnTokens = estimateTokens("${turn.role}: ${Attachments.historyNote(turn.content)}")
             if (usedTokens + turnTokens <= maxInputBudget) {
                 includedReversed.add(turn)
                 usedTokens += turnTokens

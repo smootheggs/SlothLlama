@@ -17,6 +17,11 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 
+    <!-- Offline tools: "set a timer / alarm" goes to the clock app; the calendar is read only when
+         you switch it on in Settings and ask about it. -->
+    <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
+    <uses-permission android:name="android.permission.READ_CALENDAR" />
+
     <!-- Android 11+ package visibility: lets the app bind the text-to-speech engine -->
     <queries>
         <intent>

@@ -109,7 +109,15 @@ model too big for the GPU falls back to the CPU on its own.
   (BM25), and handles Chinese and Japanese without spaces. Each item can be switched off or
   removed; the library has its own database and isn't in backups. Kiwix files are read with
   [libkiwix](https://github.com/kiwix/java-libkiwix) (GPLv3).
-- **Backups.** Settings → Backup: one file with chats, custom personas, flashcards and settings,
+- **Offline tools.** When a message asks for it, the app works it out on the tablet and hands
+  the exact result to the assistant, so it doesn't guess: sums ("18% of 2,450", "12 times
+  7.5"), unit conversions ("350 F to C", "how many cups in a litre"), the time in other cities
+  and converting times between them, date sums ("days until July 25", "what day is Christmas"),
+  timers and alarms (set in the clock app), quick notes ("take a note: …", "what did I note
+  about wifi?", and a Notes page), your calendar (read only, switched on in Settings), the
+  Chinese dictionary, and "look up … in my library / Wikipedia". Each result shows as a chip on
+  your message. Settings → Assistant → Offline tools; tutors don't use them unless you allow it.
+- **Backups.** Settings → Backup: one file with chats, custom personas, flashcards, notes and settings,
   optionally AES-256 encrypted with a password. Restore adds it back. Models aren't included.
 - **Small things.** Continue for cut-off replies, chat search, one-tap follow-ups (Correct me,
   Quiz me…), home-screen shortcuts, a character-size setting, speed / context under replies,

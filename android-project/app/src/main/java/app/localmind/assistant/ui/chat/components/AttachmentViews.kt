@@ -20,7 +20,17 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Alarm
+import androidx.compose.material.icons.outlined.Build
+import androidx.compose.material.icons.outlined.Calculate
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.StickyNote2
+import androidx.compose.material.icons.outlined.Straighten
+import androidx.compose.material.icons.outlined.Timer
+import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.ImageNotSupported
 import androidx.compose.material.icons.outlined.LocalLibrary
@@ -47,6 +57,9 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.localmind.assistant.domain.attachments.DocumentText
 import app.localmind.assistant.domain.attachments.LibraryPassage
+import app.localmind.assistant.domain.attachments.ToolResult
+import app.localmind.assistant.domain.tools.ToolNames
+import androidx.compose.ui.graphics.vector.ImageVector
 import app.localmind.assistant.ui.chat.PendingAttachments
 import app.localmind.assistant.ui.theme.SlothPalette as P
 import kotlinx.coroutines.Dispatchers
@@ -171,6 +184,40 @@ fun LibraryChip(passages: List<LibraryPassage>, modifier: Modifier = Modifier) {
             }
         }
     }
+}
+
+/** What the offline tools worked out or did for a message: one chip each. */
+@Composable
+fun ToolChips(results: List<ToolResult>, modifier: Modifier = Modifier) {
+    Column(modifier, horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        results.forEach { r ->
+            Row(
+                Modifier
+                    .widthIn(max = 480.dp)
+                    .clip(RoundedCornerShape(10.dp))
+                    .background(P.AccentSoft)
+                    .padding(horizontal = 10.dp, vertical = 6.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(toolIcon(r.tool), contentDescription = null, tint = P.Accent, modifier = Modifier.size(15.dp))
+                Spacer(Modifier.width(6.dp))
+                Text(r.label, color = P.Accent, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            }
+        }
+    }
+}
+
+private fun toolIcon(tool: String): ImageVector = when (tool) {
+    ToolNames.CALCULATOR -> Icons.Outlined.Calculate
+    ToolNames.UNITS -> Icons.Outlined.Straighten
+    ToolNames.CLOCK -> Icons.Outlined.Schedule
+    ToolNames.DATES -> Icons.Outlined.Event
+    ToolNames.TIMER -> Icons.Outlined.Timer
+    ToolNames.ALARM -> Icons.Outlined.Alarm
+    ToolNames.NOTES -> Icons.Outlined.StickyNote2
+    ToolNames.CALENDAR -> Icons.Outlined.CalendarMonth
+    ToolNames.DICTIONARY -> Icons.Outlined.Translate
+    else -> Icons.Outlined.Build
 }
 
 /** What's attached to the message being written, above the text box. */

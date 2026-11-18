@@ -60,7 +60,8 @@ class PasswordRequiredException : Exception("This backup is protected with a pas
 class BackupManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val database: LocalMindDatabase,
-    private val dao: LocalMindDao
+    private val dao: LocalMindDao,
+    private val notes: app.localmind.assistant.data.tools.NotesStore
 ) {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
@@ -112,6 +113,7 @@ class BackupManager @Inject constructor(
             contents.flashcards.forEach { dao.upsertVocabularyItem(it) }
         }
         writeSettings(contents.settings)
+        notes.reload()
         contents.summary()
     }
 
@@ -228,6 +230,6 @@ class BackupManager @Inject constructor(
         private const val PBKDF2_ROUNDS = 310_000
         private const val CIPHER = "AES/GCM/NoPadding"
         /** Settings worth carrying over (appearance, Chinese, assistant, persona models). */
-        private val SETTINGS_FILES = listOf("appearance", "chinese_style", "assistant", "persona_models", "tutor_levels")
+        private val SETTINGS_FILES = listOf("appearance", "chinese_style", "assistant", "persona_models", "tutor_levels", "notes")
     }
 }

@@ -100,6 +100,7 @@ fun ChatScreen(
     onOpenDictionary: () -> Unit = {},
     onOpenHome: () -> Unit = {},
     onOpenLibrary: () -> Unit = {},
+    onOpenNotes: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     // Landscape on a tablet: the chat list stays open on the left instead of sliding over.
@@ -226,6 +227,7 @@ fun ChatScreen(
                     onOpenDictionary = { closeDrawerThen(onOpenDictionary) },
                     onOpenHome = { closeDrawerThen(onOpenHome) },
                     onOpenLibrary = { closeDrawerThen(onOpenLibrary) },
+                    onOpenNotes = { closeDrawerThen(onOpenNotes) },
                     flashcardsDue = flashcardState.dueCount,
                     modelStatus = uiState.activeModelName
                 )

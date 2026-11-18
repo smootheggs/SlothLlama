@@ -38,6 +38,8 @@ import kotlinx.coroutines.launch
 import app.localmind.assistant.ui.dictionary.DictionaryScreen
 import app.localmind.assistant.ui.library.LibraryScreen
 import app.localmind.assistant.ui.library.LibraryViewModel
+import app.localmind.assistant.ui.notes.NotesScreen
+import app.localmind.assistant.ui.notes.NotesViewModel
 import app.localmind.assistant.ui.home.HomeRoute
 import app.localmind.assistant.ui.dictionary.DictionaryViewModel
 import app.localmind.assistant.ui.study.FlashcardsScreen
@@ -172,7 +174,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY }
+private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES }
 
 /**
  * Home (or the last chat, per Settings) on a fresh start. Screens open on top of each other and
@@ -255,7 +257,8 @@ private fun SlothRoot(
                     onPersonas = { navigate(Destination.PERSONAS) },
                     onModels = { navigate(Destination.MODELS) },
                     onSettings = { navigate(Destination.SETTINGS) },
-                    onLibrary = { navigate(Destination.LIBRARY) }
+                    onLibrary = { navigate(Destination.LIBRARY) },
+                    onNotes = { navigate(Destination.NOTES) }
                 )
                 Destination.CHAT -> ChatScreen(
                     viewModel = chatViewModel,
@@ -265,7 +268,8 @@ private fun SlothRoot(
                     onOpenFlashcards = { navigate(Destination.FLASHCARDS) },
                     onOpenDictionary = { navigate(Destination.DICTIONARY) },
                     onOpenHome = { navigate(Destination.HOME) },
-                    onOpenLibrary = { navigate(Destination.LIBRARY) }
+                    onOpenLibrary = { navigate(Destination.LIBRARY) },
+                    onOpenNotes = { navigate(Destination.NOTES) }
                 )
                 Destination.PERSONAS -> PersonasScreen(
                     viewModel = hiltViewModel<PersonasViewModel>(),
@@ -279,6 +283,7 @@ private fun SlothRoot(
                 Destination.FLASHCARDS -> FlashcardsScreen(viewModel = hiltViewModel<FlashcardsViewModel>(), onBack = goHome)
                 Destination.DICTIONARY -> DictionaryScreen(viewModel = hiltViewModel<DictionaryViewModel>(), onBack = goHome)
                 Destination.LIBRARY -> LibraryScreen(viewModel = hiltViewModel<LibraryViewModel>(), onBack = goHome)
+                Destination.NOTES -> NotesScreen(viewModel = hiltViewModel<NotesViewModel>(), onBack = goHome)
                 Destination.SETTINGS -> SettingsScreen(
                     themeMode = themeMode,
                     onThemeModeChange = onThemeModeChange,

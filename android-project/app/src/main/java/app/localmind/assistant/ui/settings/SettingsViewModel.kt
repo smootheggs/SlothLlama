@@ -43,6 +43,14 @@ class SettingsViewModel @Inject constructor(
 
     fun setOpenToHome(home: Boolean) = assistant.setOpenToHome(home)
 
+    val toolsOn: StateFlow<Boolean> = assistant.toolsOn
+    val toolsForTutors: StateFlow<Boolean> = assistant.toolsForTutors
+    val calendarOn: StateFlow<Boolean> = assistant.calendarOn
+
+    fun setToolsOn(on: Boolean) = assistant.setToolsOn(on)
+    fun setToolsForTutors(on: Boolean) = assistant.setToolsForTutors(on)
+    fun setCalendarOn(on: Boolean) = assistant.setCalendarOn(on)
+
     private val _dialog = MutableStateFlow<BackupDialog?>(null)
     val dialog: StateFlow<BackupDialog?> = _dialog.asStateFlow()
 

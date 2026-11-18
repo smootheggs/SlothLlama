@@ -49,7 +49,37 @@ class AssistantSettingsStore @Inject constructor(@ApplicationContext context: Co
         _openToHome.value = home
     }
 
+    private val _toolsOn = MutableStateFlow(prefs.getBoolean(KEY_TOOLS, true))
+    /** Offline tools (calculator, units, clock, dates, timers, notes, calendar, dictionary). */
+    val toolsOn: StateFlow<Boolean> = _toolsOn.asStateFlow()
+
+    fun setToolsOn(on: Boolean) {
+        prefs.edit().putBoolean(KEY_TOOLS, on).apply()
+        _toolsOn.value = on
+    }
+
+    private val _toolsForTutors = MutableStateFlow(prefs.getBoolean(KEY_TOOLS_TUTORS, false))
+    /** Tools in tutor chats too (off: a tutor's "what is 学习?" is a lesson, not a look-up). */
+    val toolsForTutors: StateFlow<Boolean> = _toolsForTutors.asStateFlow()
+
+    fun setToolsForTutors(on: Boolean) {
+        prefs.edit().putBoolean(KEY_TOOLS_TUTORS, on).apply()
+        _toolsForTutors.value = on
+    }
+
+    private val _calendarOn = MutableStateFlow(prefs.getBoolean(KEY_CALENDAR, false))
+    /** The assistant may read the tablet's calendar (Android's permission is asked as well). */
+    val calendarOn: StateFlow<Boolean> = _calendarOn.asStateFlow()
+
+    fun setCalendarOn(on: Boolean) {
+        prefs.edit().putBoolean(KEY_CALENDAR, on).apply()
+        _calendarOn.value = on
+    }
+
     private companion object {
+        const val KEY_TOOLS = "tools_on"
+        const val KEY_TOOLS_TUTORS = "tools_for_tutors"
+        const val KEY_CALENDAR = "calendar_on"
         const val KEY_OPEN_TO_HOME = "open_to_home"
         const val KEY_THINKING = "thinking"
         const val KEY_REMINDER = "review_reminder"

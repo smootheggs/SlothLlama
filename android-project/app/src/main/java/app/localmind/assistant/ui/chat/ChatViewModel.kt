@@ -8,6 +8,8 @@ import app.localmind.assistant.data.repository.DEFAULT_MODEL_ID
 import app.localmind.assistant.domain.attachments.Attachments
 import app.localmind.assistant.domain.attachments.DocumentText
 import app.localmind.assistant.domain.attachments.LibraryPassage
+import app.localmind.assistant.domain.attachments.ToolResult
+import app.localmind.assistant.data.tools.ToolRunner
 import app.localmind.assistant.data.library.LibraryStore
 import app.localmind.assistant.domain.inference.EngineRuntimeState
 import app.localmind.assistant.domain.model.ChatMessage
@@ -44,7 +46,8 @@ class ChatViewModel @Inject constructor(
     private val recorder: VoiceRecorder,
     chineseStyleStore: ChineseStyleStore,
     private val attachmentStore: AttachmentStore,
-    private val library: LibraryStore
+    private val library: LibraryStore,
+    private val tools: ToolRunner
 ) : ViewModel() {
 
     /** Something in the library is switched on to be searched. */
@@ -66,6 +69,29 @@ class ChatViewModel @Inject constructor(
     fun toggleLibrary() {
         _libraryOn.update { !it }
         _errorMessage.value = if (_libraryOn.value) "Your library will be searched with each message." else null
+    }
+
+    /** A question is being looked up or worked out before it goes. */
+    private var preparing = false
+
+    /**
+     * What goes with [question]: library passages (when the library switch is on, or the question
+     * asks to look something up) and the results of any offline tools it calls for.
+     */
+    private suspend fun extrasFor(question: String): Pair<List<LibraryPassage>, List<ToolResult>> {
+        if (question.isBlank()) return emptyList<LibraryPassage>() to emptyList()
+        val persona = uiState.value.activePersona
+        val outcome = try {
+            tools.run(question, persona)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            null
+        }
+        val passages = (lookUp(question) + outcome?.passages.orEmpty())
+            .distinctBy { it.title to it.text.take(80) }
+            .take(LIBRARY_PASSAGE_LIMIT)
+        return passages to outcome?.results.orEmpty()
     }
 
     /** The library passages for [question] (none if the switch is off or nothing matched). */
@@ -290,7 +316,7 @@ class ChatViewModel @Inject constructor(
 
     /** Sends what's in the box, with any attached photo or document. */
     fun sendMessage() {
-        if (_isGenerating.value || _lookingUp.value) return
+        if (_isGenerating.value || _lookingUp.value || preparing) return
         val pending = _attachments.value
         if (pending.busy) return
         val typed = _inputText.value.trim()
@@ -299,15 +325,20 @@ class ChatViewModel @Inject constructor(
             if (pending.photo != null) DEFAULT_PHOTO_PROMPT else DEFAULT_DOCUMENT_PROMPT
         }
         _attachments.value = PendingAttachments()
-        if (!_libraryOn.value || typed.isEmpty()) {
+        if (typed.isEmpty()) {
             send(Attachments.compose(text, pending.photo, pending.document), fromInputBox = true)
             return
         }
-        // The box empties straight away; the question goes once the library has been searched.
+        // The box empties straight away; the question goes once the library and tools are done.
         _inputText.value = ""
+        preparing = true
         viewModelScope.launch {
-            val passages = lookUp(typed)
-            send(Attachments.compose(text, pending.photo, pending.document, passages), fromInputBox = false)
+            val (passages, results) = try {
+                extrasFor(typed)
+            } finally {
+                preparing = false
+            }
+            send(Attachments.compose(text, pending.photo, pending.document, passages, results), fromInputBox = false)
         }
     }
 
@@ -414,7 +445,7 @@ class ChatViewModel @Inject constructor(
         val message = _editingMessage.value ?: return
         val pending = _attachments.value
         val typed = _inputText.value.trim()
-        if ((typed.isEmpty() && pending.isEmpty) || _isGenerating.value || _lookingUp.value || pending.busy) return
+        if ((typed.isEmpty() && pending.isEmpty) || _isGenerating.value || _lookingUp.value || preparing || pending.busy) return
         _attachments.value = PendingAttachments()
 
         val convId = _activeConversationId.value ?: message.conversationId
@@ -422,10 +453,11 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             _editingMessage.value = null
             _inputText.value = ""
-            // An edited question is looked up again (the old passages may not fit it any more).
+            // An edited question is looked up and worked out again (the old results may not fit it).
+            val (passages, results) = extrasFor(typed)
             val newText = Attachments.compose(
                 typed.ifEmpty { if (pending.photo != null) DEFAULT_PHOTO_PROMPT else DEFAULT_DOCUMENT_PROMPT },
-                pending.photo, pending.document, lookUp(typed)
+                pending.photo, pending.document, passages, results
             )
             _isGenerating.value = true
 
@@ -594,7 +626,8 @@ class ChatViewModel @Inject constructor(
                     }
                     silentTurns = 0
                     _handsFree.value = HandsFreeState.THINKING
-                    val reply = sendAndAwait(heard, fromInputBox = false) ?: break
+                    val (passages, results) = extrasFor(heard)
+                    val reply = sendAndAwait(Attachments.compose(heard, null, null, passages, results), fromInputBox = false) ?: break
                     if (reply.role != MessageRole.ASSISTANT || reply.status != MessageStatus.COMPLETE || reply.content.isBlank()) break
                     if (handsFreeSession !== session) break
                     _handsFree.value = HandsFreeState.SPEAKING
@@ -675,6 +708,8 @@ class ChatViewModel @Inject constructor(
     }
 
     private companion object {
+        /** Passages sent with one question (library switch plus "look up … in my library"). */
+        const val LIBRARY_PASSAGE_LIMIT = 4
         const val DEFAULT_PHOTO_PROMPT = "What's in this photo?"
         const val DEFAULT_DOCUMENT_PROMPT = "Summarise this document."
         const val STOP_GRACE_MS = 3_000L

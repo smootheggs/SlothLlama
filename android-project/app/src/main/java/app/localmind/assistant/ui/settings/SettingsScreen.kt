@@ -101,6 +101,9 @@ fun SettingsScreen(
     val reminderOn by vm.reviewReminder.collectAsStateWithLifecycle()
     val reminderHour by vm.reminderHour.collectAsStateWithLifecycle()
     val openToHome by vm.openToHome.collectAsStateWithLifecycle()
+    val toolsOn by vm.toolsOn.collectAsStateWithLifecycle()
+    val toolsForTutors by vm.toolsForTutors.collectAsStateWithLifecycle()
+    val calendarOn by vm.calendarOn.collectAsStateWithLifecycle()
     val levels by vm.levels.collectAsStateWithLifecycle()
     val backupDialog by vm.dialog.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
@@ -117,6 +120,9 @@ fun SettingsScreen(
     val dictionaryLicense = remember { ChineseDictionary.licenseText(context) }
     val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
         vm.setReviewReminder(granted)
+    }
+    val calendarPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        vm.setCalendarOn(granted)
     }
     val saveBackup = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
         vm.export(uri)
@@ -223,6 +229,33 @@ fun SettingsScreen(
                         checked = thinking,
                         onCheckedChange = onThinkingChange
                     )
+                    HorizontalDivider(color = P.Border)
+                    ToggleRow(
+                        title = "Offline tools",
+                        detail = "Sums, unit conversions, the time in other cities, dates, timers and alarms, notes, " +
+                            "your calendar and the Chinese dictionary: worked out on the tablet when a message asks, " +
+                            "and handed to the assistant so it doesn't guess.",
+                        checked = toolsOn,
+                        onCheckedChange = vm::setToolsOn
+                    )
+                    if (toolsOn) {
+                        ToggleRow(
+                            title = "Tools in tutor chats too",
+                            detail = "Off: tutors teach without them (\"what is 学习?\" stays a lesson).",
+                            checked = toolsForTutors,
+                            onCheckedChange = vm::setToolsForTutors
+                        )
+                        ToggleRow(
+                            title = "Read my calendar",
+                            detail = "For \"what's on my calendar tomorrow?\". Read only, and only when you ask; nothing leaves the tablet.",
+                            checked = calendarOn && context.checkSelfPermission(Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED,
+                            onCheckedChange = { on ->
+                                val granted = context.checkSelfPermission(Manifest.permission.READ_CALENDAR) == PackageManager.PERMISSION_GRANTED
+                                if (on && !granted) calendarPermission.launch(Manifest.permission.READ_CALENDAR)
+                                else vm.setCalendarOn(on)
+                            }
+                        )
+                    }
                     HorizontalDivider(color = P.Border)
                     LinkRow("Models", "Import, choose and delete on-device models", onOpenModels)
                     HorizontalDivider(color = P.Border)
