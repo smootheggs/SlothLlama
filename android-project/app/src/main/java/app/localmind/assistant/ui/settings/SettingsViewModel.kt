@@ -34,6 +34,9 @@ class SettingsViewModel @Inject constructor(
 
     val reviewReminder: StateFlow<Boolean> = assistant.reviewReminder
     val reminderHour: StateFlow<Int> = assistant.reminderHour
+    val openToHome: StateFlow<Boolean> = assistant.openToHome
+
+    fun setOpenToHome(home: Boolean) = assistant.setOpenToHome(home)
 
     private val _dialog = MutableStateFlow<BackupDialog?>(null)
     val dialog: StateFlow<BackupDialog?> = _dialog.asStateFlow()

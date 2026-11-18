@@ -40,7 +40,17 @@ class AssistantSettingsStore @Inject constructor(@ApplicationContext context: Co
         _reminderHour.value = hour
     }
 
+    private val _openToHome = MutableStateFlow(prefs.getBoolean(KEY_OPEN_TO_HOME, true))
+    /** Open on the Home page (true) or straight into the last chat (false). */
+    val openToHome: StateFlow<Boolean> = _openToHome.asStateFlow()
+
+    fun setOpenToHome(home: Boolean) {
+        prefs.edit().putBoolean(KEY_OPEN_TO_HOME, home).apply()
+        _openToHome.value = home
+    }
+
     private companion object {
+        const val KEY_OPEN_TO_HOME = "open_to_home"
         const val KEY_THINKING = "thinking"
         const val KEY_REMINDER = "review_reminder"
         const val KEY_REMINDER_HOUR = "review_reminder_hour"

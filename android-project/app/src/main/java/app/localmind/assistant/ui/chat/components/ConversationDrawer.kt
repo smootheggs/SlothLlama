@@ -32,6 +32,7 @@ import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Search
+import androidx.compose.material.icons.outlined.Home
 import androidx.compose.material.icons.outlined.Style
 import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material.icons.outlined.Unarchive
@@ -81,6 +82,7 @@ fun ConversationDrawerContent(
     onOpenSettings: () -> Unit = {},
     onOpenFlashcards: () -> Unit = {},
     onOpenDictionary: () -> Unit = {},
+    onOpenHome: () -> Unit = {},
     flashcardsDue: Int = 0,
     modelStatus: String = "",
     searchQuery: String = "",
@@ -102,6 +104,7 @@ fun ConversationDrawerContent(
             Text("SlothLlama", color = P.Text, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
         }
 
+        NavRow(Icons.Outlined.Home, "Home", onOpenHome)
         NavRow(Icons.Outlined.EditNote, "New chat", onNewConversation, highlighted = true)
         NavRow(Icons.Outlined.PersonOutline, "Personas", onOpenPersonas)
         NavRow(Icons.Outlined.Style, "Flashcards", onOpenFlashcards, trailing = if (flashcardsDue > 0) "$flashcardsDue due" else "")

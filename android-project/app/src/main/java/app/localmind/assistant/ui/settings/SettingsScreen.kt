@@ -24,6 +24,8 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.BoxWithConstraints
+import app.localmind.assistant.ui.home.WIDE
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.mutableStateOf
@@ -94,6 +96,7 @@ fun SettingsScreen(
     val vm: SettingsViewModel = hiltViewModel()
     val reminderOn by vm.reviewReminder.collectAsStateWithLifecycle()
     val reminderHour by vm.reminderHour.collectAsStateWithLifecycle()
+    val openToHome by vm.openToHome.collectAsStateWithLifecycle()
     val backupDialog by vm.dialog.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
@@ -120,16 +123,10 @@ fun SettingsScreen(
     Box(Modifier.fillMaxSize().background(P.Canvas)) {
     Column(Modifier.fillMaxSize()) {
         SlothTopBar(title = "Settings", onBack = onBack)
-        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-            Column(
-                Modifier
-                    .widthIn(max = 720.dp)
-                    .fillMaxWidth()
-                    .verticalScroll(rememberScrollState())
-                    .navigationBarsPadding()
-                    .padding(horizontal = 20.dp, vertical = 24.dp),
-                verticalArrangement = Arrangement.spacedBy(28.dp)
-            ) {
+        // Landscape: two columns of sections instead of one narrow strip.
+        BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+            val twoColumns = maxWidth >= WIDE
+            val leftSections: @Composable () -> Unit = {
                 Section("Appearance") {
                     Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         ThemeOption(ThemeMode.LIGHT, LightColors, themeMode, onThemeModeChange, Modifier.weight(1f))
@@ -141,6 +138,13 @@ fun SettingsScreen(
                         detail = "Follow the tablet's light / dark setting",
                         selected = themeMode == ThemeMode.SYSTEM,
                         onClick = { onThemeModeChange(ThemeMode.SYSTEM) }
+                    )
+                    HorizontalDivider(color = P.Border)
+                    ToggleRow(
+                        title = "Open on the Home page",
+                        detail = "Off: SlothLlama opens straight into your last chat. Home is always in the menu.",
+                        checked = openToHome,
+                        onCheckedChange = vm::setOpenToHome
                     )
                 }
 
@@ -208,6 +212,8 @@ fun SettingsScreen(
                     LinkRow("Personas", "Built-in and custom personas", onOpenPersonas)
                 }
 
+            }
+            val rightSections: @Composable () -> Unit = {
                 Section("Flashcards") {
                     ToggleRow(
                         title = "Daily review reminder",
@@ -273,6 +279,34 @@ fun SettingsScreen(
                     dictionaryLicense?.let { text ->
                         LinkRow("Dictionary sources", "CC-CEDICT (CC BY-SA 4.0) and ToJyutping") { dictionarySources = text }
                     }
+                }
+            }
+            val sectionColumn = Modifier.padding(horizontal = 20.dp, vertical = 24.dp)
+            if (twoColumns) {
+                Row(
+                    Modifier
+                        .widthIn(max = 1280.dp)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .navigationBarsPadding()
+                        .padding(horizontal = 16.dp),
+                    horizontalArrangement = Arrangement.spacedBy(16.dp)
+                ) {
+                    Column(Modifier.weight(1f).then(sectionColumn), verticalArrangement = Arrangement.spacedBy(28.dp)) { leftSections() }
+                    Column(Modifier.weight(1f).then(sectionColumn), verticalArrangement = Arrangement.spacedBy(28.dp)) { rightSections() }
+                }
+            } else {
+                Column(
+                    Modifier
+                        .widthIn(max = 720.dp)
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .navigationBarsPadding()
+                        .then(sectionColumn),
+                    verticalArrangement = Arrangement.spacedBy(28.dp)
+                ) {
+                    leftSections()
+                    rightSections()
                 }
             }
         }

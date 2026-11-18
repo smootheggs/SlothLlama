@@ -20,8 +20,10 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
+import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
+import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.selection.SelectionContainer
@@ -110,14 +112,17 @@ fun ModelsScreen(viewModel: ModelsViewModel, onBack: () -> Unit) {
             }
         )
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-            LazyColumn(
-                modifier = Modifier.widthIn(max = 760.dp).fillMaxSize(),
+            // One column in portrait; two side by side in landscape.
+            LazyVerticalGrid(
+                columns = GridCells.Adaptive(minSize = 440.dp),
+                modifier = Modifier.widthIn(max = 1280.dp).fillMaxSize(),
                 contentPadding = PaddingValues(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 32.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
             ) {
-                item { RuntimeCard(state.engine) }
+                item(span = { GridItemSpan(maxLineSpan) }) { RuntimeCard(state.engine) }
 
-                item {
+                item(span = { GridItemSpan(maxLineSpan) }) {
                     GpuCard(
                         gpu = gpu,
                         busy = state.engine is EngineRuntimeState.Loading,
@@ -126,7 +131,7 @@ fun ModelsScreen(viewModel: ModelsViewModel, onBack: () -> Unit) {
                     )
                 }
 
-                item {
+                item(span = { GridItemSpan(maxLineSpan) }) {
                     ImportCard(
                         progress = state.importProgress,
                         folder = state.importFolder,
@@ -135,7 +140,7 @@ fun ModelsScreen(viewModel: ModelsViewModel, onBack: () -> Unit) {
                     )
                 }
 
-                item {
+                item(span = { GridItemSpan(maxLineSpan) }) {
                     VoiceModelCard(
                         state = voiceModel,
                         onImport = { voicePicker.launch(arrayOf("*/*")) },
@@ -144,9 +149,9 @@ fun ModelsScreen(viewModel: ModelsViewModel, onBack: () -> Unit) {
                 }
 
                 if (state.models.isEmpty()) {
-                    item { GettingStartedCard() }
+                    item(span = { GridItemSpan(maxLineSpan) }) { GettingStartedCard() }
                 } else {
-                    item {
+                    item(span = { GridItemSpan(maxLineSpan) }) {
                         Text(
                             "ON THIS DEVICE · ${state.models.size}",
                             color = P.Faint, fontSize = 11.sp, letterSpacing = 1.2.sp,

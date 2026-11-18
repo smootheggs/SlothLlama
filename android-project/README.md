@@ -88,6 +88,11 @@ model too big for the GPU falls back to the CPU on its own.
   goes into the message as reference material (instructions inside it are not followed).
   About 2,600 tokens fit, roughly 10,000 English characters or 2,600 Chinese characters;
   longer documents are cut and the chip says "first part only". Scanned PDFs have no text.
+- **Home page.** Opens by default: the time, today in Chinese, a hello, Continue, New chat,
+  every tutor, shortcuts and recent chats (Settings → Appearance → Open on the Home page).
+  Back returns to where you came from; Home is in the menu.
+- **Landscape.** On a tablet held sideways the chat list stays open beside the chat, the Home
+  page and Settings use two columns, and Models and Personas show cards side by side.
 - **Start page.** The time, today in Chinese (weekday, lunar date, zodiac year — computed on the
   tablet, no weather because the app stays offline), a hello, and quick ways in.
 - **Backups.** Settings → Backup: one file with chats, custom personas, flashcards and settings,

@@ -180,7 +180,7 @@ private val HELLOS = mapOf(
     "evening" to listOf("Good evening." to "Settle in.", "Evening." to "Feet up, mind open.", "Good evening." to "Glad you're here.")
 )
 
-private fun slothHello(now: Long): Pair<String, String> {
+internal fun slothHello(now: Long): Pair<String, String> {
     val cal = Calendar.getInstance().apply { timeInMillis = now }
     val hour = cal.get(Calendar.HOUR_OF_DAY)
     val part = when {
@@ -193,7 +193,7 @@ private fun slothHello(now: Long): Pair<String, String> {
     return options[cal.get(Calendar.DAY_OF_YEAR) % options.size]
 }
 
-private fun clockText(now: Long): String {
+internal fun clockText(now: Long): String {
     val date = Date(now)
     val weekday = android.text.format.DateFormat.format("EEEE", date)
     val day = DateFormat.getDateInstance(DateFormat.MEDIUM).format(date)

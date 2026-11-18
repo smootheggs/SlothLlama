@@ -76,6 +76,13 @@ import app.localmind.assistant.ui.practice.PracticeSentencePicker
 import app.localmind.assistant.ui.practice.SpeakingPracticeSheet
 import app.localmind.assistant.ui.speech.TutorSpeaker
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.material3.VerticalDivider
+import androidx.compose.material.icons.outlined.Home
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.navigationBarsPadding
+import app.localmind.assistant.ui.home.WIDE
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -91,8 +98,11 @@ fun ChatScreen(
     onOpenSettings: () -> Unit,
     onOpenFlashcards: () -> Unit,
     onOpenDictionary: () -> Unit = {},
+    onOpenHome: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    // Landscape on a tablet: the chat list stays open on the left instead of sliding over.
+    val wide = LocalConfiguration.current.screenWidthDp.dp >= WIDE
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val voiceState by viewModel.voiceState.collectAsStateWithLifecycle()
     val voiceLevel by viewModel.voiceLevel.collectAsStateWithLifecycle()
@@ -158,12 +168,16 @@ fun ChatScreen(
         }
     }
 
-    LaunchedEffect(uiState.isDrawerOpen) {
-        if (uiState.isDrawerOpen && drawerState.isClosed) drawerState.open()
-        else if (!uiState.isDrawerOpen && drawerState.isOpen) drawerState.close()
+    // The slide-over drawer only exists in portrait; in landscape the list is always showing.
+    LaunchedEffect(uiState.isDrawerOpen, wide) {
+        when {
+            wide -> if (uiState.isDrawerOpen) viewModel.setDrawerOpen(false)
+            uiState.isDrawerOpen && drawerState.isClosed -> drawerState.open()
+            !uiState.isDrawerOpen && drawerState.isOpen -> drawerState.close()
+        }
     }
     LaunchedEffect(drawerState.isOpen) {
-        if (drawerState.isOpen != uiState.isDrawerOpen) viewModel.setDrawerOpen(drawerState.isOpen)
+        if (!wide && drawerState.isOpen != uiState.isDrawerOpen) viewModel.setDrawerOpen(drawerState.isOpen)
     }
     LaunchedEffect(uiState.errorMessage) {
         uiState.errorMessage?.let {
@@ -173,18 +187,11 @@ fun ChatScreen(
     }
 
     fun closeDrawerThen(action: () -> Unit) {
-        scope.launch { drawerState.close() }
+        if (!wide) scope.launch { drawerState.close() }
         action()
     }
 
-    ModalNavigationDrawer(
-        drawerState = drawerState,
-        drawerContent = {
-            ModalDrawerSheet(
-                drawerContainerColor = P.Card,
-                drawerShape = androidx.compose.foundation.shape.RoundedCornerShape(topEnd = 20.dp, bottomEnd = 20.dp),
-                modifier = Modifier.width(320.dp)
-            ) {
+    val drawerContent: @Composable () -> Unit = {
                 ConversationDrawerContent(
                     conversations = searchResults?.let { ids ->
                         (uiState.conversations + uiState.archivedConversations).filter { it.id in ids }
@@ -204,12 +211,13 @@ fun ChatScreen(
                     onOpenSettings = { closeDrawerThen(onOpenSettings) },
                     onOpenFlashcards = { closeDrawerThen(onOpenFlashcards) },
                     onOpenDictionary = { closeDrawerThen(onOpenDictionary) },
+                    onOpenHome = { closeDrawerThen(onOpenHome) },
                     flashcardsDue = flashcardState.dueCount,
                     modelStatus = uiState.activeModelName
                 )
-            }
-        }
-    ) {
+    }
+
+    val chatContent: @Composable () -> Unit = {
         CompositionLocalProvider(
             LocalSpeakAction provides speakAction,
             LocalSaveWordAction provides { text: String -> saveWordsFrom = text },
@@ -230,8 +238,14 @@ fun ChatScreen(
                     Column {
                         TopAppBar(
                             navigationIcon = {
-                                IconButton(onClick = { scope.launch { drawerState.open() } }) {
-                                    Icon(Icons.Default.Menu, contentDescription = "Open menu", tint = P.Text)
+                                if (wide) {
+                                    IconButton(onClick = onOpenHome) {
+                                        Icon(Icons.Outlined.Home, contentDescription = "Home", tint = P.Text)
+                                    }
+                                } else {
+                                    IconButton(onClick = { scope.launch { drawerState.open() } }) {
+                                        Icon(Icons.Default.Menu, contentDescription = "Open menu", tint = P.Text)
+                                    }
                                 }
                             },
                             title = {
@@ -345,6 +359,33 @@ fun ChatScreen(
                 }
             }
         }
+    }
+
+    if (wide) {
+        Row(Modifier.fillMaxSize().background(P.Canvas)) {
+            Box(
+                Modifier
+                    .width(320.dp)
+                    .fillMaxHeight()
+                    .background(P.Card)
+                    .statusBarsPadding()
+                    .navigationBarsPadding()
+            ) { drawerContent() }
+            VerticalDivider(color = P.Border)
+            Box(Modifier.weight(1f).fillMaxHeight()) { chatContent() }
+        }
+    } else {
+        ModalNavigationDrawer(
+            drawerState = drawerState,
+            drawerContent = {
+                ModalDrawerSheet(
+                    drawerContainerColor = P.Card,
+                    drawerShape = androidx.compose.foundation.shape.RoundedCornerShape(topEnd = 20.dp, bottomEnd = 20.dp),
+                    modifier = Modifier.width(320.dp)
+                ) { drawerContent() }
+            },
+            content = chatContent
+        )
     }
 
     uiState.renameTarget?.let { conv ->

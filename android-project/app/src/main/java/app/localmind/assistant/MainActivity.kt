@@ -36,6 +36,7 @@ import app.localmind.assistant.data.persona.ChineseStyleStore
 import app.localmind.assistant.data.attachments.AttachmentStore
 import kotlinx.coroutines.launch
 import app.localmind.assistant.ui.dictionary.DictionaryScreen
+import app.localmind.assistant.ui.home.HomeRoute
 import app.localmind.assistant.ui.dictionary.DictionaryViewModel
 import app.localmind.assistant.ui.study.FlashcardsScreen
 import app.localmind.assistant.ui.study.FlashcardsViewModel
@@ -131,7 +132,9 @@ class MainActivity : ComponentActivity() {
                         onCharScaleChange = chineseStyleStore::setCharScale,
                         thinking = thinking,
                         onThinkingChange = assistantSettings::setThinking,
-                        askInbox = askInbox
+                        askInbox = askInbox,
+                        // Read once: the setting decides where a fresh start lands.
+                        startAtHome = assistantSettings.openToHome.value
                     )
                 }
             }
@@ -167,11 +170,11 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Destination { CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY }
+private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY }
 
 /**
- * Chat is home. Personas, Models and Settings open from the drawer as full screens;
- * Back always returns to the chat.
+ * Home (or the last chat, per Settings) on a fresh start. Screens open on top of each other and
+ * Back returns to where you came from; from the chat, Back goes Home; from Home it leaves.
  */
 @Composable
 private fun SlothRoot(
@@ -185,47 +188,86 @@ private fun SlothRoot(
     onCharScaleChange: (Float) -> Unit,
     thinking: Boolean,
     onThinkingChange: (Boolean) -> Unit,
-    askInbox: AskInbox
+    askInbox: AskInbox,
+    startAtHome: Boolean
 ) {
-    var destination by rememberSaveable { mutableStateOf(Destination.CHAT) }
+    val first = if (startAtHome) Destination.HOME else Destination.CHAT
+    // Back stack of screen names, saved as one string so it survives rotation and restarts.
+    var savedStack by rememberSaveable { mutableStateOf(first.name) }
+    val stack: List<String> = savedStack.split(',')
+        .filter { name -> Destination.entries.any { it.name == name } }
+        .ifEmpty { listOf(first.name) }
+    fun setStack(value: List<String>) {
+        savedStack = value.joinToString(",")
+    }
+    val destination = Destination.valueOf(stack.last())
     val chatViewModel: ChatViewModel = hiltViewModel()
-    val goHome = { destination = Destination.CHAT }
+    fun navigate(to: Destination) {
+        if (to == destination) return
+        // Opening something already in the stack returns to it rather than piling up copies.
+        val at = stack.indexOf(to.name)
+        setStack(if (at >= 0) stack.take(at + 1) else stack + to.name)
+    }
+    val goBack: () -> Unit = {
+        when {
+            stack.size > 1 -> setStack(stack.dropLast(1))
+            destination != Destination.HOME -> setStack(listOf(Destination.HOME.name))
+        }
+    }
+    // Leaving a chat for something it opened (Personas → "chat with") lands back in the chat.
+    val goToChat: () -> Unit = { navigate(Destination.CHAT) }
+    val goHome = goBack
 
     // "Ask SlothLlama" from another app, or a home-screen shortcut.
     val pendingLaunch by askInbox.pending.collectAsStateWithLifecycle()
     LaunchedEffect(pendingLaunch) {
         when (val request = askInbox.take()) {
             is LaunchRequest.Ask -> {
-                destination = Destination.CHAT
+                navigate(Destination.CHAT)
                 chatViewModel.askAbout(request.text)
             }
             is LaunchRequest.StartChat -> {
-                destination = Destination.CHAT
+                navigate(Destination.CHAT)
                 chatViewModel.startConversationWith(request.personaId)
             }
-            LaunchRequest.Flashcards -> destination = Destination.FLASHCARDS
+            LaunchRequest.Flashcards -> navigate(Destination.FLASHCARDS)
             null -> Unit
         }
     }
 
-    BackHandler(enabled = destination != Destination.CHAT, onBack = goHome)
+    BackHandler(enabled = destination != Destination.HOME, onBack = goBack)
 
     Box(Modifier.fillMaxSize().background(P.Canvas)) {
         Crossfade(targetState = destination, animationSpec = tween(180), label = "destination") { screen ->
             when (screen) {
+                Destination.HOME -> HomeRoute(
+                    chatViewModel = chatViewModel,
+                    script = chineseStyle.script,
+                    onOpenChat = goToChat,
+                    onOpenChats = {
+                        chatViewModel.setDrawerOpen(true)
+                        goToChat()
+                    },
+                    onFlashcards = { navigate(Destination.FLASHCARDS) },
+                    onDictionary = { navigate(Destination.DICTIONARY) },
+                    onPersonas = { navigate(Destination.PERSONAS) },
+                    onModels = { navigate(Destination.MODELS) },
+                    onSettings = { navigate(Destination.SETTINGS) }
+                )
                 Destination.CHAT -> ChatScreen(
                     viewModel = chatViewModel,
-                    onOpenPersonas = { destination = Destination.PERSONAS },
-                    onOpenModels = { destination = Destination.MODELS },
-                    onOpenSettings = { destination = Destination.SETTINGS },
-                    onOpenFlashcards = { destination = Destination.FLASHCARDS },
-                    onOpenDictionary = { destination = Destination.DICTIONARY }
+                    onOpenPersonas = { navigate(Destination.PERSONAS) },
+                    onOpenModels = { navigate(Destination.MODELS) },
+                    onOpenSettings = { navigate(Destination.SETTINGS) },
+                    onOpenFlashcards = { navigate(Destination.FLASHCARDS) },
+                    onOpenDictionary = { navigate(Destination.DICTIONARY) },
+                    onOpenHome = { navigate(Destination.HOME) }
                 )
                 Destination.PERSONAS -> PersonasScreen(
                     viewModel = hiltViewModel<PersonasViewModel>(),
                     onChatWith = { personaId ->
                         chatViewModel.startConversationWith(personaId)
-                        goHome()
+                        goToChat()
                     },
                     onBack = goHome
                 )
@@ -243,8 +285,8 @@ private fun SlothRoot(
                     onCharScaleChange = onCharScaleChange,
                     thinking = thinking,
                     onThinkingChange = onThinkingChange,
-                    onOpenModels = { destination = Destination.MODELS },
-                    onOpenPersonas = { destination = Destination.PERSONAS },
+                    onOpenModels = { navigate(Destination.MODELS) },
+                    onOpenPersonas = { navigate(Destination.PERSONAS) },
                     onBack = goHome
                 )
             }
