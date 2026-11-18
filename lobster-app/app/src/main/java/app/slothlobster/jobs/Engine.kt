@@ -108,9 +108,16 @@ class Engine(private val lobster: Lobster) {
             return
         }
         lobster.setLive { it.copy(lastSync = System.currentTimeMillis()) }
-        val known = store.value.jobs.mapNotNull { it.orderId }.toSet()
+        val known = store.value.jobs.mapNotNull { it.orderId }.toSet() + store.value.seenOrders
+        val now = System.currentTimeMillis()
         for (order in orders) {
             if (order.id in known) continue
+            store.update { it.copy(seenOrders = it.seenOrders + order.id) }
+            // Only fresh orders: an old order file put back in the folder is ignored.
+            if (order.createdAt < now - MAX_ORDER_AGE_MS || order.createdAt > now + Store.DAY_MS) {
+                store.log("problem", "Ignored an out-of-date order", "${OrderKind.of(order.kind).label}: ${order.text.take(80)}")
+                continue
+            }
             val job = Job(
                 id = UUID.randomUUID().toString(),
                 orderId = order.id,
@@ -596,6 +603,7 @@ class Engine(private val lobster: Lobster) {
 
     companion object {
         private const val PER_SOURCE = 6_000
+        private const val MAX_ORDER_AGE_MS = 14 * Store.DAY_MS
         const val HOUR_MS = 60L * 60 * 1000
 
         fun verb(kind: String): String = when (OrderKind.of(kind)) {

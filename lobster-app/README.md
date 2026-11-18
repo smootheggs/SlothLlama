@@ -32,6 +32,12 @@ On a phone, keep the same folder in sync with the tablet using Syncthing.
 - HTTPS only. It refuses addresses on your own network (router, other apps on the device).
 - Pages are read as text only. Nothing in a page or an order is ever run as a command.
 - No backups of its data, no tracking, no account. CI checks it asks for no other permissions.
+- Orders older than 14 days, or taken before, are ignored, so old order files can't be replayed.
+- The pairing code is wiped from the clipboard once it's pasted (SlothLlama marks it sensitive).
+- Builds only read the repo, and every third-party build step is pinned to an exact commit.
+- Install the **release** build (signed with your own key from GitHub Secrets). The "Dev" build
+  is signed with the public debug key in this repo, so anyone could make an APK that installs
+  over it as an update and reads its data.
 
 ## Building
 

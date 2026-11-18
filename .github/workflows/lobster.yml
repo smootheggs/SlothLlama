@@ -10,6 +10,11 @@ on:
       - ".github/workflows/lobster.yml"
   workflow_dispatch:
 
+# The build only reads the code. Third-party steps are pinned to exact commits, so a moved or
+# hijacked tag can't swap in code that would see the signing key.
+permissions:
+  contents: read
+
 concurrency:
   group: lobster-${{ github.ref }}
   cancel-in-progress: true
@@ -20,10 +25,9 @@ jobs:
     timeout-minutes: 40
     steps:
       - name: Check out code
-        uses: actions/checkout@v5
-
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
       - name: Set up Java 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: temurin
           java-version: "17"
@@ -38,7 +42,7 @@ jobs:
           "$SDKM" --install "platforms;android-35" "build-tools;35.0.0"
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
         with:
           gradle-version: "8.11.1"
           cache-read-only: false
@@ -92,7 +96,7 @@ jobs:
           echo "Only network, notifications and staying awake: as intended."
 
       - name: Upload APK
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: slothlobster-apk
           path: ${{ runner.temp }}/out/SlothLobster.apk

@@ -402,7 +402,12 @@ private fun Pairing(
             Row(Modifier.padding(top = 4.dp)) {
                 Action("Copy") {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    clipboard.setPrimaryClip(ClipData.newPlainText("Sloth Lobster pairing code", shown))
+                    val clip = ClipData.newPlainText("Sloth Lobster pairing code", shown)
+                    // Marked sensitive: Android hides it from the clipboard preview and keyboard suggestions.
+                    clip.description.extras = android.os.PersistableBundle().apply {
+                        putBoolean(android.content.ClipDescription.EXTRA_IS_SENSITIVE, true)
+                    }
+                    clipboard.setPrimaryClip(clip)
                 }
                 Action("New key", muted = true) { onNewKey() }
             }

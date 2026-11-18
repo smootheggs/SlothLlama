@@ -48,7 +48,8 @@ class Store(private val file: File) {
         return s.copy(
             log = log,
             jobs = jobs.sortedByDescending { it.createdAt },
-            delivered = s.delivered.take(MAX_DELIVERED)
+            delivered = s.delivered.take(MAX_DELIVERED),
+            seenOrders = s.seenOrders.takeLast(MAX_SEEN_ORDERS)
         )
     }
 
@@ -77,5 +78,6 @@ class Store(private val file: File) {
         private const val MAX_LOG = 800
         private const val MAX_CLOSED_JOBS = 60
         private const val MAX_DELIVERED = 100
+        private const val MAX_SEEN_ORDERS = 1_000
     }
 }

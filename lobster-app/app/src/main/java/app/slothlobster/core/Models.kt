@@ -132,5 +132,7 @@ data class Saved(
     val watches: List<Watch> = emptyList(),
     val log: List<LogEntry> = emptyList(),
     val delivered: List<Delivered> = emptyList(),
-    val settings: Settings = Settings()
+    val settings: Settings = Settings(),
+    /** Ids of orders already taken, so a copy of an old order file can't make it run again. */
+    val seenOrders: List<String> = emptyList()
 )

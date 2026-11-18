@@ -1,5 +1,6 @@
 package app.slothlobster.core
 
+import android.content.ClipboardManager
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -203,6 +204,8 @@ class Lobster private constructor(val context: Context) {
     fun pair(code: String): Boolean {
         val ok = mailbox.pair(code)
         if (ok) {
+            // The code is the mailbox key: don't leave it on the clipboard for other apps.
+            runCatching { context.getSystemService(ClipboardManager::class.java)?.clearPrimaryClip() }
             store.log("mailbox", "Paired with SlothLlama", "Code ending ${mailbox.codeHint()}")
             scope.launch { refreshLive(); engine.poke() }
         }
