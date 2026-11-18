@@ -280,7 +280,7 @@ private fun SlothRoot(
                     onLibrary = { navigate(Destination.LIBRARY) },
                     onNotes = { navigate(Destination.NOTES) },
                     onLobster = openLobster,
-                    lobsterCatch = lobsterState.catch.size
+                    lobster = lobsterState.takeIf { it.enabled }
                 )
                 Destination.CHAT -> ChatScreen(
                     viewModel = chatViewModel,

@@ -100,8 +100,11 @@ model too big for the GPU falls back to the CPU on its own.
   repeat-after-me (scored word by word, accents optional) and flashcards work in every language.
   Listening: SenseVoice covers Japanese; French, German, Spanish and Italian need Whisper Small
   (Models → Voice input: European languages; three files, about 375 MB).
-- **Home page.** Opens by default: the time, today in Chinese, a hello, Continue, New chat,
-  every tutor, shortcuts and recent chats (Settings → Appearance → Open on the Home page).
+- **Home page.** Opens by default: the time, today in Chinese, a hello, Continue and New chat,
+  **Today** (flashcards due, what the Lobster brought back, the weekly backup), the tutors one
+  chip per language, your things with live status, and recent chats (Settings → Appearance →
+  Open on the Home page). OLED black with a moss-green accent, kept for the main action and live
+  numbers; coral is the Lobster's.
   Back returns to where you came from; Home is in the menu.
 - **Landscape.** On a tablet held sideways the chat list stays open beside the chat, the Home
   page and Settings use two columns, and Models and Personas show cards side by side.

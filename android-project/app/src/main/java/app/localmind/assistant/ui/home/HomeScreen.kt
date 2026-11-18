@@ -1,5 +1,6 @@
 package app.localmind.assistant.ui.home
 
+import android.text.format.DateUtils
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -23,31 +24,37 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.ChatBubbleOutline
-import androidx.compose.material.icons.outlined.EditNote
-import androidx.compose.material.icons.outlined.LocalLibrary
-import androidx.compose.material.icons.outlined.StickyNote2
-import androidx.compose.material.icons.outlined.Memory
-import androidx.compose.material.icons.outlined.PersonOutline
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.Schedule
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Settings
-import androidx.compose.material.icons.outlined.Style
-import androidx.compose.material.icons.outlined.Translate
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -56,18 +63,41 @@ import app.localmind.assistant.R
 import app.localmind.assistant.domain.model.Conversation
 import app.localmind.assistant.domain.persona.ChineseScript
 import app.localmind.assistant.domain.persona.Persona
+import app.localmind.assistant.domain.persona.SpeechLanguage
 import app.localmind.assistant.ui.chat.components.chineseToday
 import app.localmind.assistant.ui.chat.components.clockText
 import app.localmind.assistant.ui.chat.components.slothHello
 import app.localmind.assistant.ui.theme.SlothPalette as P
 import kotlinx.coroutines.delay
 
-/** One shortcut on the Home page. */
-data class HomeTile(val icon: ImageVector, val label: String, val detail: String, val onClick: () -> Unit)
+/** How a tile's number or icon is coloured: the accent, the Lobster's coral, quiet, or a problem. */
+enum class Tone { ACCENT, LOBSTER, QUIET, PROBLEM }
+
+/** One shortcut on the Home page: an icon, a name and a live status line. */
+data class HomeTile(
+    val icon: ImageVector,
+    val label: String,
+    val detail: String,
+    val onClick: () -> Unit,
+    val tone: Tone = Tone.QUIET
+)
+
+/** One tile in the Today strip: a short live value ("12 due") over its name and a next step. */
+data class TodayItem(
+    val icon: ImageVector,
+    val value: String,
+    val title: String,
+    val detail: String,
+    val tone: Tone,
+    val onClick: () -> Unit
+)
 
 /**
- * The main page: time and today in Chinese, a hello, the last chat, the tutors, recent chats,
- * and shortcuts to everything else. Two columns in landscape, one in portrait.
+ * The main page. Top: the date (and today in Chinese) with search and settings. Then a hello,
+ * the two main actions (continue the last chat, start a new one), Today (what's due or new),
+ * the tutors one chip per language, your things with live status, and a quiet row for the rest.
+ * Colour is kept for the one main action and live numbers; icons stay neutral.
+ * Two columns in landscape, one in portrait.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -75,7 +105,11 @@ fun HomeScreen(
     script: ChineseScript,
     conversations: List<Conversation>,
     personas: List<Persona>,
-    tiles: List<HomeTile>,
+    today: List<TodayItem>,
+    things: List<HomeTile>,
+    more: List<HomeTile>,
+    onSearch: () -> Unit,
+    onSettings: () -> Unit,
     onOpenConversation: (String) -> Unit,
     onNewChat: () -> Unit,
     onStartWith: (Persona) -> Unit
@@ -89,79 +123,116 @@ fun HomeScreen(
     }
     val (hello, sub) = remember(now / 3_600_000) { slothHello(now) }
     val last = conversations.firstOrNull()
-    val tutors = personas.filter { it.speech != null }
     val personaOf = personas.associateBy { it.id }
+    val tutorGroups = remember(personas) { tutorGroups(personas) }
 
-    val header: @Composable () -> Unit = {
-        Text(clockText(now), color = P.Muted, fontSize = 14.sp)
-        Text(chineseToday(now, script), color = P.Faint, fontSize = 14.sp, modifier = Modifier.padding(top = 2.dp))
-        Spacer(Modifier.height(18.dp))
+    val top: @Composable () -> Unit = {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.Top) {
+            Column(Modifier.weight(1f).padding(top = 4.dp)) {
+                Text(clockText(now), color = P.Muted, fontSize = 15.sp)
+                Text(chineseToday(now, script), color = P.Faint, fontSize = 15.sp, modifier = Modifier.padding(top = 3.dp))
+            }
+            IconButton(onClick = onSearch, modifier = Modifier.size(48.dp)) {
+                Icon(Icons.Outlined.Search, contentDescription = "Search chats", tint = P.Muted)
+            }
+            IconButton(onClick = onSettings, modifier = Modifier.size(48.dp)) {
+                Icon(Icons.Outlined.Settings, contentDescription = "Settings", tint = P.Muted)
+            }
+        }
+    }
+    val greeting: @Composable (Boolean) -> Unit = { compact ->
         Row(verticalAlignment = Alignment.CenterVertically) {
             Image(
                 painter = painterResource(R.drawable.sloth_llama),
                 contentDescription = null,
-                modifier = Modifier.size(width = 58.dp, height = 50.dp)
+                modifier = Modifier.size(width = if (compact) 64.dp else 76.dp, height = if (compact) 56.dp else 66.dp)
             )
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(18.dp))
             Column {
-                Text(hello, color = P.Text, fontSize = 30.sp, fontWeight = FontWeight.SemiBold, lineHeight = 36.sp)
-                Text(sub, color = P.Muted, fontSize = 16.sp)
+                Text(
+                    hello, color = P.Text, fontSize = if (compact) 34.sp else 40.sp, fontWeight = FontWeight.Medium,
+                    lineHeight = if (compact) 40.sp else 46.sp, modifier = Modifier.semantics { heading() }
+                )
+                Text(sub, color = P.Muted, fontSize = 17.sp)
             }
         }
     }
-    val continueAndTutors: @Composable () -> Unit = {
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+    val mainActions: @Composable () -> Unit = {
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
             if (last != null) {
-                BigCard(
-                    label = "Continue",
-                    text = last.title.ifBlank { "Last chat" },
-                    detail = personaOf[last.personaId]?.let { "${it.badge} ${it.name}" }.orEmpty(),
+                ContinueCard(
+                    title = last.title.ifBlank { "Last chat" },
+                    persona = personaOf[last.personaId]?.name.orEmpty(),
+                    ago = ago(last.updatedAt, now),
                     modifier = Modifier.weight(1f)
                 ) { onOpenConversation(last.id) }
             }
-            BigCard(
-                label = "New chat",
-                text = "Ask anything",
-                detail = "Private · on this tablet",
-                modifier = Modifier.weight(1f),
-                onClick = onNewChat
-            )
+            NewChatCard(Modifier.weight(1f), onNewChat)
         }
-        if (tutors.isNotEmpty()) {
-            SectionLabel("TUTORS")
-            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                tutors.forEach { tutor -> TutorChip(tutor, script) { onStartWith(tutor) } }
+    }
+    val todayStrip: @Composable () -> Unit = {
+        if (today.isNotEmpty()) {
+            Column {
+                SectionLabel("Today")
+                Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    today.forEach { item -> TodayTile(item, Modifier.weight(1f)) }
+                }
             }
         }
     }
-    val shortcuts: @Composable () -> Unit = {
-        SectionLabel("SHORTCUTS")
-        tiles.chunked(2).forEach { row ->
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                row.forEach { tile -> SmallTile(tile, Modifier.weight(1f)) }
-                if (row.size == 1) Spacer(Modifier.weight(1f))
+    val tutorSection: @Composable () -> Unit = {
+        if (tutorGroups.isNotEmpty()) {
+            Column {
+                SectionLabel("Tutors")
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    tutorGroups.forEach { group -> TutorChip(group, script, onStartWith) }
+                }
             }
-            Spacer(Modifier.height(10.dp))
+        }
+    }
+    val thingsGrid: @Composable () -> Unit = {
+        if (things.isNotEmpty()) {
+            Column {
+                SectionLabel("Your things")
+                things.chunked(2).forEach { row ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        row.forEach { tile -> ThingTile(tile, Modifier.weight(1f)) }
+                        if (row.size == 1) Spacer(Modifier.weight(1f))
+                    }
+                    Spacer(Modifier.height(12.dp))
+                }
+            }
+        }
+    }
+    val moreRow: @Composable () -> Unit = {
+        Column {
+            HorizontalDivider(color = P.Border)
+            FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                more.forEach { tile -> MoreButton(tile) }
+            }
         }
     }
     val recent: @Composable () -> Unit = {
-        val others = conversations.drop(1).take(5)
+        val others = conversations.drop(1).take(4)
         if (others.isNotEmpty()) {
-            SectionLabel("RECENT")
-            others.forEach { conv ->
-                Row(
-                    Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(10.dp))
-                        .clickable { onOpenConversation(conv.id) }
-                        .padding(horizontal = 6.dp, vertical = 9.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(personaOf[conv.personaId]?.badge ?: "💬", fontSize = 15.sp, modifier = Modifier.width(28.dp))
-                    Text(
-                        conv.title.ifBlank { "Chat" }, color = P.Text, fontSize = 15.sp,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)
-                    )
+            Column {
+                SectionLabel("Recent")
+                others.forEach { conv ->
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .heightIn(min = 48.dp)
+                            .clip(RoundedCornerShape(12.dp))
+                            .clickable(role = Role.Button) { onOpenConversation(conv.id) }
+                            .padding(horizontal = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            conv.title.ifBlank { "Chat" }, color = P.Text, fontSize = 15.sp,
+                            maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)
+                        )
+                        Text(ago(conv.updatedAt, now), color = P.Faint, fontSize = 13.sp, modifier = Modifier.padding(start = 12.dp))
+                    }
                 }
             }
         }
@@ -174,139 +245,253 @@ fun HomeScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        val wide = maxWidth >= WIDE
-        if (wide) {
-            // Landscape: greeting, continue and tutors on the left; shortcuts and recent on the right.
-            Row(
-                Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 40.dp, vertical = 28.dp),
-                horizontalArrangement = Arrangement.spacedBy(40.dp)
-            ) {
-                Column(Modifier.weight(1.1f).verticalScroll(rememberScrollState())) {
-                    header()
-                    Spacer(Modifier.height(28.dp))
-                    continueAndTutors()
-                }
-                Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                    shortcuts()
-                    recent()
+        if (maxWidth >= WIDE) {
+            // Landscape: hello, main actions and Today on the left; tutors and your things on the right.
+            Column(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 24.dp)) {
+                top()
+                Row(Modifier.weight(1f).padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(40.dp)) {
+                    Column(
+                        Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(26.dp)
+                    ) {
+                        greeting(true)
+                        mainActions()
+                        todayStrip()
+                    }
+                    Column(
+                        Modifier.weight(1f).verticalScroll(rememberScrollState()),
+                        verticalArrangement = Arrangement.spacedBy(22.dp)
+                    ) {
+                        tutorSection()
+                        thingsGrid()
+                        recent()
+                        moreRow()
+                    }
                 }
             }
         } else {
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                 Column(
                     Modifier
-                        .widthIn(max = 640.dp)
+                        .widthIn(max = 720.dp)
                         .fillMaxWidth()
                         .verticalScroll(rememberScrollState())
-                        .padding(horizontal = 24.dp, vertical = 28.dp)
+                        .padding(horizontal = 24.dp, vertical = 20.dp),
+                    verticalArrangement = Arrangement.spacedBy(26.dp)
                 ) {
-                    header()
-                    Spacer(Modifier.height(24.dp))
-                    continueAndTutors()
-                    Spacer(Modifier.height(8.dp))
-                    shortcuts()
-                    recent()
+                    top()
+                    greeting(false)
+                    mainActions()
+                    todayStrip()
+                    tutorSection()
+                    thingsGrid()
+                    moreRow()
                 }
             }
         }
     }
 }
 
-/** Shortcuts every Home page has; patches can add more (e.g. Library). */
-fun defaultHomeTiles(
-    flashcardsDue: Int,
-    modelStatus: String,
-    onFlashcards: () -> Unit,
-    onDictionary: () -> Unit,
-    onPersonas: () -> Unit,
-    onModels: () -> Unit,
-    onSettings: () -> Unit,
-    onChats: () -> Unit,
-    libraryDetail: String,
-    onLibrary: () -> Unit,
-    notesDetail: String,
-    onNotes: () -> Unit
-): List<HomeTile> = listOf(
-    HomeTile(Icons.Outlined.Style, "Flashcards", if (flashcardsDue > 0) "$flashcardsDue due" else "Review words", onFlashcards),
-    HomeTile(Icons.Outlined.Translate, "Dictionary", "Chinese · offline", onDictionary),
-    HomeTile(Icons.Outlined.LocalLibrary, "Library", libraryDetail, onLibrary),
-    HomeTile(Icons.Outlined.StickyNote2, "Notes", notesDetail, onNotes),
-    HomeTile(Icons.Outlined.ChatBubbleOutline, "Chats", "All conversations", onChats),
-    HomeTile(Icons.Outlined.PersonOutline, "Personas", "Tutors and assistants", onPersonas),
-    HomeTile(Icons.Outlined.Memory, "Models", modelStatus.ifBlank { "Choose a model" }, onModels),
-    HomeTile(Icons.Outlined.Settings, "Settings", "Look, voice, backups", onSettings)
-)
+/** The tutors for one language: a partner, a teacher, custom ones. */
+data class TutorGroup(val language: SpeechLanguage, val tutors: List<Persona>)
+
+/** One group per language, in the languages' order; each group's partner first. */
+fun tutorGroups(personas: List<Persona>): List<TutorGroup> =
+    personas.filter { it.speech != null }
+        .groupBy { it.speech!! }
+        .toSortedMap(compareBy { it.ordinal })
+        .map { (language, list) -> TutorGroup(language, list.sortedBy { if (roleOf(it, language) == "Partner") 0 else 1 }) }
+
+/** "Mandarin Teacher" → "Teacher"; a tutor named just for its language is the partner. */
+fun roleOf(tutor: Persona, language: SpeechLanguage): String {
+    val rest = tutor.name.removePrefix(language.label).trim()
+    return if (rest.isEmpty()) "Partner" else rest
+}
+
+/** A short mark for a language: its own script for Chinese and Japanese, a code otherwise. */
+fun languageMark(language: SpeechLanguage, script: ChineseScript): String = when (language) {
+    SpeechLanguage.MANDARIN -> "中"
+    SpeechLanguage.CANTONESE -> if (script == ChineseScript.TRADITIONAL) "粵" else "粤"
+    SpeechLanguage.JAPANESE -> "日"
+    SpeechLanguage.FRENCH -> "FR"
+    SpeechLanguage.GERMAN -> "DE"
+    SpeechLanguage.SPANISH -> "ES"
+    SpeechLanguage.ITALIAN -> "IT"
+}
+
+private fun ago(time: Long, now: Long): String =
+    if (time <= 0 || now - time < 60_000) "just now"
+    else DateUtils.getRelativeTimeSpanString(time, now, DateUtils.MINUTE_IN_MILLIS, DateUtils.FORMAT_ABBREV_RELATIVE).toString()
+
+@Composable
+private fun toneColor(tone: Tone): Color = when (tone) {
+    Tone.ACCENT -> P.Accent
+    Tone.LOBSTER -> P.Lobster
+    Tone.QUIET -> P.Muted
+    Tone.PROBLEM -> P.Danger
+}
 
 @Composable
 private fun SectionLabel(text: String) {
     Text(
-        text, color = P.Faint, fontSize = 11.sp, letterSpacing = 1.2.sp,
-        modifier = Modifier.padding(top = 22.dp, bottom = 10.dp)
+        text.uppercase(), color = P.Faint, fontSize = 12.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Medium,
+        modifier = Modifier.padding(bottom = 12.dp).semantics { heading() }
     )
 }
 
 @Composable
-private fun BigCard(label: String, text: String, detail: String, modifier: Modifier, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(18.dp)
+private fun ContinueCard(title: String, persona: String, ago: String, modifier: Modifier, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(20.dp)
     Column(
         modifier
-            .heightIn(min = 96.dp)
+            .heightIn(min = 140.dp)
             .clip(shape)
-            .background(P.Card)
-            .border(1.dp, P.Border, shape)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp)
+            .background(P.Elevated)
+            .clickable(role = Role.Button, onClickLabel = "Continue this chat", onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
-            if (label == "New chat") {
-                Icon(Icons.Outlined.EditNote, contentDescription = null, tint = P.Accent, modifier = Modifier.size(16.dp))
-                Spacer(Modifier.width(6.dp))
-            }
-            Text(label, color = P.Faint, fontSize = 12.sp)
+            Icon(Icons.Outlined.Schedule, contentDescription = null, tint = P.Faint, modifier = Modifier.size(16.dp))
+            Spacer(Modifier.width(6.dp))
+            Text("Continue · $ago", color = P.Faint, fontSize = 13.sp)
         }
-        Text(text, color = P.Text, fontSize = 17.sp, lineHeight = 22.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        if (detail.isNotBlank()) Text(detail, color = P.Muted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(title, color = P.Text, fontSize = 19.sp, lineHeight = 25.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+        if (persona.isNotBlank()) Text(persona, color = P.Muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** The page's one filled action. */
+@Composable
+private fun NewChatCard(modifier: Modifier, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(20.dp)
+    Column(
+        modifier
+            .heightIn(min = 140.dp)
+            .clip(shape)
+            .background(P.Accent)
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 18.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Box(Modifier.size(40.dp).clip(CircleShape).background(P.OnAccent), contentAlignment = Alignment.Center) {
+            Icon(Icons.Outlined.Add, contentDescription = null, tint = P.Accent, modifier = Modifier.size(24.dp))
+        }
+        Text("New chat", color = P.OnAccent, fontSize = 22.sp, fontWeight = FontWeight.Medium)
+        Text("Ask anything · private, on this tablet", color = P.OnAccent, fontSize = 14.sp, maxLines = 2)
     }
 }
 
 @Composable
-private fun TutorChip(tutor: Persona, script: ChineseScript, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(20.dp)
-    Row(
-        Modifier
+private fun TodayTile(item: TodayItem, modifier: Modifier) {
+    val shape = RoundedCornerShape(16.dp)
+    Column(
+        modifier
+            .heightIn(min = 116.dp)
             .clip(shape)
             .border(1.dp, P.Border, shape)
-            .clickable(onClick = onClick)
-            .padding(horizontal = 14.dp, vertical = 9.dp),
-        verticalAlignment = Alignment.CenterVertically
+            .clickable(role = Role.Button, onClick = item.onClick)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Text(tutor.speech?.flag(script) ?: tutor.badge, color = P.Accent, fontSize = 15.sp)
-        Spacer(Modifier.width(8.dp))
-        // "Mandarin", "Mandarin Teacher": partners are the default, so they go by the language.
-        Text(tutor.name.removeSuffix(" Partner"), color = P.Text, fontSize = 14.sp)
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(item.icon, contentDescription = null, tint = if (item.tone == Tone.LOBSTER) P.Lobster else P.Muted, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.weight(1f))
+            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = P.Faint, modifier = Modifier.size(18.dp))
+        }
+        Text(item.value, color = toneColor(item.tone), fontSize = 21.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(item.title, color = P.Text, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(item.detail, color = P.Faint, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** One chip per language; with more than one tutor it asks which. */
+@Composable
+private fun TutorChip(group: TutorGroup, script: ChineseScript, onStartWith: (Persona) -> Unit) {
+    var choosing by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(28.dp)
+    val roles = group.tutors.map { roleOf(it, group.language) }
+    Box {
+        Row(
+            Modifier
+                .heightIn(min = 56.dp)
+                .clip(shape)
+                .border(1.dp, P.Border, shape)
+                .clickable(role = Role.Button, onClickLabel = "Talk with the ${group.language.label} tutor") {
+                    if (group.tutors.size == 1) onStartWith(group.tutors.first()) else choosing = true
+                }
+                .padding(start = 8.dp, end = 18.dp, top = 8.dp, bottom = 8.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Box(Modifier.size(38.dp).clip(CircleShape).background(P.AccentSoft), contentAlignment = Alignment.Center) {
+                Text(languageMark(group.language, script), color = P.Accent, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            }
+            Spacer(Modifier.width(12.dp))
+            Column {
+                Text(group.language.label, color = P.Text, fontSize = 16.sp)
+                Text(roles.joinToString(" · "), color = P.Faint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        DropdownMenu(expanded = choosing, onDismissRequest = { choosing = false }, modifier = Modifier.background(P.Elevated)) {
+            group.tutors.forEachIndexed { i, tutor ->
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text(roles[i], color = P.Text, fontSize = 15.sp)
+                            if (tutor.tagline.isNotBlank()) Text(tutor.tagline, color = P.Muted, fontSize = 12.sp, maxLines = 2)
+                        }
+                    },
+                    onClick = {
+                        choosing = false
+                        onStartWith(tutor)
+                    }
+                )
+            }
+        }
     }
 }
 
 @Composable
-private fun SmallTile(tile: HomeTile, modifier: Modifier) {
+private fun ThingTile(tile: HomeTile, modifier: Modifier) {
     val shape = RoundedCornerShape(16.dp)
     Row(
         modifier
-            .heightIn(min = 64.dp)
+            .heightIn(min = 76.dp)
             .clip(shape)
             .border(1.dp, P.Border, shape)
-            .clickable(onClick = tile.onClick)
-            .padding(horizontal = 14.dp, vertical = 11.dp),
+            .clickable(role = Role.Button, onClick = tile.onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(tile.icon, contentDescription = null, tint = P.Accent, modifier = Modifier.size(22.dp))
-        Spacer(Modifier.width(12.dp))
-        Column {
-            Text(tile.label, color = P.Text, fontSize = 15.sp)
-            Text(tile.detail, color = P.Muted, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Icon(tile.icon, contentDescription = null, tint = if (tile.tone == Tone.LOBSTER) P.Lobster else P.Muted, modifier = Modifier.size(24.dp))
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Text(tile.label, color = P.Text, fontSize = 16.sp)
+            Text(
+                tile.detail, color = if (tile.tone == Tone.ACCENT) P.Accent else P.Muted, fontSize = 13.sp,
+                maxLines = 2, overflow = TextOverflow.Ellipsis
+            )
         }
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = P.Faint, modifier = Modifier.size(18.dp))
+    }
+}
+
+@Composable
+private fun MoreButton(tile: HomeTile) {
+    Row(
+        Modifier
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(24.dp))
+            .clickable(role = Role.Button, onClick = tile.onClick)
+            .padding(horizontal = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(tile.icon, contentDescription = null, tint = P.Muted, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(8.dp))
+        Text(
+            if (tile.detail.isBlank()) tile.label else "${tile.label} · ${tile.detail}",
+            color = P.Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

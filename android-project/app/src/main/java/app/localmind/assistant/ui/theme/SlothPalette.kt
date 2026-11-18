@@ -26,4 +26,5 @@ object SlothPalette {
     val DangerSoft: Color @Composable @ReadOnlyComposable get() = LocalSlothColors.current.dangerSoft
     val CodeBackground: Color @Composable @ReadOnlyComposable get() = LocalSlothColors.current.codeBackground
     val CodeText: Color @Composable @ReadOnlyComposable get() = LocalSlothColors.current.codeText
+    val Lobster: Color @Composable @ReadOnlyComposable get() = LocalSlothColors.current.lobster
 }

@@ -51,29 +51,37 @@ data class SlothColors(
     val dangerSoft: Color,
     val codeBackground: Color,
     val codeText: Color,
-    val scrim: Color
+    val scrim: Color,
+    /** SlothLobster's coral, used only for Lobster things (it's the sister app's own colour). */
+    val lobster: Color
 )
 
+/**
+ * OLED black with a moss-green accent: the sloth's moss, calm and warm next to the mascot, and a
+ * land-and-forest twin to SlothLobster's sea coral. Neutrals lean slightly green to match.
+ * Contrast on black: text 18.7:1, muted 9.2:1, faint 6.0:1, accent 11.1:1.
+ */
 val OledColors = SlothColors(
     isDark = true,
     canvas = Color(0xFF000000),
-    surface = Color(0xFF0B0C0E),
-    elevated = Color(0xFF16181D),
-    border = Color(0xFF22252C),
-    borderStrong = Color(0xFF33363F),
-    text = Color(0xFFF2F2F4),
-    muted = Color(0xFF9EA2AD),
-    faint = Color(0xFF6B7080),
-    accent = Color(0xFF38BDF8),
-    onAccent = Color(0xFF00121C),
-    accentSoft = Color(0xFF0B2533),
+    surface = Color(0xFF0C0E0D),
+    elevated = Color(0xFF161917),
+    border = Color(0xFF222624),
+    borderStrong = Color(0xFF333833),
+    text = Color(0xFFF2F2EF),
+    muted = Color(0xFFA9ADA7),
+    faint = Color(0xFF858A83),
+    accent = Color(0xFF9CC98A),
+    onAccent = Color(0xFF10200B),
+    accentSoft = Color(0xFF1A2416),
     success = Color(0xFF34D399),
     warning = Color(0xFFFBBF24),
     danger = Color(0xFFF87171),
     dangerSoft = Color(0xFF2A1517),
     codeBackground = Color(0xFF0E1014),
     codeText = Color(0xFFE4E7EC),
-    scrim = Color(0x99000000)
+    scrim = Color(0x99000000),
+    lobster = Color(0xFFF0937A)
 )
 
 val LightColors = SlothColors(
@@ -84,18 +92,19 @@ val LightColors = SlothColors(
     border = Color(0xFFE3E5E8),
     borderStrong = Color(0xFFCDD1D6),
     text = Color(0xFF131418),
-    muted = Color(0xFF5A606B),
-    faint = Color(0xFF8B909A),
-    accent = Color(0xFF0369A1),       // sky-700: 5.9:1 on white (the dark theme's sky-400 is too pale)
+    muted = Color(0xFF5A6058),
+    faint = Color(0xFF6E736C),
+    accent = Color(0xFF3D6B2C),       // deep moss: 6.3:1 on white (the dark theme's moss is too pale)
     onAccent = Color(0xFFFFFFFF),
-    accentSoft = Color(0xFFE6F3FB),
+    accentSoft = Color(0xFFEEF4EA),
     success = Color(0xFF047857),
     warning = Color(0xFFB45309),
     danger = Color(0xFFDC2626),
     dangerSoft = Color(0xFFFDECEC),
     codeBackground = Color(0xFFF5F6F8),
     codeText = Color(0xFF1F2328),
-    scrim = Color(0x66000000)
+    scrim = Color(0x66000000),
+    lobster = Color(0xFFB4492E)
 )
 
 val LocalSlothColors = staticCompositionLocalOf { OledColors }

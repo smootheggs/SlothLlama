@@ -76,7 +76,7 @@ class PersonaRepository @Inject constructor(
         name = name.ifBlank { "Untitled persona" },
         description = tagline,
         iconName = badge.ifBlank { "✦" },
-        accentHex = "#38BDF8",
+        accentHex = "#9CC98A",
         selectedModelId = "",
         systemInstruction = systemInstruction,
         temperature = temperature,
