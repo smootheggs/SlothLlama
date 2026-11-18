@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.Calculate
 import androidx.compose.material.icons.outlined.CalendarMonth
 import androidx.compose.material.icons.outlined.Event
 import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.Sailing
 import androidx.compose.material.icons.outlined.Schedule
 import androidx.compose.material.icons.outlined.StickyNote2
 import androidx.compose.material.icons.outlined.Straighten
@@ -217,6 +218,7 @@ private fun toolIcon(tool: String): ImageVector = when (tool) {
     ToolNames.NOTES -> Icons.Outlined.StickyNote2
     ToolNames.CALENDAR -> Icons.Outlined.CalendarMonth
     ToolNames.DICTIONARY -> Icons.Outlined.Translate
+    ToolNames.LOBSTER -> Icons.Outlined.Sailing
     else -> Icons.Outlined.Build
 }
 

@@ -112,6 +112,12 @@ class AttachmentStore @Inject constructor(
         )
     }
 
+    /** Text from elsewhere (shared from another app, brought by the Lobster) as a chat document. */
+    fun textDocument(name: String, text: String): DocumentText {
+        val fitted = fit(text, MAX_DOCUMENT_TOKENS)
+        return DocumentText(name = name.ifBlank { "Shared text" }, text = fitted, truncated = fitted.length < text.length)
+    }
+
     /** A document's full text, for the library (and, cut to size, for chat attachments). */
     class Extracted(val name: String, val text: String, val pages: Int)
 

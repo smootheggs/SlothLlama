@@ -117,6 +117,16 @@ model too big for the GPU falls back to the CPU on its own.
   about wifi?", and a Notes page), your calendar (read only, switched on in Settings), the
   Chinese dictionary, and "look up … in my library / Wikipedia". Each result shows as a chip on
   your message. Settings → Assistant → Offline tools; tutors don't use them unless you allow it.
+- **Share to SlothLlama.** Share text, a link, a photo, a PDF or a book from any app: a small
+  sheet offers what fits (explain, summarize, translate, read a photo's text, save to Notes,
+  add to the Library, or send a link to the Lobster). Chats open with it attached and the
+  request in the box; nothing is sent until you tap send.
+- **Sloth Lobster mailbox.** SlothLlama stays offline; the Sloth Lobster, a separate app, goes
+  online for you. They share only an encrypted mailbox folder (same tablet, or synced to a phone
+  with Syncthing). The Lobster page (Settings → Sloth Lobster) sets it up, sends orders
+  (research, fetch, watch, brief), shows whether the Lobster is awake, and lists what it brought
+  back for you to file in the Library, Notes or a chat. In a chat, "ask the lobster to …" sends
+  an order too. The format is in [docs/LOBSTER_MAILBOX.md](docs/LOBSTER_MAILBOX.md).
 - **Backups.** Settings → Backup: one file with chats, custom personas, flashcards, notes and settings,
   optionally AES-256 encrypted with a password. Restore adds it back. Models aren't included.
 - **Small things.** Continue for cut-off replies, chat search, one-tap follow-ups (Correct me,

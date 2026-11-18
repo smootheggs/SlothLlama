@@ -95,6 +95,7 @@ fun SettingsScreen(
     onThinkingChange: (Boolean) -> Unit,
     onOpenModels: () -> Unit,
     onOpenPersonas: () -> Unit,
+    onOpenLobster: () -> Unit,
     onBack: () -> Unit
 ) {
     val vm: SettingsViewModel = hiltViewModel()
@@ -260,6 +261,8 @@ fun SettingsScreen(
                     LinkRow("Models", "Import, choose and delete on-device models", onOpenModels)
                     HorizontalDivider(color = P.Border)
                     LinkRow("Personas", "Built-in and custom personas", onOpenPersonas)
+                    HorizontalDivider(color = P.Border)
+                    LinkRow("Sloth Lobster 🦞", "The separate app that goes online for you: mailbox and pairing", onOpenLobster)
                 }
 
             }

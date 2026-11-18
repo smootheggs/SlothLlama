@@ -21,6 +21,7 @@ mediapipeTasksGenai = "0.10.27"
 jsoup = "1.18.1"
 pdfboxAndroid = "2.0.27.0"
 libkiwix = "2.7.0"
+documentfile = "1.0.1"
 listenableFuture = "1.0"
 junit = "4.13.2"
 junitVersion = "1.2.1"
@@ -29,6 +30,8 @@ turbine = "1.2.0"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
+# The Sloth Lobster mailbox: a folder you pick, read and written through the system's file picker
+androidx-documentfile = { group = "androidx.documentfile", name = "documentfile", version.ref = "documentfile" }
 androidx-lifecycle-runtime-ktx = { group = "androidx.lifecycle", name = "lifecycle-runtime-ktx", version.ref = "lifecycleRuntimeKtx" }
 androidx-lifecycle-viewmodel-compose = { group = "androidx.lifecycle", name = "lifecycle-viewmodel-compose", version.ref = "lifecycleRuntimeKtx" }
 androidx-lifecycle-runtime-compose = { group = "androidx.lifecycle", name = "lifecycle-runtime-compose", version.ref = "lifecycleRuntimeKtx" }

@@ -1,5 +1,7 @@
 package app.localmind.assistant.ui.home
 
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Sailing
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -23,7 +25,9 @@ fun HomeRoute(
     onModels: () -> Unit,
     onSettings: () -> Unit,
     onLibrary: () -> Unit,
-    onNotes: () -> Unit
+    onNotes: () -> Unit,
+    onLobster: (() -> Unit)? = null,
+    lobsterCatch: Int = 0
 ) {
     val ui by chatViewModel.uiState.collectAsStateWithLifecycle()
     val flashcards: FlashcardsViewModel = hiltViewModel()
@@ -57,7 +61,12 @@ fun HomeRoute(
                 else -> "${notes.size} notes"
             },
             onNotes = onNotes
-        ),
+        ) + listOfNotNull(onLobster?.let { go ->
+            HomeTile(
+                Icons.Outlined.Sailing, "Sloth Lobster",
+                if (lobsterCatch > 0) "$lobsterCatch new 🦞" else "Orders and catch", go
+            )
+        }),
         onOpenConversation = { id ->
             chatViewModel.selectConversation(id)
             onOpenChat()

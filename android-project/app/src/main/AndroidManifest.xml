@@ -75,6 +75,34 @@
             </intent-filter>
         </activity>
 
+        <!-- "Share to SlothLlama" from any app: text, links, photos, PDFs, books. A small sheet
+             offers what fits; chat options wait in the message box until you tap send. -->
+        <activity
+            android:name=".ShareActivity"
+            android:exported="true"
+            android:label="@string/share_to_slothllama"
+            android:excludeFromRecents="true"
+            android:configChanges="orientation|screenSize|screenLayout|keyboardHidden"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/*" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="application/pdf" />
+                <data android:mimeType="application/epub+zip" />
+                <data android:mimeType="application/xhtml+xml" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND_MULTIPLE" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="image/*" />
+                <data android:mimeType="application/pdf" />
+                <data android:mimeType="application/epub+zip" />
+                <data android:mimeType="text/*" />
+            </intent-filter>
+        </activity>
+
         <!-- Custom Hilt WorkerFactory initialization -->
         <provider
             android:name="androidx.startup.InitializationProvider"

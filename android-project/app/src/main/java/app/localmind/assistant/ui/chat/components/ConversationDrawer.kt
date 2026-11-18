@@ -27,6 +27,7 @@ import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.LocalLibrary
+import androidx.compose.material.icons.outlined.Sailing
 import androidx.compose.material.icons.outlined.StickyNote2
 import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.MoreHoriz
@@ -87,6 +88,7 @@ fun ConversationDrawerContent(
     onOpenHome: () -> Unit = {},
     onOpenLibrary: () -> Unit = {},
     onOpenNotes: () -> Unit = {},
+    onOpenLobster: (() -> Unit)? = null,
     flashcardsDue: Int = 0,
     modelStatus: String = "",
     searchQuery: String = "",
@@ -115,6 +117,7 @@ fun ConversationDrawerContent(
         NavRow(Icons.Outlined.Translate, "Dictionary", onOpenDictionary)
         NavRow(Icons.Outlined.LocalLibrary, "Library", onOpenLibrary)
         NavRow(Icons.Outlined.StickyNote2, "Notes", onOpenNotes)
+        onOpenLobster?.let { NavRow(Icons.Outlined.Sailing, "Sloth Lobster", it) }
         NavRow(Icons.Outlined.Memory, "Models", onOpenModels, trailing = modelStatus)
         NavRow(Icons.Outlined.Settings, "Settings", onOpenSettings)
 

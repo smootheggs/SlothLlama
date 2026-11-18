@@ -75,53 +75,67 @@ class LibraryStore @Inject constructor(
         _working.value = "Reading $name…"
         try {
             val doc = attachments.extractText(uri)
-            _working.value = "Indexing ${doc.name}…"
-            val chunks = Chunker.chunks(doc.text)
-            check(chunks.isNotEmpty()) { "${doc.name} has no text to index." }
-            val titleTokens = SearchTokens.forIndex(dictionary.toSimplified(doc.name.substringBeforeLast('.')))
-            val tokenLines = chunks.map { c ->
-                (titleTokens + SearchTokens.forIndex(dictionary.toSimplified(c.heading + "\n" + c.text))).joinToString(" ")
-            }
-            val detail = buildList {
-                if (doc.pages > 0) add("%,d pages".format(doc.pages))
-                add("%,d passages".format(chunks.size))
-                if (doc.pages > AttachmentStore.MAX_LIBRARY_PDF_PAGES) add("first %,d pages".format(AttachmentStore.MAX_LIBRARY_PDF_PAGES))
-            }.joinToString(" · ")
-            val w = db.writableDatabase
-            w.beginTransaction()
-            val id = try {
-                val newId = w.insertOrThrow("documents", null, ContentValues().apply {
-                    put("name", doc.name)
-                    put("kind", LibraryKind.DOCUMENT.name)
-                    put("detail", detail)
-                    put("chars", doc.text.length)
-                    put("chunks", chunks.size)
-                    put("added_at", System.currentTimeMillis())
-                })
-                val insertChunk = w.compileStatement("INSERT INTO chunks (doc_id, ord, heading, text) VALUES (?, ?, ?, ?)")
-                val insertTokens = w.compileStatement("INSERT INTO chunks_fts (docid, tokens) VALUES (?, ?)")
-                chunks.forEachIndexed { i, c ->
-                    insertChunk.clearBindings()
-                    insertChunk.bindLong(1, newId)
-                    insertChunk.bindLong(2, i.toLong())
-                    insertChunk.bindString(3, c.heading)
-                    insertChunk.bindString(4, c.text)
-                    val chunkId = insertChunk.executeInsert()
-                    insertTokens.clearBindings()
-                    insertTokens.bindLong(1, chunkId)
-                    insertTokens.bindString(2, tokenLines[i])
-                    insertTokens.executeInsert()
-                }
-                w.setTransactionSuccessful()
-                newId
-            } finally {
-                w.endTransaction()
-            }
-            _items.value = readItems()
-            _items.value.orEmpty().first { it.id == id }
+            index(doc.name, doc.text, doc.pages)
         } finally {
             _working.value = null
         }
+    }
+
+    /** Adds text that isn't a file: something shared from another app, or the Lobster's catch. */
+    suspend fun addText(title: String, text: String): LibraryItem = withContext(io) {
+        val name = title.trim().ifEmpty { "Untitled" }.take(120)
+        try {
+            index(name, text, 0)
+        } finally {
+            _working.value = null
+        }
+    }
+
+    private suspend fun index(docName: String, text: String, pages: Int): LibraryItem {
+        _working.value = "Indexing $docName…"
+        val chunks = Chunker.chunks(text)
+        check(chunks.isNotEmpty()) { "$docName has no text to index." }
+        val titleTokens = SearchTokens.forIndex(dictionary.toSimplified(docName.substringBeforeLast('.')))
+        val tokenLines = chunks.map { c ->
+            (titleTokens + SearchTokens.forIndex(dictionary.toSimplified(c.heading + "\n" + c.text))).joinToString(" ")
+        }
+        val detail = buildList {
+            if (pages > 0) add("%,d pages".format(pages))
+            add("%,d passages".format(chunks.size))
+            if (pages > AttachmentStore.MAX_LIBRARY_PDF_PAGES) add("first %,d pages".format(AttachmentStore.MAX_LIBRARY_PDF_PAGES))
+        }.joinToString(" · ")
+        val w = db.writableDatabase
+        w.beginTransaction()
+        val id = try {
+            val newId = w.insertOrThrow("documents", null, ContentValues().apply {
+                put("name", docName)
+                put("kind", LibraryKind.DOCUMENT.name)
+                put("detail", detail)
+                put("chars", text.length)
+                put("chunks", chunks.size)
+                put("added_at", System.currentTimeMillis())
+            })
+            val insertChunk = w.compileStatement("INSERT INTO chunks (doc_id, ord, heading, text) VALUES (?, ?, ?, ?)")
+            val insertTokens = w.compileStatement("INSERT INTO chunks_fts (docid, tokens) VALUES (?, ?)")
+            chunks.forEachIndexed { i, c ->
+                insertChunk.clearBindings()
+                insertChunk.bindLong(1, newId)
+                insertChunk.bindLong(2, i.toLong())
+                insertChunk.bindString(3, c.heading)
+                insertChunk.bindString(4, c.text)
+                val chunkId = insertChunk.executeInsert()
+                insertTokens.clearBindings()
+                insertTokens.bindLong(1, chunkId)
+                insertTokens.bindString(2, tokenLines[i])
+                insertTokens.executeInsert()
+            }
+            w.setTransactionSuccessful()
+            newId
+        } finally {
+            w.endTransaction()
+        }
+        _items.value = readItems()
+        return _items.value.orEmpty().first { it.id == id }
     }
 
     /** Adds a Kiwix .zim file (read in place: the app keeps permission to read it). */

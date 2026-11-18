@@ -7,6 +7,8 @@ import android.provider.AlarmClock
 import android.util.Log
 import app.localmind.assistant.data.dictionary.ChineseDictionary
 import app.localmind.assistant.data.library.LibraryStore
+import app.localmind.assistant.data.lobster.LobsterMailbox
+import app.localmind.assistant.data.lobster.OrderKind
 import app.localmind.assistant.data.settings.AssistantSettingsStore
 import app.localmind.assistant.domain.attachments.LibraryPassage
 import app.localmind.assistant.domain.attachments.ToolResult
@@ -36,7 +38,8 @@ class ToolRunner @Inject constructor(
     private val notes: NotesStore,
     private val calendar: CalendarReader,
     private val dictionary: ChineseDictionary,
-    private val library: LibraryStore
+    private val library: LibraryStore,
+    private val mailbox: LobsterMailbox
 ) {
     class Outcome(val results: List<ToolResult>, val passages: List<LibraryPassage>) {
         val isEmpty: Boolean get() = results.isEmpty() && passages.isEmpty()
@@ -49,8 +52,9 @@ class ToolRunner @Inject constructor(
         settings.toolsOn.value && (persona.speech == null || settings.toolsForTutors.value)
 
     suspend fun run(message: String, persona: Persona): Outcome {
-        if (!enabledFor(persona)) return none
-        val requests = ToolRouter.route(message, ZonedDateTime.now())
+        val routed = ToolRouter.route(message, ZonedDateTime.now())
+        // "Ask the lobster to …" is a direct order, so it works even where the tools are off.
+        val requests = if (enabledFor(persona)) routed else routed.filterIsInstance<ToolRequest.Lobster>()
         if (requests.isEmpty()) return none
         val results = mutableListOf<ToolResult>()
         val passages = mutableListOf<LibraryPassage>()
@@ -69,6 +73,7 @@ class ToolRunner @Inject constructor(
                     is ToolRequest.Calendar -> results += agenda(request)
                     is ToolRequest.Define -> define(request.words)?.let { results += it }
                     is ToolRequest.Library -> passages += library.search(request.query)
+                    is ToolRequest.Lobster -> results += lobster(request.text)
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -77,6 +82,40 @@ class ToolRunner @Inject constructor(
             }
         }
         return Outcome(results, passages)
+    }
+
+    /** Puts the request in the Lobster's mailbox; its catch comes back on the Lobster page. */
+    private suspend fun lobster(text: String): ToolResult {
+        if (!mailbox.isReady) {
+            return ToolResult(
+                ToolNames.LOBSTER, "The Lobster isn't set up",
+                "The user asked the Sloth Lobster to do something, but it isn't set up yet (Lobster page). Say so briefly."
+            )
+        }
+        val lower = text.lowercase()
+        val kind = when {
+            Regex("https?://").containsMatchIn(text) -> OrderKind.FETCH
+            Regex("\\b(watch|keep an eye|let me know when|tell me when|alert me|track)\\b").containsMatchIn(lower) -> OrderKind.WATCH
+            Regex("\\b(brief|briefing|round-?up|every morning|daily)\\b").containsMatchIn(lower) -> OrderKind.BRIEF
+            else -> OrderKind.RESEARCH
+        }
+        val deep = Regex("\\b(deep|in depth|in-depth|thorough|overnight|detailed)\\b").containsMatchIn(lower)
+        try {
+            mailbox.send(kind, text, deep = deep && kind == OrderKind.RESEARCH)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            return ToolResult(
+                ToolNames.LOBSTER, "Couldn't reach the Lobster's mailbox",
+                "The order couldn't be put in the Sloth Lobster's mailbox (${e.message ?: "folder not writable"}). Say so briefly."
+            )
+        }
+        val what = kind.label.lowercase() + if (deep && kind == OrderKind.RESEARCH) " (deep, overnight)" else ""
+        return ToolResult(
+            ToolNames.LOBSTER, "Sent to the Lobster 🦞",
+            "The request went to the Sloth Lobster's mailbox as a $what order; what it finds will appear on the " +
+                "Lobster page. Tell the user it's on its way in one short sentence, and don't answer the request yourself."
+        )
     }
 
     private fun timer(t: ToolRequest.Timer): ToolResult {

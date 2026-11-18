@@ -2,6 +2,7 @@
 <resources>
     <string name="app_name">SlothLlama</string>
     <string name="ask_slothllama">Ask SlothLlama</string>
+    <string name="share_to_slothllama">SlothLlama</string>
     <string name="chat_title">SlothLlama Chat</string>
     <string name="new_chat">New Chat</string>
     <string name="delete_conversation_title">Delete conversation?</string>

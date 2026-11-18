@@ -14,6 +14,17 @@ sealed interface LaunchRequest {
     data class StartChat(val personaId: String) : LaunchRequest
     /** Open the flashcards. */
     data object Flashcards : LaunchRequest
+    /**
+     * Shared from another app ("Share to SlothLlama"): a new chat with the text, photo or
+     * document attached and [prompt] waiting in the box. Nothing is sent until you tap send.
+     */
+    data class Shared(
+        val prompt: String,
+        val photo: String? = null,
+        val document: app.localmind.assistant.domain.attachments.DocumentText? = null
+    ) : LaunchRequest
+    /** Open the Sloth Lobster page. */
+    data object Lobster : LaunchRequest
 }
 
 /** Holds the latest launch request until the main screen picks it up. */

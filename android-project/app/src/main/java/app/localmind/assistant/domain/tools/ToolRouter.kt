@@ -19,6 +19,8 @@ sealed interface ToolRequest {
     data class Calendar(val from: LocalDate, val days: Int, val label: String) : ToolRequest
     data class Define(val words: List<String>) : ToolRequest
     data class Library(val query: String) : ToolRequest
+    /** An order for the Sloth Lobster ("ask the lobster to …"). */
+    data class Lobster(val text: String) : ToolRequest
 }
 
 /** Tool names, as stored in messages and shown on their chips. */
@@ -32,6 +34,7 @@ object ToolNames {
     const val NOTES = "notes"
     const val CALENDAR = "calendar"
     const val DICTIONARY = "dictionary"
+    const val LOBSTER = "lobster"
 }
 
 /**
@@ -48,7 +51,7 @@ object ToolRouter {
         val out = mutableListOf<ToolRequest>()
 
         // Actions first: they're commands, and their numbers aren't sums.
-        val action = timer(lower, text) ?: alarm(lower, text) ?: note(lower, text)
+        val action = lobster(lower, text) ?: timer(lower, text) ?: alarm(lower, text) ?: note(lower, text)
         if (action != null) return listOf(action)
 
         library(lower, text)?.let { out += it }
@@ -127,6 +130,21 @@ object ToolRouter {
         if (DURATION.containsMatchIn(g.value)) return null
         val source = if (original.length == lower.length) original else lower
         return source.substring(g.range.first, g.range.last + 1).trim().takeIf { it.length >= 2 }
+    }
+
+    // --- the Sloth Lobster ---
+
+    private val LOBSTER = Regex(
+        "^(?:🦞\\s*)?(?:please\\s+)?(?:(?:ask|tell|have|get|send)\\s+(?:the\\s+)?(?:sloth\\s+)?lobster\\s+(?:to\\s+|for\\s+)?|lobster[:,]\\s*|🦞\\s+)(.+)$",
+        RegexOption.DOT_MATCHES_ALL
+    )
+
+    private fun lobster(lower: String, original: String): ToolRequest? {
+        val m = LOBSTER.find(lower) ?: return null
+        val g = m.groups[1] ?: return null
+        val source = if (original.length == lower.length) original else lower
+        val text = source.substring(g.range.first, g.range.last + 1).trim()
+        return if (text.length >= 3) ToolRequest.Lobster(text) else null
     }
 
     // --- notes ---

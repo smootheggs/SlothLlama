@@ -38,6 +38,8 @@ import kotlinx.coroutines.launch
 import app.localmind.assistant.ui.dictionary.DictionaryScreen
 import app.localmind.assistant.ui.library.LibraryScreen
 import app.localmind.assistant.ui.library.LibraryViewModel
+import app.localmind.assistant.ui.lobster.LobsterScreen
+import app.localmind.assistant.ui.lobster.LobsterViewModel
 import app.localmind.assistant.ui.notes.NotesScreen
 import app.localmind.assistant.ui.notes.NotesViewModel
 import app.localmind.assistant.ui.home.HomeRoute
@@ -174,7 +176,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES }
+private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES, LOBSTER }
 
 /**
  * Home (or the last chat, per Settings) on a fresh start. Screens open on top of each other and
@@ -235,11 +237,24 @@ private fun SlothRoot(
                 chatViewModel.startConversationWith(request.personaId)
             }
             LaunchRequest.Flashcards -> navigate(Destination.FLASHCARDS)
+            is LaunchRequest.Shared -> {
+                navigate(Destination.CHAT)
+                chatViewModel.receiveShare(request.prompt, request.photo, request.document)
+            }
+            LaunchRequest.Lobster -> navigate(Destination.LOBSTER)
             null -> Unit
         }
     }
 
     BackHandler(enabled = destination != Destination.HOME, onBack = goBack)
+
+    // The Sloth Lobster shows up on Home and in the chat list once it's switched on.
+    val lobster: LobsterViewModel = hiltViewModel()
+    val lobsterState by lobster.state.collectAsStateWithLifecycle()
+    val openLobster: (() -> Unit)? = if (lobsterState.enabled) ({ navigate(Destination.LOBSTER) }) else null
+    LaunchedEffect(lobsterState.enabled) {
+        if (lobsterState.enabled) lobster.refresh()
+    }
 
     Box(Modifier.fillMaxSize().background(P.Canvas)) {
         Crossfade(targetState = destination, animationSpec = tween(180), label = "destination") { screen ->
@@ -258,7 +273,9 @@ private fun SlothRoot(
                     onModels = { navigate(Destination.MODELS) },
                     onSettings = { navigate(Destination.SETTINGS) },
                     onLibrary = { navigate(Destination.LIBRARY) },
-                    onNotes = { navigate(Destination.NOTES) }
+                    onNotes = { navigate(Destination.NOTES) },
+                    onLobster = openLobster,
+                    lobsterCatch = lobsterState.catch.size
                 )
                 Destination.CHAT -> ChatScreen(
                     viewModel = chatViewModel,
@@ -269,7 +286,8 @@ private fun SlothRoot(
                     onOpenDictionary = { navigate(Destination.DICTIONARY) },
                     onOpenHome = { navigate(Destination.HOME) },
                     onOpenLibrary = { navigate(Destination.LIBRARY) },
-                    onOpenNotes = { navigate(Destination.NOTES) }
+                    onOpenNotes = { navigate(Destination.NOTES) },
+                    onOpenLobster = openLobster
                 )
                 Destination.PERSONAS -> PersonasScreen(
                     viewModel = hiltViewModel<PersonasViewModel>(),
@@ -284,6 +302,7 @@ private fun SlothRoot(
                 Destination.DICTIONARY -> DictionaryScreen(viewModel = hiltViewModel<DictionaryViewModel>(), onBack = goHome)
                 Destination.LIBRARY -> LibraryScreen(viewModel = hiltViewModel<LibraryViewModel>(), onBack = goHome)
                 Destination.NOTES -> NotesScreen(viewModel = hiltViewModel<NotesViewModel>(), onBack = goHome)
+                Destination.LOBSTER -> LobsterScreen(viewModel = lobster, onBack = goHome)
                 Destination.SETTINGS -> SettingsScreen(
                     themeMode = themeMode,
                     onThemeModeChange = onThemeModeChange,
@@ -297,6 +316,7 @@ private fun SlothRoot(
                     onThinkingChange = onThinkingChange,
                     onOpenModels = { navigate(Destination.MODELS) },
                     onOpenPersonas = { navigate(Destination.PERSONAS) },
+                    onOpenLobster = { navigate(Destination.LOBSTER) },
                     onBack = goHome
                 )
             }
