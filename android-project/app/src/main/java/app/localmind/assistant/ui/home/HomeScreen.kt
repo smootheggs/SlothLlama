@@ -130,7 +130,7 @@ fun HomeScreen(
         if (tutors.isNotEmpty()) {
             SectionLabel("TUTORS")
             FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                tutors.forEach { tutor -> TutorChip(tutor) { onStartWith(tutor) } }
+                tutors.forEach { tutor -> TutorChip(tutor, script) { onStartWith(tutor) } }
             }
         }
     }
@@ -272,7 +272,7 @@ private fun BigCard(label: String, text: String, detail: String, modifier: Modif
 }
 
 @Composable
-private fun TutorChip(tutor: Persona, onClick: () -> Unit) {
+private fun TutorChip(tutor: Persona, script: ChineseScript, onClick: () -> Unit) {
     val shape = RoundedCornerShape(20.dp)
     Row(
         Modifier
@@ -282,9 +282,10 @@ private fun TutorChip(tutor: Persona, onClick: () -> Unit) {
             .padding(horizontal = 14.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Text(tutor.badge, fontSize = 15.sp)
+        Text(tutor.speech?.flag(script) ?: tutor.badge, color = P.Accent, fontSize = 15.sp)
         Spacer(Modifier.width(8.dp))
-        Text(tutor.speech?.label ?: tutor.name, color = P.Text, fontSize = 14.sp)
+        // "Mandarin", "Mandarin Teacher": partners are the default, so they go by the language.
+        Text(tutor.name.removeSuffix(" Partner"), color = P.Text, fontSize = 14.sp)
     }
 }
 

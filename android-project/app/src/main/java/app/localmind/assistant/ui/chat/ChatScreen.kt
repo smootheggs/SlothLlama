@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.localmind.assistant.domain.persona.BuiltInPersonas
 import app.localmind.assistant.ui.chat.components.ChatInputBar
+import app.localmind.assistant.ui.chat.components.QuickAction
 import app.localmind.assistant.ui.chat.components.ClearAllConversationsDialog
 import app.localmind.assistant.ui.chat.components.ConversationDrawerContent
 import app.localmind.assistant.ui.chat.components.DefaultStarterPrompts
@@ -310,9 +311,16 @@ fun ChatScreen(
                         onFinishVoice = viewModel::finishVoiceInput,
                         onCancelVoice = viewModel::cancelVoiceInput,
                         // Follow-ups make sense once the persona has replied at least once.
-                        quickActions = if (uiState.messages.any { it.role == MessageRole.ASSISTANT && it.status == MessageStatus.COMPLETE })
-                            QuickActions.forPersona(persona) else emptyList(),
-                        onQuickAction = { action -> viewModel.sendQuickAction(action.prompt) },
+                        quickActions = uiState.messages
+                            .lastOrNull { it.role == MessageRole.ASSISTANT && it.status == MessageStatus.COMPLETE }
+                            ?.let { last -> QuickActions.forPersona(persona, last.content) }
+                            .orEmpty(),
+                        onQuickAction = { action ->
+                            when (action.kind) {
+                                QuickAction.Kind.SAVE_NOTE -> viewModel.saveLastReplyAsNote()
+                                QuickAction.Kind.SEND -> viewModel.sendQuickAction(action.prompt)
+                            }
+                        },
                         handsFree = handsFree,
                         onStartHandsFree = {
                             speaker.stop()

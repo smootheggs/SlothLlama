@@ -10,6 +10,7 @@ import app.localmind.assistant.domain.attachments.DocumentText
 import app.localmind.assistant.domain.attachments.LibraryPassage
 import app.localmind.assistant.domain.attachments.ToolResult
 import app.localmind.assistant.data.tools.ToolRunner
+import app.localmind.assistant.data.tools.NotesStore
 import app.localmind.assistant.data.library.LibraryStore
 import app.localmind.assistant.domain.inference.EngineRuntimeState
 import app.localmind.assistant.domain.model.ChatMessage
@@ -47,7 +48,8 @@ class ChatViewModel @Inject constructor(
     chineseStyleStore: ChineseStyleStore,
     private val attachmentStore: AttachmentStore,
     private val library: LibraryStore,
-    private val tools: ToolRunner
+    private val tools: ToolRunner,
+    private val notes: NotesStore
 ) : ViewModel() {
 
     /** Something in the library is switched on to be searched. */
@@ -347,6 +349,15 @@ class ChatViewModel @Inject constructor(
 
     /** A quick action ("Quiz me", "Correct me" …): sent as-is, leaving any draft in the box. */
     fun sendQuickAction(prompt: String) = send(prompt, fromInputBox = false)
+
+    /** "Save to Notes": the last reply, as written. */
+    fun saveLastReplyAsNote() {
+        val last = uiState.value.messages.lastOrNull { it.role == MessageRole.ASSISTANT && it.status == MessageStatus.COMPLETE }
+        val text = last?.content?.trim().orEmpty()
+        if (text.isEmpty()) return
+        notes.add(text.take(MAX_NOTE_CHARS))
+        _errorMessage.value = "Saved to Notes 📝"
+    }
 
     private fun send(rawText: String, fromInputBox: Boolean) {
         val text = rawText.trim()
@@ -710,6 +721,7 @@ class ChatViewModel @Inject constructor(
     private companion object {
         /** Passages sent with one question (library switch plus "look up … in my library"). */
         const val LIBRARY_PASSAGE_LIMIT = 4
+        const val MAX_NOTE_CHARS = 4_000
         const val DEFAULT_PHOTO_PROMPT = "What's in this photo?"
         const val DEFAULT_DOCUMENT_PROMPT = "Summarise this document."
         const val STOP_GRACE_MS = 3_000L

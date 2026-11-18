@@ -174,10 +174,10 @@ fun defaultStartTiles(
 // --- Greeting -------------------------------------------------------------------------------
 
 private val HELLOS = mapOf(
-    "night" to listOf("Still up?" to "I'll keep things quiet.", "A late one." to "Short and gentle, then.", "Night owl hours." to "No rush at all."),
-    "morning" to listOf("Good morning." to "Slow and steady today?", "Morning." to "Coffee first, curiosity second.", "Good morning." to "Take your time, I'm here."),
-    "afternoon" to listOf("Good afternoon." to "Nothing here is in a hurry.", "Afternoon." to "What's on your mind?", "Good afternoon." to "A good hour for a little practice."),
-    "evening" to listOf("Good evening." to "Settle in.", "Evening." to "Feet up, mind open.", "Good evening." to "Glad you're here.")
+    "night" to listOf("Still up?" to "I'll keep things quiet. 🌙", "A late one." to "Short and gentle, then. 🌙", "Night owl hours." to "No rush at all. 🦉"),
+    "morning" to listOf("Good morning." to "Slow and steady today? 🦥", "Morning." to "Coffee first, curiosity second. ☕", "Good morning." to "Take your time, I'm here. 🌱"),
+    "afternoon" to listOf("Good afternoon." to "Nothing here is in a hurry. 🦥", "Afternoon." to "What's on your mind? 🍵", "Good afternoon." to "A good hour for a little practice. 🌿"),
+    "evening" to listOf("Good evening." to "Settle in. 🕯️", "Evening." to "Feet up, mind open. 🌙", "Good evening." to "Glad you're here. 🍃")
 )
 
 internal fun slothHello(now: Long): Pair<String, String> {

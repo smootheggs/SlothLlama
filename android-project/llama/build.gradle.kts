@@ -13,6 +13,8 @@ plugins {
 val openClDir = rootProject.file("third_party/opencl")
 val openClLibrary = openClDir.resolve("lib/arm64-v8a/libOpenCL.so")
 val withOpenCl = openClLibrary.isFile && openClDir.resolve("include/CL/cl.h").isFile
+// CI sets SLOTH_CCACHE to ccache's path, so unchanged C++ isn't compiled again on every build.
+val ccache = providers.environmentVariable("SLOTH_CCACHE").orNull?.takeIf { file(it).canExecute() }
 logger.lifecycle(if (withOpenCl) "llama.cpp: building with the GPU (OpenCL) backend" else "llama.cpp: CPU only (run scripts/fetch-opencl.sh for the GPU backend)")
 
 android {
@@ -48,6 +50,10 @@ android {
                 arguments += "-DGGML_BACKEND_DL=ON"
                 arguments += "-DGGML_CPU_ALL_VARIANTS=ON"
                 arguments += "-DGGML_LLAMAFILE=OFF"
+                if (ccache != null) {
+                    arguments += "-DCMAKE_C_COMPILER_LAUNCHER=$ccache"
+                    arguments += "-DCMAKE_CXX_COMPILER_LAUNCHER=$ccache"
+                }
                 if (withOpenCl) {
                     arguments += "-DGGML_OPENCL=ON"
                     arguments += "-DGGML_OPENCL_EMBED_KERNELS=ON"

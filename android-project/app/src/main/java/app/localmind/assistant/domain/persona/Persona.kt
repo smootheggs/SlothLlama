@@ -16,6 +16,17 @@ enum class SpeechLanguage(val label: String, val localeTags: List<String>, val s
 
     /** Written in Chinese characters, with the Chinese settings (简/繁, Pinyin/Jyutping) applying. */
     val isChinese: Boolean get() = this == MANDARIN || this == CANTONESE
+
+    /** A flag for the language; Mandarin's follows the characters chosen in Settings → Chinese. */
+    fun flag(script: ChineseScript): String = when (this) {
+        MANDARIN -> if (script == ChineseScript.TRADITIONAL) "🇹🇼" else "🇨🇳"
+        CANTONESE -> "🇭🇰"
+        JAPANESE -> "🇯🇵"
+        FRENCH -> "🇫🇷"
+        GERMAN -> "🇩🇪"
+        SPANISH -> "🇪🇸"
+        ITALIAN -> "🇮🇹"
+    }
 }
 
 data class Persona(

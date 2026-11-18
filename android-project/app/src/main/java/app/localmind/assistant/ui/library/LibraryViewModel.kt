@@ -52,7 +52,7 @@ class LibraryViewModel @Inject constructor(private val store: LibraryStore) : Vi
                 }
             }
             _message.value = when {
-                failed.isEmpty() -> if (added == 1) "Added to your library." else "Added $added items to your library."
+                failed.isEmpty() -> if (added == 1) "Added to your library 📚" else "Added $added items to your library 📚"
                 added == 0 -> failed.first()
                 else -> "Added $added. ${failed.first()}"
             }

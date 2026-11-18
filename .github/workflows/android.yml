@@ -12,6 +12,11 @@ on:
       - ".github/workflows/android.yml"
   workflow_dispatch:
 
+# A newer push replaces a build still running for the same branch.
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -51,6 +56,8 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
         with:
           gradle-version: "8.11.1"
+          # Save Gradle's caches from this branch too (by default only the default branch writes them).
+          cache-read-only: false
 
       - name: Fetch sherpa-onnx (offline voice input), checksum-verified
         run: android-project/scripts/fetch-sherpa-onnx.sh
@@ -58,8 +65,37 @@ jobs:
       - name: Prepare OpenCL for the GPU backend (pinned commits)
         run: android-project/scripts/fetch-opencl.sh
 
+      # The dictionary only changes when its pinned sources or build script do.
+      - name: Reuse the dictionary from an earlier build
+        uses: actions/cache@v4
+        with:
+          path: android-project/app/src/main/assets/dictionary
+          key: dictionary-${{ hashFiles('android-project/scripts/fetch-dictionary.sh', 'android-project/scripts/build_dictionary.py') }}
+
       - name: Build the offline dictionary (CC-CEDICT + Jyutping, checksum-verified)
         run: android-project/scripts/fetch-dictionary.sh
+
+      # llama.cpp's C++ is most of the build time. ccache keeps compiled files between builds, so
+      # only what changed is compiled again (all of it when the llama.cpp version changes).
+      - name: Install ccache
+        run: |
+          command -v ccache > /dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq ccache > /dev/null; } || true
+          # Without ccache the build still works, just without the speed-up.
+          command -v ccache > /dev/null || { echo "::warning::ccache unavailable"; exit 0; }
+          echo "SLOTH_CCACHE=$(command -v ccache)" >> "$GITHUB_ENV"
+          echo "CCACHE_DIR=$HOME/.ccache" >> "$GITHUB_ENV"
+          echo "CCACHE_BASEDIR=$GITHUB_WORKSPACE" >> "$GITHUB_ENV"
+          echo "CCACHE_NOHASHDIR=true" >> "$GITHUB_ENV"
+          echo "CCACHE_COMPILERCHECK=string:ndk-29.0.13113456" >> "$GITHUB_ENV"
+          echo "CCACHE_SLOPPINESS=include_file_mtime,include_file_ctime,time_macros" >> "$GITHUB_ENV"
+          echo "CCACHE_MAXSIZE=2G" >> "$GITHUB_ENV"
+
+      - name: Reuse compiled llama.cpp from earlier builds
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: ccache-${{ github.sha }}
+          restore-keys: ccache-
 
       - name: Build APK
         working-directory: android-project
@@ -80,6 +116,10 @@ jobs:
             gradle :app:assembleDebug --stacktrace
             cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/out/SlothLlama.apk"
           fi
+
+      - name: Compile cache statistics
+        if: always()
+        run: ccache -s || true
 
       # The GPU backend and dictionary must be inside the APK; the build-time OpenCL loader must not be.
       - name: Check the APK contents
