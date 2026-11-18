@@ -2,6 +2,9 @@ package app.localmind.assistant.ui.personas
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import app.localmind.assistant.data.models.LocalModel
+import app.localmind.assistant.data.models.ModelLibrary
+import app.localmind.assistant.data.persona.PersonaModelStore
 import app.localmind.assistant.data.persona.PersonaRepository
 import app.localmind.assistant.domain.persona.Persona
 import app.localmind.assistant.domain.persona.SpeechLanguage
@@ -62,11 +65,26 @@ data class PersonaDraft(
 
 @HiltViewModel
 class PersonasViewModel @Inject constructor(
-    private val repository: PersonaRepository
+    private val repository: PersonaRepository,
+    private val library: ModelLibrary,
+    private val personaModels: PersonaModelStore
 ) : ViewModel() {
 
     val personas: StateFlow<List<Persona>> =
         repository.personas.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Models on the device, for the per-persona model picker. */
+    val models: StateFlow<List<LocalModel>> = library.models
+
+    /** persona id → model file name; missing = default model. */
+    val modelAssignments: StateFlow<Map<String, String>> = personaModels.assignments
+
+    init {
+        viewModelScope.launch { library.refresh() }
+    }
+
+    /** [model] null = use the default model. */
+    fun setModel(persona: Persona, model: LocalModel?) = personaModels.set(persona.id, model?.file?.name)
 
     private val _draft = MutableStateFlow<PersonaDraft?>(null)
     val draft: StateFlow<PersonaDraft?> = _draft.asStateFlow()
@@ -113,5 +131,6 @@ class PersonasViewModel @Inject constructor(
         val target = _pendingDelete.value ?: return
         _pendingDelete.value = null
         viewModelScope.launch { repository.delete(target.id) }
+        personaModels.set(target.id, null)
     }
 }

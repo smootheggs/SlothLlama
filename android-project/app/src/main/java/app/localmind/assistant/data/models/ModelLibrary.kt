@@ -90,6 +90,12 @@ class ModelLibrary @Inject constructor(
         return _models.value.firstOrNull()?.file
     }
 
+    /** The model file called [fileName] (e.g. a persona's own model), if it's on the device. */
+    suspend fun fileNamed(fileName: String): File? {
+        val match = { _models.value.firstOrNull { it.file.name == fileName }?.file }
+        return (match() ?: run { refresh(); match() })?.takeIf { it.isFile }
+    }
+
     fun setActive(model: LocalModel) {
         prefs.edit().putString(KEY_ACTIVE, model.path).apply()
         _activePath.value = model.path

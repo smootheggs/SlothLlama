@@ -2,6 +2,7 @@ package app.localmind.assistant.ui.personas
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -25,8 +26,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
@@ -39,6 +44,9 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,6 +59,8 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.localmind.assistant.data.models.LocalModel
+import app.localmind.assistant.data.models.ModelLibrary
 import app.localmind.assistant.domain.persona.Persona
 import app.localmind.assistant.domain.persona.SpeechLanguage
 import app.localmind.assistant.domain.persona.ChineseRules
@@ -68,6 +78,8 @@ fun PersonasScreen(
     val personas by viewModel.personas.collectAsStateWithLifecycle()
     val draft by viewModel.draft.collectAsStateWithLifecycle()
     val pendingDelete by viewModel.pendingDelete.collectAsStateWithLifecycle()
+    val models by viewModel.models.collectAsStateWithLifecycle()
+    val modelAssignments by viewModel.modelAssignments.collectAsStateWithLifecycle()
 
     Column(Modifier.fillMaxSize().background(P.Canvas)) {
         SlothTopBar(
@@ -91,6 +103,9 @@ fun PersonasScreen(
                 items(personas, key = { it.id }) { persona ->
                     PersonaCard(
                         persona = persona,
+                        assignedModel = modelAssignments[persona.id],
+                        models = models,
+                        onPickModel = { viewModel.setModel(persona, it) },
                         onChat = { onChatWith(persona.id) },
                         onEdit = { viewModel.edit(persona) },
                         onDelete = { viewModel.requestDelete(persona) }
@@ -123,7 +138,15 @@ fun PersonasScreen(
 }
 
 @Composable
-private fun PersonaCard(persona: Persona, onChat: () -> Unit, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun PersonaCard(
+    persona: Persona,
+    assignedModel: String?,
+    models: List<LocalModel>,
+    onPickModel: (LocalModel?) -> Unit,
+    onChat: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
     SlothCard {
         Row(verticalAlignment = Alignment.Top) {
             Box(
@@ -144,6 +167,8 @@ private fun PersonaCard(persona: Persona, onChat: () -> Unit, onEdit: () -> Unit
                     Tag("temp ${"%.1f".format(persona.temperature)}", P.Muted)
                     persona.speech?.let { Tag("🔊 ${it.label}", P.Success) }
                 }
+                Spacer(Modifier.height(8.dp))
+                ModelPicker(assignedModel, models, onPickModel)
             }
         }
         Spacer(Modifier.height(8.dp))
@@ -153,6 +178,59 @@ private fun PersonaCard(persona: Persona, onChat: () -> Unit, onEdit: () -> Unit
             TextButton(onClick = onEdit) { Text(if (persona.isBuiltIn) "Customize" else "Edit", color = P.Muted) }
             if (!persona.isBuiltIn) {
                 TextButton(onClick = onDelete) { Text("Delete", color = P.Danger) }
+            }
+        }
+    }
+}
+
+/** "Model: Default ▾": the persona runs on the default model unless one is picked here. */
+@Composable
+private fun ModelPicker(assignedModel: String?, models: List<LocalModel>, onPick: (LocalModel?) -> Unit) {
+    var menuOpen by remember { mutableStateOf(false) }
+    val label = when (assignedModel) {
+        null -> "Default model"
+        else -> models.firstOrNull { it.file.name == assignedModel }?.displayName ?: "$assignedModel (missing)"
+    }
+    Box {
+        Row(
+            Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .border(1.dp, if (assignedModel == null) P.Border else P.Accent, RoundedCornerShape(8.dp))
+                .clickable { menuOpen = true }
+                .padding(horizontal = 10.dp, vertical = 6.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Icon(Icons.Outlined.Memory, contentDescription = null, tint = P.Muted, modifier = Modifier.size(14.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(
+                label, color = if (assignedModel == null) P.Muted else P.Text, fontSize = 12.sp,
+                maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 260.dp)
+            )
+            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Choose model", tint = P.Muted, modifier = Modifier.size(16.dp))
+        }
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            DropdownMenuItem(
+                text = {
+                    Column {
+                        Text("Default model", color = P.Text, fontSize = 14.sp)
+                        Text("Whichever is the default on the Models screen", color = P.Faint, fontSize = 11.sp)
+                    }
+                },
+                onClick = { menuOpen = false; onPick(null) }
+            )
+            models.forEach { model ->
+                DropdownMenuItem(
+                    text = {
+                        Column {
+                            Text(model.displayName, color = P.Text, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                            Text(
+                                "${model.format.runtime} · ${ModelLibrary.formatBytes(model.sizeBytes)}",
+                                color = P.Faint, fontSize = 11.sp
+                            )
+                        }
+                    },
+                    onClick = { menuOpen = false; onPick(model) }
+                )
             }
         }
     }

@@ -4,6 +4,7 @@ import app.localmind.assistant.data.local.ConversationEntity
 import app.localmind.assistant.data.local.LocalMindDao
 import app.localmind.assistant.data.local.MessageEntity
 import app.localmind.assistant.data.persona.ChineseStyleStore
+import app.localmind.assistant.data.persona.PersonaModelStore
 import app.localmind.assistant.data.persona.PersonaRepository
 import app.localmind.assistant.data.settings.AssistantSettingsStore
 import app.localmind.assistant.domain.inference.EngineRuntimeState
@@ -35,7 +36,8 @@ class ChatRepositoryImpl @Inject constructor(
     private val engine: LocalInferenceEngine,
     private val personaRepository: PersonaRepository,
     private val chineseStyle: ChineseStyleStore,
-    private val assistantSettings: AssistantSettingsStore
+    private val assistantSettings: AssistantSettingsStore,
+    private val personaModels: PersonaModelStore
 ) : ChatRepository {
 
     override val engineState: StateFlow<EngineRuntimeState>
@@ -46,6 +48,10 @@ class ChatRepositoryImpl @Inject constructor(
             dao.getMostRecentConversationModelId()
         } ?: DEFAULT_MODEL_ID
         engine.loadModel(modelId)
+    }
+
+    override suspend fun warmUpForPersona(personaId: String) {
+        engine.loadModel(personaModels.fileFor(personaId) ?: DEFAULT_MODEL_ID)
     }
 
     override fun observeConversations(): Flow<List<Conversation>> =
@@ -184,7 +190,8 @@ class ChatRepositoryImpl @Inject constructor(
         val persona = personaRepository.byId(conversation.personaId)
         val request = GenerationRequest(
             conversationId = conversation.id,
-            modelId = conversation.modelId,
+            // The persona's own model if it has one, otherwise the default model.
+            modelId = personaModels.fileFor(persona.id) ?: conversation.modelId,
             // Chinese tutors get their character / romanization rules from Settings → Chinese.
             personaSystemInstruction = ChineseRules.systemInstructionFor(persona, chineseStyle.style.value),
             conversationSummary = conversation.rollingSummary,

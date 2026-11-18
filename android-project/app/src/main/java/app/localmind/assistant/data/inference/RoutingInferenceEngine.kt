@@ -42,10 +42,13 @@ class RoutingInferenceEngine @Inject constructor(
     override suspend fun inspectModel(source: ModelSource): ModelCompatibilityReport =
         mediaPipe.inspectModel(source)
 
-    /** [modelId] is ignored: the active model in the library decides. */
+    /**
+     * [modelId] is a model file name when a persona has its own model; anything else (or a file
+     * that's gone) falls back to the default model chosen on the Models screen.
+     */
     override suspend fun loadModel(modelId: String): Result<Unit> {
         return switchMutex.withLock {
-            val file = library.activeFile()
+            val file = library.fileNamed(modelId) ?: library.activeFile()
             if (file == null) {
                 if (mediaPipe.isLoaded) mediaPipe.unloadModel()
                 if (llama.isLoaded) llama.unload()

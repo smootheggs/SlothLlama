@@ -62,7 +62,7 @@ class ModelsViewModel @Inject constructor(
         if (model.path == uiState.value.activePath && uiState.value.engine is EngineRuntimeState.Ready) return
         library.setActive(model)
         viewModelScope.launch {
-            engine.loadModel(model.displayName).onFailure { e ->
+            engine.loadModel(model.file.name).onFailure { e ->
                 local.update { it.copy(message = e.message ?: "Couldn't load ${model.displayName}") }
             }
         }

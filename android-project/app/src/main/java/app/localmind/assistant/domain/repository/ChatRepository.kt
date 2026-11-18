@@ -13,6 +13,9 @@ interface ChatRepository {
     /** Loads the default model in the background so the first reply doesn't wait for it. */
     suspend fun warmUpModel()
 
+    /** Loads the model [personaId] runs on (its own, or the default) ahead of the first message. */
+    suspend fun warmUpForPersona(personaId: String)
+
     fun observeConversations(): Flow<List<Conversation>>
     fun observeArchivedConversations(): Flow<List<Conversation>>
     fun observeMessages(conversationId: String): Flow<List<ChatMessage>>

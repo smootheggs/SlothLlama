@@ -265,8 +265,9 @@ private fun ModelCard(
     onVerify: () -> Unit,
     onDelete: () -> Unit
 ) {
-    val loadedHere = isActive && engine is EngineRuntimeState.Ready && engine.modelName == model.file.name
-    val loadingHere = isActive && engine is EngineRuntimeState.Loading && engine.modelName == model.file.name
+    // A persona may have its own model, so "loaded" doesn't have to be the default.
+    val loadedHere = engine is EngineRuntimeState.Ready && engine.modelName == model.file.name
+    val loadingHere = engine is EngineRuntimeState.Loading && engine.modelName == model.file.name
     SlothCard(
         borderColor = if (isActive) P.Accent else P.Border,
         modifier = Modifier.clickable(onClick = onClick)
@@ -289,8 +290,8 @@ private fun ModelCard(
                     when {
                         loadedHere -> "● Loaded in Memory"
                         loadingHere -> "Loading…"
-                        isActive -> "Active · tap to load"
-                        else -> "Tap to use this model"
+                        isActive -> "Default model · tap to load"
+                        else -> "Tap to make this the default"
                     },
                     color = when {
                         loadedHere -> P.Success

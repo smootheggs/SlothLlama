@@ -42,7 +42,13 @@ class ChatViewModel @Inject constructor(
     init {
         // Load the model in the background so the header shows its real status
         // and the first message doesn't wait for a multi-second load.
-        viewModelScope.launch { repository.warmUpModel() }
+        // Each persona may run on its own model: load it when the persona changes (not mid-reply;
+        // sending a message loads the right model anyway).
+        viewModelScope.launch {
+            _selectedPersonaId.collect { personaId ->
+                if (!_isGenerating.value) repository.warmUpForPersona(personaId)
+            }
+        }
     }
 
     /** The conversation on screen: the one picked, else the most recent. */
