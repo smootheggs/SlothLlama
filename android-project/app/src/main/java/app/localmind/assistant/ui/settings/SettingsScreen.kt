@@ -117,7 +117,8 @@ fun SettingsScreen(
         vm.restore(uri)
     }
 
-    Column(Modifier.fillMaxSize().background(P.Canvas)) {
+    Box(Modifier.fillMaxSize().background(P.Canvas)) {
+    Column(Modifier.fillMaxSize()) {
         SlothTopBar(title = "Settings", onBack = onBack)
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             Column(
@@ -276,6 +277,24 @@ fun SettingsScreen(
             }
         }
     }
+        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
+    }
+
+    when (val dialog = backupDialog) {
+        BackupDialog.ExportPassword -> ExportPasswordDialog(
+            onConfirm = { password ->
+                vm.confirmExportPassword(password)
+                saveBackup.launch("SlothLlama backup ${java.time.LocalDate.now()}.slothllama")
+            },
+            onDismiss = vm::dismissDialog
+        )
+        is BackupDialog.RestorePassword -> RestorePasswordDialog(
+            wrongBefore = dialog.wrongBefore,
+            onConfirm = { password -> vm.restoreWithPassword(dialog.uri, password) },
+            onDismiss = vm::dismissDialog
+        )
+        null -> Unit
+    }
     dictionarySources?.let { text ->
         AlertDialog(
             onDismissRequest = { dictionarySources = null },
@@ -366,24 +385,7 @@ private fun SettingRow(title: String, detail: String, selected: Boolean, onClick
         Column(Modifier.weight(1f)) {
             Text(title, color = P.Text, fontSize = 15.sp)
             Text(detail, color = P.Muted, fontSize = 12.sp)
-            SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
         }
-    }
-
-    when (val dialog = backupDialog) {
-        BackupDialog.ExportPassword -> ExportPasswordDialog(
-            onConfirm = { password ->
-                vm.confirmExportPassword(password)
-                saveBackup.launch("SlothLlama backup ${java.time.LocalDate.now()}.slothllama")
-            },
-            onDismiss = vm::dismissDialog
-        )
-        is BackupDialog.RestorePassword -> RestorePasswordDialog(
-            wrongBefore = dialog.wrongBefore,
-            onConfirm = { password -> vm.restoreWithPassword(dialog.uri, password) },
-            onDismiss = vm::dismissDialog
-        )
-        null -> Unit
     }
 }
 
