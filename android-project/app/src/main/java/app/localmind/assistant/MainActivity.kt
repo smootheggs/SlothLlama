@@ -161,6 +161,7 @@ class MainActivity : ComponentActivity() {
                 val target = intent.getStringExtra(EXTRA_TARGET).orEmpty()
                 when {
                     target == AppShortcuts.TARGET_FLASHCARDS -> askInbox.post(LaunchRequest.Flashcards)
+                    target == AppShortcuts.TARGET_LOBSTER -> askInbox.post(LaunchRequest.Lobster)
                     target.startsWith(AppShortcuts.TARGET_PERSONA_PREFIX) ->
                         askInbox.post(LaunchRequest.StartChat(target.removePrefix(AppShortcuts.TARGET_PERSONA_PREFIX)))
                 }

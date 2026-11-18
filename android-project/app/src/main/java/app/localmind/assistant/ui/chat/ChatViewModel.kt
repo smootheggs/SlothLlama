@@ -52,10 +52,10 @@ class ChatViewModel @Inject constructor(
     private val notes: NotesStore
 ) : ViewModel() {
 
-    /** Something in the library is switched on to be searched. */
-    val hasLibrary: StateFlow<Boolean> = library.items
-        .map { items -> items.orEmpty().any { it.enabled } }
-        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+    /** Something in the library is switched on to be searched (notes count too). */
+    val hasLibrary: StateFlow<Boolean> = combine(library.items, notes.notes) { items, kept ->
+        items.orEmpty().any { it.enabled } || kept.isNotEmpty()
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
 
     private val _libraryOn = MutableStateFlow(false)
     /** Each message is sent with the library passages that best match it. */
@@ -327,6 +327,17 @@ class ChatViewModel @Inject constructor(
         _selectedPersonaId.value = personaId
         createNewConversation(personaId = personaId)
     }
+
+    /**
+     * What the offline tools would do with the message being typed ("Will set a 10 min timer",
+     * "12 × 7.5 = 90"), shown above the box so nothing surprises you. Only reads; nothing runs.
+     */
+    @OptIn(FlowPreview::class)
+    val toolPreview: StateFlow<List<Pair<String, String>>> = _inputText
+        .debounce(200)
+        .map { text -> runCatching { tools.preview(text, uiState.value.activePersona) }.getOrDefault(emptyList()) }
+        .flowOn(kotlinx.coroutines.Dispatchers.Default)
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     /** Sends what's in the box, with any attached photo or document. */
     fun sendMessage() {

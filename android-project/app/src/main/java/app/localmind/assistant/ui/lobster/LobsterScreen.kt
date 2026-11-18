@@ -1,8 +1,10 @@
 package app.localmind.assistant.ui.lobster
 
+import android.Manifest
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
+import android.content.pm.PackageManager
 import android.text.format.DateUtils
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -79,9 +81,13 @@ fun LobsterScreen(viewModel: LobsterViewModel, onBack: () -> Unit) {
     val folderPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         uri?.let(viewModel::chooseFolder)
     }
+    // For "the Lobster brought something back"; the Lobster works the same without it.
+    val notifyPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { }
+    val context = LocalContext.current
 
     // Checks the mailbox while the page is open.
     LaunchedEffect(Unit) {
+        viewModel.opened()
         while (true) {
             viewModel.refresh()
             delay(20_000)
@@ -100,7 +106,12 @@ fun LobsterScreen(viewModel: LobsterViewModel, onBack: () -> Unit) {
             BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                 val wide = maxWidth >= WIDE
                 when {
-                    !state.enabled -> Intro(onTurnOn = { viewModel.setEnabled(true) })
+                    !state.enabled -> Intro(onTurnOn = {
+                        viewModel.setEnabled(true)
+                        if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) {
+                            notifyPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        }
+                    })
                     state.folderName == null -> FolderStep(
                         missing = state.folderMissing,
                         onChoose = { folderPicker.launch(null) },

@@ -208,7 +208,7 @@ fun ToolChips(results: List<ToolResult>, modifier: Modifier = Modifier) {
     }
 }
 
-private fun toolIcon(tool: String): ImageVector = when (tool) {
+internal fun toolIcon(tool: String): ImageVector = when (tool) {
     ToolNames.CALCULATOR -> Icons.Outlined.Calculate
     ToolNames.UNITS -> Icons.Outlined.Straighten
     ToolNames.CLOCK -> Icons.Outlined.Schedule
@@ -219,6 +219,7 @@ private fun toolIcon(tool: String): ImageVector = when (tool) {
     ToolNames.CALENDAR -> Icons.Outlined.CalendarMonth
     ToolNames.DICTIONARY -> Icons.Outlined.Translate
     ToolNames.LOBSTER -> Icons.Outlined.Sailing
+    "library" -> Icons.Outlined.LocalLibrary
     else -> Icons.Outlined.Build
 }
 

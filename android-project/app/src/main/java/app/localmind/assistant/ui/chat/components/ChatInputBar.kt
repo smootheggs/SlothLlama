@@ -108,6 +108,8 @@ fun ChatInputBar(
     libraryOn: Boolean = false,
     lookingUp: Boolean = false,
     onToggleLibrary: () -> Unit = {},
+    /** What the offline tools would do with the text in the box: (tool, a few words). */
+    toolPreview: List<Pair<String, String>> = emptyList(),
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -180,6 +182,15 @@ fun ChatInputBar(
             } else {
                 if (!attachments.isEmpty || attachments.busy) {
                     PendingAttachmentRow(attachments, onRemovePhoto, onRemoveDocument)
+                }
+                if (toolPreview.isNotEmpty() && inputText.isNotBlank()) {
+                    toolPreview.forEach { (tool, text) ->
+                        Row(Modifier.padding(bottom = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Icon(toolIcon(tool), contentDescription = null, tint = P.Faint, modifier = Modifier.size(14.dp))
+                            Spacer(Modifier.width(6.dp))
+                            Text(text, color = P.Faint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        }
+                    }
                 }
                 if (lookingUp) {
                     Row(Modifier.padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {

@@ -1,19 +1,24 @@
-# LocalMind — Offline-First Modular Android AI Assistant
+# SlothLlama 🦥
 
-LocalMind is a privacy-first, offline-capable modular AI assistant for Android built with **Kotlin**, **Jetpack Compose (Material 3)**, **Clean Architecture**, **Hilt**, **Room**, **WorkManager**, and **Google AI Edge LiteRT-LM**.
+A private room on the tablet that teaches, keeps and works things out, without going online.
+Open models run on the device (llama.cpp, Adreno GPU); nothing you say, read or keep leaves it.
+The only door to the internet is the **Sloth Lobster**, a separate app that shares an encrypted
+mailbox folder with SlothLlama and never anything more.
 
-## Core Architecture & Product Guarantees
-- **100% Offline-First**: Runs compatible local language models (`.litertlm`, `.task`) directly on-device with zero mandatory cloud accounts.
-- **Explicit 5-Layer Separation**: Clearly distinguishes between **(a) Base Model**, **(b) Persona Instructions**, **(c) Locally Indexed Knowledge (RAG)**, **(d) Conversation Memory**, and **(e) Optional Model Adapters (Experimental)**.
-- **True OLED Black (`#000000`) Interface**: Engineered for zero light bleed, high contrast legibility, and minimal visual clutter.
-- **Prompt-Injection Defense**: Wraps all retrieved passages inside `<untrusted_retrieved_evidence>` tags and sanitizes adversarial override instructions before prompt assembly.
+**Three pillars.** Everything in the app belongs to one of them.
+- **Learn:** tutors for Mandarin, Cantonese, Japanese, French, German, Spanish and Italian;
+  flashcards, speaking practice, the dictionary.
+- **Know:** the Library (your books and documents, offline Wikipedia), Notes.
+- **Do:** offline tools (sums, units, time zones, dates, timers, calendar), the Lobster.
 
-## Building & Running in Android Studio
-1. Open the `android-project/` directory in **Android Studio Ladybug (2024.2.1) or newer**.
-2. Ensure **JDK 17** and **Android SDK 35** are configured.
-3. Run Gradle sync (`./gradlew assembleDebug`).
-4. Run unit tests: `./gradlew testDebugUnitTest`.
-5. Run instrumented Compose UI tests: `./gradlew connectedDebugAndroidTest`.
+**Design rules.** OLED black and quiet. 🦥 is you and the app, 🦞 the Lobster, flags are for
+languages, and at most one emoji per line. Icons, not emoji, on buttons and chips.
+
+**Guarantees, checked on every build.** The APK has no network permissions (CI fails if one
+appears). Unit tests cover the tools' pattern matching, the message format and the mailbox
+encryption (`gradle :app:testDebugUnitTest`). Anything from outside (shared text, documents,
+library passages, the Lobster's catch) is reference material for the model, never instructions,
+and nothing is sent until you tap send.
 
 ## What SlothLlama is
 A private, offline AI terminal for the tablet: load **any open-source model**, then chat with it
@@ -143,6 +148,10 @@ model too big for the GPU falls back to the CPU on its own.
 - **Model files are the main untrusted input.** GGUF headers are sanity-checked before they
   reach llama.cpp, and Models → fingerprint shows each file's SHA-256 to compare with
   Hugging Face. Only use models from publishers you trust, and keep llama.cpp up to date.
+- **Doors in, and what they can do.** "Ask SlothLlama", "Share to SlothLlama" and the Lobster's
+  mailbox can only fill the message box, attach something or offer a catch to file: none of
+  them can send a message or act. The mailbox is AES-256-GCM encrypted; its key is wrapped by the
+  Android Keystore and kept out of backups.
 - **Nothing leaves in logs or backups.** Chat text isn't logged, and app data is excluded from
   cloud backup and device transfer. Settings → Privacy screen blocks screenshots and Recents.
 

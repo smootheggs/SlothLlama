@@ -108,6 +108,8 @@ object TimeTools {
         val asksTime = TIME_QUESTION.containsMatchIn(text)
         val asksDate = Regex("\\b(what(?:'s| is) (?:the )?date|what day is it|today's date|what's today|what is today|date today)\\b").containsMatchIn(text)
         if (!asksTime && !asksDate) return null
+        // "What's the date in 100 days?" is a date sum, not today's date.
+        if (Regex("\\b\\d{1,5}\\s+(day|week|month|year)s?\\b").containsMatchIn(text)) return null
         val place = places(text).firstOrNull()
         val zone = place?.zone ?: now.zone
         val there = now.withZoneSameInstant(zone)

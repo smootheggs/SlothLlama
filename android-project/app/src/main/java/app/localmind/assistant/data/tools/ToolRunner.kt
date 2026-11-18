@@ -51,6 +51,20 @@ class ToolRunner @Inject constructor(
     fun enabledFor(persona: Persona): Boolean =
         settings.toolsOn.value && (persona.speech == null || settings.toolsForTutors.value)
 
+    /** What [run] would do with [message], for the line above the message box. Nothing runs. */
+    fun preview(message: String, persona: Persona): List<Pair<String, String>> {
+        if (message.isBlank()) return emptyList()
+        val routed = ToolRouter.route(message, ZonedDateTime.now())
+        val requests = if (enabledFor(persona)) routed else routed.filterIsInstance<ToolRequest.Lobster>()
+        return requests.map { r ->
+            when {
+                r is ToolRequest.Lobster && !mailbox.isReady -> ToolNames.LOBSTER to "The Lobster isn't set up yet"
+                r is ToolRequest.Calendar && !settings.calendarOn.value -> ToolNames.CALENDAR to "Calendar reading is off (Settings → Assistant)"
+                else -> ToolRouter.describe(r)
+            }
+        }
+    }
+
     suspend fun run(message: String, persona: Persona): Outcome {
         val routed = ToolRouter.route(message, ZonedDateTime.now())
         // "Ask the lobster to …" is a direct order, so it works even where the tools are off.

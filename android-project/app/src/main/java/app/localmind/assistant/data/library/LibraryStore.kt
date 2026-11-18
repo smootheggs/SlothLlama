@@ -8,6 +8,8 @@ import android.provider.OpenableColumns
 import android.util.Log
 import app.localmind.assistant.data.attachments.AttachmentStore
 import app.localmind.assistant.data.dictionary.ChineseDictionary
+import app.localmind.assistant.data.tools.Note
+import app.localmind.assistant.data.tools.NotesStore
 import app.localmind.assistant.domain.attachments.Attachments
 import app.localmind.assistant.domain.attachments.LibraryPassage
 import dagger.hilt.android.qualifiers.ApplicationContext
@@ -53,7 +55,8 @@ class LibraryStore @Inject constructor(
     @ApplicationContext private val context: Context,
     private val attachments: AttachmentStore,
     private val dictionary: ChineseDictionary,
-    private val kiwix: KiwixShelf
+    private val kiwix: KiwixShelf,
+    private val notes: NotesStore
 ) {
     private val db by lazy { LibraryDb(context) }
     /** One writer at a time (adding a 500-page book takes a few seconds). */
@@ -203,11 +206,13 @@ class LibraryStore @Inject constructor(
 
     /**
      * The passages that best answer [question], at most [limit] and about [maxTokens] in all:
-     * documents and Wikipedia files take turns, best first.
+     * your own notes first (up to two that clearly match), then documents and Wikipedia files
+     * taking turns, best first.
      */
     suspend fun search(question: String, limit: Int = 4, maxTokens: Int = 1_500): List<LibraryPassage> {
         val q = question.trim()
         if (q.isEmpty()) return emptyList()
+        val fromNotes = runCatching { searchNotes(q) }.getOrDefault(emptyList())
         val local = runCatching { searchDocuments(q, limit) }
             .onFailure { if (it is CancellationException) throw it; Log.w(TAG, "Library search failed", it) }
             .getOrDefault(emptyList())
@@ -218,7 +223,7 @@ class LibraryStore @Inject constructor(
             ).use { c -> buildList { while (c.moveToNext()) add(c.getString(0) to c.getString(1)) } }
         }
         val wiki = wikis.flatMap { (name, uri) -> kiwix.search(Uri.parse(uri), name, q, maxArticles = if (local.isEmpty()) 2 else 1) }
-        val merged = mutableListOf<LibraryPassage>()
+        val merged = fromNotes.toMutableList()
         val a = local.iterator()
         val b = wiki.iterator()
         while ((a.hasNext() || b.hasNext()) && merged.size < limit) {
@@ -229,6 +234,26 @@ class LibraryStore @Inject constructor(
         return merged.takeWhile { p ->
             used += Attachments.estimateTokens(p.text)
             used <= maxTokens || p === merged.first()
+        }
+    }
+
+    /** Notes sharing at least half the question's words, best first (at most two). */
+    private suspend fun searchNotes(question: String): List<LibraryPassage> {
+        val all = notes.notes.value
+        if (all.isEmpty()) return emptyList()
+        val terms = SearchTokens.forQuery(dictionary.toSimplified(question)).toSet()
+        if (terms.isEmpty()) return emptyList()
+        val needed = maxOf(1, ceil(terms.size * 0.5).toInt())
+        val dates = java.text.DateFormat.getDateInstance(java.text.DateFormat.MEDIUM)
+        return withContext(Dispatchers.Default) {
+            all.mapNotNull { n ->
+                val words = SearchTokens.forIndex(dictionary.toSimplified(n.text)).toSet()
+                val hits = terms.count { it in words }
+                if (hits >= needed) n to hits else null
+            }
+                .sortedWith(compareByDescending<Pair<Note, Int>> { it.second }.thenByDescending { it.first.createdAt })
+                .take(2)
+                .map { (n, _) -> LibraryPassage(title = "Your note", where = dates.format(java.util.Date(n.createdAt)), text = n.text.take(1_500)) }
         }
     }
 

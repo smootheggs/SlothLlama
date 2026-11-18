@@ -1,6 +1,6 @@
 package app.localmind.assistant.data.lobster
 
-import android.util.Base64
+import java.util.Base64
 import java.security.SecureRandom
 import javax.crypto.Cipher
 import javax.crypto.spec.GCMParameterSpec
@@ -43,10 +43,9 @@ object MailboxCrypto {
     private fun aad(type: String) = "slothlobster-v1:$type".toByteArray()
 
     /** The key as a pairing code to type or paste into the Lobster: base64url, no padding. */
-    fun pairingCode(key: ByteArray): String =
-        Base64.encodeToString(key, Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+    fun pairingCode(key: ByteArray): String = Base64.getUrlEncoder().withoutPadding().encodeToString(key)
 
     fun fromPairingCode(code: String): ByteArray? = runCatching {
-        Base64.decode(code.trim().replace(" ", ""), Base64.URL_SAFE or Base64.NO_PADDING or Base64.NO_WRAP)
+        Base64.getUrlDecoder().decode(code.trim().replace(" ", ""))
     }.getOrNull()?.takeIf { it.size == 32 }
 }

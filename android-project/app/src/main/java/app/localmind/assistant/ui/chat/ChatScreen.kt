@@ -139,6 +139,7 @@ fun ChatScreen(
     val hasLibrary by viewModel.hasLibrary.collectAsStateWithLifecycle()
     val libraryOn by viewModel.libraryOn.collectAsStateWithLifecycle()
     val lookingUp by viewModel.lookingUp.collectAsStateWithLifecycle()
+    val toolPreview by viewModel.toolPreview.collectAsStateWithLifecycle()
     // The system photo picker needs no permission and only shares the photo chosen.
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         uri?.let(viewModel::attachPhoto)
@@ -345,7 +346,8 @@ fun ChatScreen(
                         hasLibrary = hasLibrary,
                         libraryOn = libraryOn,
                         lookingUp = lookingUp,
-                        onToggleLibrary = viewModel::toggleLibrary
+                        onToggleLibrary = viewModel::toggleLibrary,
+                        toolPreview = toolPreview
                     )
                 },
                 snackbarHost = { SnackbarHost(snackbarHostState) },

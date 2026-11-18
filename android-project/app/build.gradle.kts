@@ -16,8 +16,8 @@ android {
         applicationId = "app.localmind.assistant"
         minSdk = 33 // required by the llama.cpp module
         targetSdk = 35
-        versionCode = 16
-        versionName = "1.13.0"
+        versionCode = 17
+        versionName = "1.14.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -147,15 +147,13 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     ksp(libs.androidx.room.compiler)
 
-    // DataStore & Keystore
+    // DataStore
     implementation(libs.androidx.datastore.preferences)
-    implementation(libs.androidx.security.crypto)
 
     // WorkManager
     implementation(libs.androidx.work.runtime.ktx)
 
-    // Networking & HTML Sanitization
-    implementation(libs.okhttp)
+    // HTML to text (EPUB books, web pages, Wikipedia articles)
     implementation(libs.jsoup)
     // PDF text for document attachments. Bouncy Castle is only for certificate-encrypted PDFs,
     // which the app doesn't open, so it's left out (about 8 MB).
@@ -181,7 +179,6 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.turbine)
-    testImplementation(libs.okhttp.mockwebserver)
     testImplementation(libs.androidx.room.testing)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

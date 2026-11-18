@@ -44,6 +44,29 @@ object ToolNames {
  */
 object ToolRouter {
 
+    /** What a request will do, in a few words, for the line above the message box: (tool, text). */
+    fun describe(request: ToolRequest): Pair<String, String> = when (request) {
+        is ToolRequest.Computed -> request.result.tool to request.result.label
+        is ToolRequest.Timer -> ToolNames.TIMER to "Will set a ${duration(request.seconds)} timer" +
+            (request.message?.let { " for “$it”" } ?: "")
+        is ToolRequest.Alarm -> ToolNames.ALARM to "Will set an alarm at %02d:%02d".format(request.hour, request.minute)
+        is ToolRequest.AddNote -> ToolNames.NOTES to "Will save this as a note"
+        ToolRequest.ListNotes -> ToolNames.NOTES to "Will look at your notes"
+        is ToolRequest.SearchNotes -> ToolNames.NOTES to "Will search your notes for “${request.query}”"
+        is ToolRequest.Calendar -> ToolNames.CALENDAR to "Will read your calendar for ${request.label}"
+        is ToolRequest.Define -> ToolNames.DICTIONARY to "Will look up ${request.words.joinToString(", ")}"
+        is ToolRequest.Library -> "library" to "Will search your library for “${request.query}”"
+        is ToolRequest.Lobster -> ToolNames.LOBSTER to "Will send this to the Lobster"
+    }
+
+    private fun duration(seconds: Int): String {
+        val h = seconds / 3600
+        val m = seconds % 3600 / 60
+        val s = seconds % 60
+        return listOfNotNull(if (h > 0) "$h h" else null, if (m > 0) "$m min" else null, if (s > 0) "$s s" else null)
+            .joinToString(" ")
+    }
+
     fun route(message: String, now: ZonedDateTime): List<ToolRequest> {
         val text = message.trim()
         if (text.isEmpty()) return emptyList()

@@ -77,6 +77,19 @@ class LobsterMailbox @Inject constructor(@ApplicationContext private val context
     fun setEnabled(on: Boolean) {
         prefs.edit().putBoolean(KEY_ENABLED, on).apply()
         _state.value = _state.value.copy(enabled = on)
+        LobsterCheck.schedule(context, on)
+    }
+
+    /**
+     * For the background check: (items waiting, how many weren't there last time). Remembers
+     * what it has seen, so each catch is announced once.
+     */
+    suspend fun newCatch(): Pair<Int, Int> = withContext(io) {
+        refreshLocked()
+        val names = _state.value.catch.filter { it.item != null }.map { it.fileName }.toSet()
+        val seen = prefs.getStringSet(KEY_NOTIFIED, emptySet()).orEmpty()
+        prefs.edit().putStringSet(KEY_NOTIFIED, names).apply()
+        names.size to (names - seen).size
     }
 
     /** The folder picked with the system picker; the app keeps permission to read and write it. */
@@ -94,11 +107,15 @@ class LobsterMailbox @Inject constructor(@ApplicationContext private val context
         refreshLocked()
     }
 
-    /** The shared key, made on first use. */
+    private val vault = KeyVault(prefs)
+    @Volatile private var cachedKey: ByteArray? = null
+
+    /** The shared key, made on first use and kept wrapped by the Keystore ([KeyVault]). */
+    @Synchronized
     fun key(): ByteArray {
-        prefs.getString(KEY_KEY, null)?.let { code -> MailboxCrypto.fromPairingCode(code)?.let { return it } }
-        val key = MailboxCrypto.newKey()
-        prefs.edit().putString(KEY_KEY, MailboxCrypto.pairingCode(key)).apply()
+        cachedKey?.let { return it }
+        val key = vault.load() ?: MailboxCrypto.newKey().also(vault::save)
+        cachedKey = key
         return key
     }
 
@@ -106,8 +123,11 @@ class LobsterMailbox @Inject constructor(@ApplicationContext private val context
     fun pairingCode(): String = MailboxCrypto.pairingCode(key())
 
     /** A new key: the Lobster must be paired again; files sealed with the old key can't be read. */
+    @Synchronized
     fun newKey() {
-        prefs.edit().putString(KEY_KEY, MailboxCrypto.pairingCode(MailboxCrypto.newKey())).apply()
+        val key = MailboxCrypto.newKey()
+        vault.save(key)
+        cachedKey = key
     }
 
     // --- orders ---
@@ -246,9 +266,9 @@ class LobsterMailbox @Inject constructor(@ApplicationContext private val context
         const val PREFS = "lobster"
         private const val KEY_ENABLED = "enabled"
         private const val KEY_FOLDER = "folder"
-        private const val KEY_KEY = "key"
         private const val KEY_SENT = "sent"
         private const val KEY_DONE = "done"
+        private const val KEY_NOTIFIED = "notified"
         const val ORDERS = "orders"
         const val CATCH = "catch"
         const val STATUS = "status.lobster"

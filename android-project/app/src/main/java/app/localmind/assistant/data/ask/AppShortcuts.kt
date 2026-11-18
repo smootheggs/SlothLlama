@@ -15,6 +15,7 @@ import app.localmind.assistant.domain.persona.BuiltInPersonas
  */
 object AppShortcuts {
     const val TARGET_FLASHCARDS = "flashcards"
+    const val TARGET_LOBSTER = "lobster"
     const val TARGET_PERSONA_PREFIX = "persona:"
 
     fun publish(context: Context) {

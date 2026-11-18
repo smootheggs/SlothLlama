@@ -11,6 +11,7 @@ import app.localmind.assistant.data.attachments.AttachmentStore
 import app.localmind.assistant.data.library.LibraryStore
 import app.localmind.assistant.data.lobster.CaughtItem
 import app.localmind.assistant.data.lobster.LobsterCatch
+import app.localmind.assistant.data.lobster.LobsterCheck
 import app.localmind.assistant.data.lobster.LobsterMailbox
 import app.localmind.assistant.data.lobster.MailboxState
 import app.localmind.assistant.data.lobster.OrderKind
@@ -47,6 +48,12 @@ class LobsterViewModel @Inject constructor(
     val busy: StateFlow<Boolean> = _busy.asStateFlow()
 
     fun refresh() = act(quiet = true) { mailbox.refresh() }
+
+    /** The page is open: the "brought back" notification has done its job. */
+    fun opened() {
+        LobsterCheck.clear(context)
+        act(quiet = true) { mailbox.newCatch() }
+    }
 
     fun setEnabled(on: Boolean) {
         mailbox.setEnabled(on)
