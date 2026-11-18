@@ -13,6 +13,7 @@ import app.localmind.assistant.domain.inference.GenerationRequest
 import app.localmind.assistant.domain.inference.LocalInferenceEngine
 import app.localmind.assistant.domain.inference.PromptTurn
 import app.localmind.assistant.domain.model.ChatMessage
+import app.localmind.assistant.domain.model.MessageNotes
 import app.localmind.assistant.domain.persona.BuiltInPersonas
 import app.localmind.assistant.domain.persona.ChineseRules
 import app.localmind.assistant.domain.model.Conversation
@@ -48,6 +49,13 @@ class ChatRepositoryImpl @Inject constructor(
             dao.getMostRecentConversationModelId()
         } ?: DEFAULT_MODEL_ID
         engine.loadModel(modelId)
+    }
+
+    override suspend fun searchConversationIds(query: String): Set<String> {
+        val q = query.trim()
+        if (q.isEmpty()) return emptySet()
+        val pattern = q.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_")
+        return dao.conversationIdsMatching(pattern).toSet()
     }
 
     override suspend fun warmUpForPersona(personaId: String) {
@@ -256,10 +264,19 @@ class ChatRepositoryImpl @Inject constructor(
                 is GenerationEvent.Completed -> {
                     val finalContent = if (event.fullText.isNotBlank()) event.fullText else textAccumulator.toString()
                     val completionTime = System.currentTimeMillis()
+                    // A finished reply carries notes in errorCode (no schema change needed):
+                    // LENGTH = stopped at the length limit (offer Continue), TRIMMED = older
+                    // messages no longer fit the context. promptTokens holds the context in use.
+                    val notes = listOfNotNull(
+                        MessageNotes.LENGTH.takeIf { event.stoppedAtLimit },
+                        MessageNotes.TRIMMED.takeIf { event.historyTrimmed }
+                    ).joinToString(",").ifEmpty { null }
                     dao.updateMessageContentAndStatus(
                         id = assistantMsgId,
                         content = finalContent,
                         status = MessageStatus.COMPLETE.name,
+                        errorCode = notes,
+                        promptTokens = event.contextUsed,
                         updatedAt = completionTime,
                         completionTokens = event.tokensGenerated,
                         speedTps = event.tokensPerSecond
@@ -268,6 +285,8 @@ class ChatRepositoryImpl @Inject constructor(
                         assistantPlaceholder.copy(
                             content = finalContent,
                             status = MessageStatus.COMPLETE.name,
+                            errorCode = notes,
+                            promptTokens = event.contextUsed,
                             completionTokens = event.tokensGenerated,
                             generationSpeedTps = event.tokensPerSecond,
                             updatedAt = completionTime

@@ -7,7 +7,9 @@ import app.localmind.assistant.domain.inference.EngineRuntimeState
 import app.localmind.assistant.domain.model.ChatMessage
 import app.localmind.assistant.domain.model.Conversation
 import app.localmind.assistant.data.persona.PersonaRepository
+import app.localmind.assistant.data.persona.ChineseStyleStore
 import app.localmind.assistant.data.voice.VoiceRecorder
+import app.localmind.assistant.domain.persona.ChineseStyle
 import app.localmind.assistant.data.voice.VoiceTranscriber
 import app.localmind.assistant.domain.persona.BuiltInPersonas
 import app.localmind.assistant.domain.persona.SpeechLanguage
@@ -15,6 +17,7 @@ import app.localmind.assistant.domain.repository.ChatRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
@@ -27,8 +30,26 @@ class ChatViewModel @Inject constructor(
     private val repository: ChatRepository,
     personaRepository: PersonaRepository,
     private val transcriber: VoiceTranscriber,
-    private val recorder: VoiceRecorder
+    private val recorder: VoiceRecorder,
+    chineseStyleStore: ChineseStyleStore
 ) : ViewModel() {
+
+    private val _searchQuery = MutableStateFlow("")
+    /** Drawer search text. */
+    val searchQuery: StateFlow<String> = _searchQuery.asStateFlow()
+    /** Chats matching the search (title or any message), or null when not searching. */
+    @OptIn(FlowPreview::class)
+    val searchResults: StateFlow<Set<String>?> = _searchQuery
+        .debounce(200)
+        .mapLatest { q -> if (q.isBlank()) null else repository.searchConversationIds(q) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), null)
+
+    fun onSearchQueryChange(query: String) {
+        _searchQuery.value = query
+    }
+
+    /** Characters and romanization chosen in Settings → Chinese (for the start page's date). */
+    val chineseStyle: StateFlow<ChineseStyle> = chineseStyleStore.style
 
     private val _voiceState = MutableStateFlow(VoiceInputState.IDLE)
     /** Voice input: idle, listening to the microphone, or turning speech into text. */
@@ -172,8 +193,16 @@ class ChatViewModel @Inject constructor(
         createNewConversation(personaId = personaId)
     }
 
-    fun sendMessage() {
-        val text = _inputText.value.trim()
+    fun sendMessage() = send(_inputText.value, fromInputBox = true)
+
+    /** "Continue" after a reply stopped at the length limit. Leaves the input box alone. */
+    fun continueReply() = send("Continue.", fromInputBox = false)
+
+    /** A quick action ("Quiz me", "Correct me" …): sent as-is, leaving any draft in the box. */
+    fun sendQuickAction(prompt: String) = send(prompt, fromInputBox = false)
+
+    private fun send(rawText: String, fromInputBox: Boolean) {
+        val text = rawText.trim()
         if (text.isEmpty() || _isGenerating.value) return
 
         viewModelScope.launch {
@@ -188,7 +217,7 @@ class ChatViewModel @Inject constructor(
                 _activeConversationId.value = convId
             }
 
-            _inputText.value = ""
+            if (fromInputBox) _inputText.value = ""
             _isGenerating.value = true
 
             activeGenerationJob = launch {
@@ -414,7 +443,8 @@ class ChatViewModel @Inject constructor(
         )
         is EngineRuntimeState.Ready -> copy(
             modelStatus = if (isGenerating) ModelRuntimeStatus.GENERATING else ModelRuntimeStatus.READY,
-            activeModelName = prettyModelName(engine.modelName)
+            activeModelName = prettyModelName(engine.modelName),
+            contextSize = engine.maxTokens
         )
         is EngineRuntimeState.NoModelFound -> copy(
             modelStatus = ModelRuntimeStatus.NO_MODEL_LOADED,

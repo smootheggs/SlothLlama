@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -29,6 +30,8 @@ import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.Close
+import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Style
 import androidx.compose.material.icons.outlined.Unarchive
 import androidx.compose.material3.DropdownMenu
@@ -49,6 +52,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -75,7 +80,9 @@ fun ConversationDrawerContent(
     onOpenSettings: () -> Unit = {},
     onOpenFlashcards: () -> Unit = {},
     flashcardsDue: Int = 0,
-    modelStatus: String = ""
+    modelStatus: String = "",
+    searchQuery: String = "",
+    onSearchQueryChange: (String) -> Unit = {}
 ) {
     var archivedOpen by remember { mutableStateOf(false) }
 
@@ -101,16 +108,18 @@ fun ConversationDrawerContent(
 
         HorizontalDivider(color = P.Border, modifier = Modifier.padding(vertical = 12.dp, horizontal = 8.dp))
 
+        SearchField(searchQuery, onSearchQueryChange)
         Text(
-            "Recent", color = P.Faint, fontSize = 12.sp, fontWeight = FontWeight.Medium,
-            modifier = Modifier.padding(start = 12.dp, bottom = 4.dp)
+            if (searchQuery.isBlank()) "Recent" else "Matches", color = P.Faint, fontSize = 12.sp, fontWeight = FontWeight.Medium,
+            modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 4.dp)
         )
 
         LazyColumn(Modifier.weight(1f)) {
             if (conversations.isEmpty()) {
                 item {
                     Text(
-                        "No conversations yet", color = P.Faint, fontSize = 13.sp,
+                        if (searchQuery.isBlank()) "No conversations yet" else "No chats mention “${searchQuery.trim()}”",
+                        color = P.Faint, fontSize = 13.sp,
                         modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)
                     )
                 }
@@ -175,6 +184,43 @@ fun ConversationDrawerContent(
                 Spacer(Modifier.width(10.dp))
                 Text("Delete all conversations", color = P.Faint, fontSize = 13.sp)
             }
+        }
+    }
+}
+
+/** Searches chat titles and everything said in them. */
+@Composable
+private fun SearchField(query: String, onChange: (String) -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 4.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .background(P.Elevated)
+            .padding(horizontal = 12.dp, vertical = 9.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Icon(Icons.Outlined.Search, contentDescription = null, tint = P.Faint, modifier = Modifier.size(18.dp))
+        Spacer(Modifier.width(10.dp))
+        BasicTextField(
+            value = query,
+            onValueChange = onChange,
+            singleLine = true,
+            textStyle = TextStyle(color = P.Text, fontSize = 14.sp),
+            cursorBrush = SolidColor(P.Accent),
+            modifier = Modifier.weight(1f),
+            decorationBox = { inner ->
+                Box {
+                    if (query.isEmpty()) Text("Search chats", color = P.Faint, fontSize = 14.sp)
+                    inner()
+                }
+            }
+        )
+        if (query.isNotEmpty()) {
+            Icon(
+                Icons.Outlined.Close, contentDescription = "Clear search", tint = P.Faint,
+                modifier = Modifier.size(18.dp).clip(RoundedCornerShape(9.dp)).clickable { onChange("") }
+            )
         }
     }
 }

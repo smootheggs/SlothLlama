@@ -52,6 +52,8 @@ import app.localmind.assistant.domain.model.MessageRole
 import app.localmind.assistant.domain.model.MessageStatus
 import app.localmind.assistant.ui.speech.LocalSpeakAction
 import app.localmind.assistant.ui.study.LocalSaveWordAction
+import app.localmind.assistant.domain.model.MessageNotes
+import app.localmind.assistant.domain.model.hasNote
 import app.localmind.assistant.ui.theme.SlothPalette as P
 
 @Composable
@@ -177,7 +179,46 @@ fun AssistantMessageBubble(
                     ActionIcon(Icons.Outlined.Refresh, "Regenerate", onClick = onRegenerate)
                 }
             }
+            if (message.status == MessageStatus.COMPLETE) ReplyFooter(message, isLatest)
         }
+    }
+}
+
+/** Continue (if cut off), a note when the chat outgrew the context, and a quiet speed / context line. */
+@Composable
+private fun ReplyFooter(message: ChatMessage, isLatest: Boolean) {
+    val chat = LocalChatActions.current
+    val onContinue = chat.onContinue
+    if (isLatest && onContinue != null && message.hasNote(MessageNotes.LENGTH)) {
+        Text(
+            "Continue",
+            color = P.Accent, fontSize = 13.sp, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier
+                .padding(top = 6.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .border(1.dp, P.Accent, RoundedCornerShape(10.dp))
+                .clickable(onClick = onContinue)
+                .padding(horizontal = 14.dp, vertical = 7.dp)
+        )
+    }
+    if (message.hasNote(MessageNotes.TRIMMED)) {
+        Text(
+            "This chat has outgrown the model's memory: the earliest messages were left out of this reply. " +
+                "Start a new chat for a fresh topic.",
+            color = P.Faint, fontSize = 11.sp, lineHeight = 15.sp, modifier = Modifier.padding(top = 6.dp)
+        )
+    }
+    val stats = buildList {
+        message.generationSpeedTps?.takeIf { it > 0f }?.let { add("%.1f tokens/s".format(it)) }
+        if (message.promptTokens > 0) {
+            add(
+                if (chat.contextSize > 0) "%,d / %,d context".format(message.promptTokens, chat.contextSize)
+                else "%,d tokens in context".format(message.promptTokens)
+            )
+        }
+    }
+    if (stats.isNotEmpty()) {
+        Text(stats.joinToString(" · "), color = P.Faint, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp, start = 2.dp))
     }
 }
 

@@ -11,6 +11,9 @@
 
     <!-- Voice input: recorded and transcribed on the device, asked for the first time you tap the mic. -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+
+    <!-- Only for the optional daily flashcard reminder; asked when you switch it on. -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
 

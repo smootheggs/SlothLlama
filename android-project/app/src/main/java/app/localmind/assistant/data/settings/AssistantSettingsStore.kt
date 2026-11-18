@@ -26,7 +26,23 @@ class AssistantSettingsStore @Inject constructor(@ApplicationContext context: Co
         _thinking.value = enabled
     }
 
+    private val _reviewReminder = MutableStateFlow(prefs.getBoolean(KEY_REMINDER, false))
+    /** A daily notification when flashcards are due. */
+    val reviewReminder: StateFlow<Boolean> = _reviewReminder.asStateFlow()
+
+    private val _reminderHour = MutableStateFlow(prefs.getInt(KEY_REMINDER_HOUR, 9))
+    /** Hour of day (0–23) for the review reminder. */
+    val reminderHour: StateFlow<Int> = _reminderHour.asStateFlow()
+
+    fun setReviewReminder(enabled: Boolean, hour: Int = _reminderHour.value) {
+        prefs.edit().putBoolean(KEY_REMINDER, enabled).putInt(KEY_REMINDER_HOUR, hour).apply()
+        _reviewReminder.value = enabled
+        _reminderHour.value = hour
+    }
+
     private companion object {
         const val KEY_THINKING = "thinking"
+        const val KEY_REMINDER = "review_reminder"
+        const val KEY_REMINDER_HOUR = "review_reminder_hour"
     }
 }

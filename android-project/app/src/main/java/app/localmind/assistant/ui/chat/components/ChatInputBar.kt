@@ -86,6 +86,8 @@ fun ChatInputBar(
     onStartVoice: () -> Unit,
     onFinishVoice: () -> Unit,
     onCancelVoice: () -> Unit,
+    quickActions: List<QuickAction> = emptyList(),
+    onQuickAction: (QuickAction) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -112,9 +114,15 @@ fun ChatInputBar(
             .padding(start = 12.dp, end = 12.dp, top = 4.dp, bottom = 12.dp),
         contentAlignment = Alignment.BottomCenter
     ) {
+        Column(Modifier.widthIn(max = ChatColumnMaxWidth).fillMaxWidth()) {
+        // One-tap follow-ups, only when there's nothing else going on in the composer.
+        val showQuick = quickActions.isNotEmpty() && inputText.isEmpty() && !isGenerating &&
+            editingMessage == null && voiceState == VoiceInputState.IDLE
+        AnimatedVisibility(visible = showQuick) {
+            QuickActionRow(quickActions, onQuickAction, Modifier.padding(bottom = 8.dp))
+        }
         Column(
             Modifier
-                .widthIn(max = ChatColumnMaxWidth)
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(24.dp))
                 .background(P.Elevated)
@@ -198,6 +206,7 @@ fun ChatInputBar(
                     }
                 }
             }
+        }
         }
     }
 }

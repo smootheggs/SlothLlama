@@ -17,6 +17,8 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import app.localmind.assistant.ui.chat.components.LocalChineseScale
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -24,7 +26,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.hilt.work.HiltWorkerFactory
+import androidx.work.Configuration
+import app.localmind.assistant.data.ask.AppShortcuts
+import app.localmind.assistant.data.study.ReviewReminder
 import app.localmind.assistant.data.ask.AskInbox
+import app.localmind.assistant.data.ask.LaunchRequest
 import app.localmind.assistant.data.persona.ChineseStyleStore
 import app.localmind.assistant.ui.study.FlashcardsScreen
 import app.localmind.assistant.ui.study.FlashcardsViewModel
@@ -48,7 +55,23 @@ import javax.inject.Inject
 import app.localmind.assistant.ui.theme.SlothPalette as P
 
 @HiltAndroidApp
-class LocalMindApp : Application()
+class LocalMindApp : Application(), Configuration.Provider {
+
+    @Inject lateinit var workerFactory: HiltWorkerFactory
+    @Inject lateinit var assistantSettings: AssistantSettingsStore
+
+    // WorkManager starts on demand with Hilt's worker factory (the default initializer is removed
+    // in the manifest), so workers such as the flashcard reminder get their dependencies injected.
+    override val workManagerConfiguration: Configuration
+        get() = Configuration.Builder().setWorkerFactory(workerFactory).build()
+
+    override fun onCreate() {
+        super.onCreate()
+        AppShortcuts.publish(this)
+        // Keep the daily review reminder scheduled (or cancelled) to match the setting.
+        ReviewReminder.schedule(this, assistantSettings.reviewReminder.value, assistantSettings.reminderHour.value, replace = false)
+    }
+}
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
@@ -86,18 +109,22 @@ class MainActivity : ComponentActivity() {
             }
 
             SlothTheme(colors) {
-                SlothRoot(
-                    themeMode = mode,
-                    onThemeModeChange = appearance::set,
-                    privacyScreen = privacyScreen,
-                    onPrivacyScreenChange = appearance::setPrivacyScreen,
-                    chineseStyle = chineseStyle,
-                    onChineseScriptChange = chineseStyleStore::setScript,
-                    onRomanizationChange = chineseStyleStore::setRomanization,
-                    thinking = thinking,
-                    onThinkingChange = assistantSettings::setThinking,
-                    askInbox = askInbox
-                )
+                // Chinese characters in replies are drawn at the size chosen in Settings → Chinese.
+                CompositionLocalProvider(LocalChineseScale provides chineseStyle.charScale) {
+                    SlothRoot(
+                        themeMode = mode,
+                        onThemeModeChange = appearance::set,
+                        privacyScreen = privacyScreen,
+                        onPrivacyScreenChange = appearance::setPrivacyScreen,
+                        chineseStyle = chineseStyle,
+                        onChineseScriptChange = chineseStyleStore::setScript,
+                        onRomanizationChange = chineseStyleStore::setRomanization,
+                        onCharScaleChange = chineseStyleStore::setCharScale,
+                        thinking = thinking,
+                        onThinkingChange = assistantSettings::setThinking,
+                        askInbox = askInbox
+                    )
+                }
             }
         }
     }
@@ -107,15 +134,27 @@ class MainActivity : ComponentActivity() {
         handleAsk(intent)
     }
 
-    /** Text forwarded by [AskActivity] ("Ask SlothLlama" in other apps' selection menus). */
+    /** Text forwarded by [AskActivity], or a home-screen shortcut. */
     private fun handleAsk(intent: Intent?) {
-        if (intent?.action != ACTION_ASK) return
-        intent.getStringExtra(EXTRA_ASK_TEXT)?.takeIf { it.isNotBlank() }?.let(askInbox::post)
+        when (intent?.action) {
+            ACTION_ASK -> intent.getStringExtra(EXTRA_ASK_TEXT)?.takeIf { it.isNotBlank() }
+                ?.let { askInbox.post(LaunchRequest.Ask(it)) }
+            ACTION_SHORTCUT -> {
+                val target = intent.getStringExtra(EXTRA_TARGET).orEmpty()
+                when {
+                    target == AppShortcuts.TARGET_FLASHCARDS -> askInbox.post(LaunchRequest.Flashcards)
+                    target.startsWith(AppShortcuts.TARGET_PERSONA_PREFIX) ->
+                        askInbox.post(LaunchRequest.StartChat(target.removePrefix(AppShortcuts.TARGET_PERSONA_PREFIX)))
+                }
+            }
+        }
     }
 
     companion object {
         const val ACTION_ASK = "app.localmind.assistant.ASK"
         const val EXTRA_ASK_TEXT = "ask_text"
+        const val ACTION_SHORTCUT = "app.localmind.assistant.SHORTCUT"
+        const val EXTRA_TARGET = "target"
     }
 }
 
@@ -134,6 +173,7 @@ private fun SlothRoot(
     chineseStyle: ChineseStyle,
     onChineseScriptChange: (ChineseScript) -> Unit,
     onRomanizationChange: (Boolean) -> Unit,
+    onCharScaleChange: (Float) -> Unit,
     thinking: Boolean,
     onThinkingChange: (Boolean) -> Unit,
     askInbox: AskInbox
@@ -142,12 +182,21 @@ private fun SlothRoot(
     val chatViewModel: ChatViewModel = hiltViewModel()
     val goHome = { destination = Destination.CHAT }
 
-    // "Ask SlothLlama" from another app: open the chat with the question waiting in the box.
-    val pendingAsk by askInbox.pending.collectAsStateWithLifecycle()
-    LaunchedEffect(pendingAsk) {
-        val text = askInbox.take() ?: return@LaunchedEffect
-        destination = Destination.CHAT
-        chatViewModel.askAbout(text)
+    // "Ask SlothLlama" from another app, or a home-screen shortcut.
+    val pendingLaunch by askInbox.pending.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingLaunch) {
+        when (val request = askInbox.take()) {
+            is LaunchRequest.Ask -> {
+                destination = Destination.CHAT
+                chatViewModel.askAbout(request.text)
+            }
+            is LaunchRequest.StartChat -> {
+                destination = Destination.CHAT
+                chatViewModel.startConversationWith(request.personaId)
+            }
+            LaunchRequest.Flashcards -> destination = Destination.FLASHCARDS
+            null -> Unit
+        }
     }
 
     BackHandler(enabled = destination != Destination.CHAT, onBack = goHome)
@@ -180,6 +229,7 @@ private fun SlothRoot(
                     chineseStyle = chineseStyle,
                     onChineseScriptChange = onChineseScriptChange,
                     onRomanizationChange = onRomanizationChange,
+                    onCharScaleChange = onCharScaleChange,
                     thinking = thinking,
                     onThinkingChange = onThinkingChange,
                     onOpenModels = { destination = Destination.MODELS },

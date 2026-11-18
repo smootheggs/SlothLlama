@@ -130,7 +130,14 @@ sealed interface GenerationEvent {
         val tokensGenerated: Int,
         val tokensPerSecond: Float,
         val peakMemoryMb: Int,
-        val isCloudGenerated: Boolean = false
+        val isCloudGenerated: Boolean = false,
+        /** Tokens in the model's context after this reply, and the context's size (0 = unknown). */
+        val contextUsed: Int = 0,
+        val contextSize: Int = 0,
+        /** The reply stopped at the length limit rather than finishing: offer "Continue". */
+        val stoppedAtLimit: Boolean = false,
+        /** Older messages didn't fit the context and were left out of this reply's prompt. */
+        val historyTrimmed: Boolean = false
     ) : GenerationEvent
     data class Canceled(val partialText: String) : GenerationEvent
     data class Error(

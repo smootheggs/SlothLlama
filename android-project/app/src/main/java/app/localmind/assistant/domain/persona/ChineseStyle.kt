@@ -11,7 +11,9 @@ enum class ChineseScript(val label: String, val detail: String) {
 data class ChineseStyle(
     val script: ChineseScript = ChineseScript.BOTH,
     /** Pinyin under Mandarin, Jyutping under Cantonese. */
-    val romanization: Boolean = true
+    val romanization: Boolean = true,
+    /** Size of Chinese characters in replies, relative to the surrounding text (1.0–1.6). */
+    val charScale: Float = 1.2f
 )
 
 /**

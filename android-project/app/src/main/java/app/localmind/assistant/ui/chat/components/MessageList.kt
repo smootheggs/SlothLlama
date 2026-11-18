@@ -68,7 +68,9 @@ fun MessageList(
     emptyTitle: String = "How can I help?",
     emptySubtitle: String = "Private · on-device · offline",
     starterPrompts: List<String> = DefaultStarterPrompts,
-    showMascot: Boolean = false
+    showMascot: Boolean = false,
+    /** Shown instead of the default placeholder when there are no messages (the start page). */
+    emptyContent: (@Composable () -> Unit)? = null
 ) {
     val listState = rememberLazyListState()
     val coroutineScope = rememberCoroutineScope()
@@ -94,7 +96,9 @@ fun MessageList(
     }
 
     Box(modifier.fillMaxSize()) {
-        if (messages.isEmpty()) {
+        if (messages.isEmpty() && emptyContent != null) {
+            emptyContent()
+        } else if (messages.isEmpty()) {
             EmptyConversationPlaceholder(
                 onPromptSelected = onStarterPromptSelected,
                 badge = emptyBadge,

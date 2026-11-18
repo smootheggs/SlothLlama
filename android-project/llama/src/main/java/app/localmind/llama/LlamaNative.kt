@@ -47,6 +47,9 @@ object LlamaNative {
     /** Next piece of text; "" while a multi-byte character is incomplete; null when generation ends. */
     external fun generateNextToken(): String?
 
+    /** Tokens currently held in the model's context (prompt + history + reply so far). */
+    external fun usedTokens(): Int
+
     /** True if the loaded model is a reasoning model (its chat template uses <think>). */
     external fun supportsThinking(): Boolean
 

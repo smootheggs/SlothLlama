@@ -58,6 +58,13 @@ through **personas** (built-in or your own). Language tutors are built-in person
 - **Ask SlothLlama.** Select text in any app → **Ask SlothLlama** opens a new chat with the
   question waiting in the box.
 - **A model per persona.** Personas → Model, e.g. a Cantonese model for the Cantonese tutors.
+- **Start page.** The time, today in Chinese (weekday, lunar date, zodiac year — computed on the
+  tablet, no weather because the app stays offline), a hello, and quick ways in.
+- **Backups.** Settings → Backup: one file with chats, custom personas, flashcards and settings,
+  optionally AES-256 encrypted with a password. Restore adds it back. Models aren't included.
+- **Small things.** Continue for cut-off replies, chat search, one-tap follow-ups (Correct me,
+  Quiz me…), home-screen shortcuts, a character-size setting, speed / context under replies,
+  and an optional daily flashcard reminder.
 
 ## Security model
 - **No network.** The app has no internet permission, so Android refuses any connection it

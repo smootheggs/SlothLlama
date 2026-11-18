@@ -608,6 +608,12 @@ Java_app_localmind_llama_LlamaNative_setSampling(
  * Returns 0 on success, 1 if it doesn't fit the context, 2 if decoding failed.
  */
 extern "C"
+JNIEXPORT jint JNICALL
+Java_app_localmind_llama_LlamaNative_usedTokens(JNIEnv * /*env*/, jobject /*unused*/) {
+    return current_position;
+}
+
+extern "C"
 JNIEXPORT jboolean JNICALL
 Java_app_localmind_llama_LlamaNative_supportsThinking(JNIEnv * /*env*/, jobject /*unused*/) {
     return g_template_thinks ? JNI_TRUE : JNI_FALSE;

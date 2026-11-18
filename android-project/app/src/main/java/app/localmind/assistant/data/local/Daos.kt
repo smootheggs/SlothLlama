@@ -96,6 +96,13 @@ interface LocalMindDao {
     @Query("DELETE FROM messages WHERE id = :messageId")
     suspend fun deleteMessage(messageId: String)
 
+    /** Chats whose title or any message contains [pattern] (already escaped for LIKE with '\\'). */
+    @Query(
+        "SELECT id FROM conversations WHERE title LIKE '%' || :pattern || '%' ESCAPE '\\' " +
+            "UNION SELECT DISTINCT conversationId FROM messages WHERE content LIKE '%' || :pattern || '%' ESCAPE '\\'"
+    )
+    suspend fun conversationIdsMatching(pattern: String): List<String>
+
     @Query("DELETE FROM messages WHERE conversationId = :conversationId AND createdAt >= :timestamp")
     suspend fun deleteMessagesFromTimestamp(conversationId: String, timestamp: Long)
 
@@ -160,6 +167,22 @@ interface LocalMindDao {
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertVocabularyItem(item: VocabularyItemEntity)
+
+    @Query("SELECT COUNT(*) FROM vocabulary_items WHERE nextReviewAt <= :now")
+    suspend fun countDueVocabulary(now: Long): Int
+
+    // Backup / restore: everything the learner made (models aren't included; they're re-importable).
+    @Query("SELECT * FROM conversations ORDER BY createdAt ASC")
+    suspend fun getAllConversations(): List<ConversationEntity>
+
+    @Query("SELECT * FROM messages ORDER BY createdAt ASC")
+    suspend fun getAllMessages(): List<MessageEntity>
+
+    @Query("SELECT * FROM personas WHERE isBuiltIn = 0")
+    suspend fun getCustomPersonas(): List<PersonaEntity>
+
+    @Query("SELECT * FROM vocabulary_items")
+    suspend fun getAllVocabulary(): List<VocabularyItemEntity>
 
     @Query("SELECT * FROM vocabulary_items WHERE term = :term AND targetLanguage = :language LIMIT 1")
     suspend fun findVocabularyItem(term: String, language: String): VocabularyItemEntity?

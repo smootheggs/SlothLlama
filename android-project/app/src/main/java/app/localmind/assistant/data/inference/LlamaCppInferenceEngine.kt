@@ -160,11 +160,13 @@ class LlamaCppInferenceEngine @Inject constructor(
         // When thinking, the prompt already opened "<think>", so the reply starts inside it.
         val filter = ReplyFilter(startsThinking = thinks)
         var pieces = 0
+        var firstTokenAt = 0L
         try {
             while (!cancelRequested && !filter.stopped) {
                 val piece = LlamaNative.generateNextToken() ?: break
                 if (piece.isEmpty()) continue
                 pieces++
+                if (pieces == 1) firstTokenAt = SystemClock.elapsedRealtime()
                 val visible = filter.push(piece)
                 if (visible.isNotEmpty()) emit(GenerationEvent.TokenDelta(visible))
             }
@@ -191,17 +193,26 @@ class LlamaCppInferenceEngine @Inject constructor(
         }
 
         // Clean end-of-turn: the native chat now equals history + this exchange.
-        if (LlamaNative.lastStopWasEog()) {
+        val endedCleanly = LlamaNative.lastStopWasEog()
+        if (endedCleanly) {
             nativeChat = desiredChat + listOf("user" to plan.userPrompt, "assistant" to visibleReply)
         }
-        val elapsedSec = (SystemClock.elapsedRealtime() - startTime).coerceAtLeast(100) / 1000f
+        // Generation speed only (from the first token), not the wait while the prompt is read.
+        val decodeStart = if (firstTokenAt > 0) firstTokenAt else startTime
+        val elapsedSec = (SystemClock.elapsedRealtime() - decodeStart).coerceAtLeast(100) / 1000f
         emit(
             GenerationEvent.Completed(
                 fullText = visibleReply,
                 citationsUsed = plan.includedPassages,
                 tokensGenerated = pieces,
-                tokensPerSecond = pieces / elapsedSec,
-                peakMemoryMb = usedMemoryMb()
+                tokensPerSecond = if (pieces > 1) (pieces - 1) / elapsedSec else 0f,
+                peakMemoryMb = usedMemoryMb(),
+                contextUsed = LlamaNative.usedTokens(),
+                contextSize = loadedContext,
+                stoppedAtLimit = !endedCleanly && !filter.stopped && pieces > 0,
+                historyTrimmed = plan.history.size < effective.recentMessages.count {
+                    it.role.equals("USER", ignoreCase = true) || it.role.equals("ASSISTANT", ignoreCase = true)
+                }
             )
         )
     }.flowOn(nativeThread)

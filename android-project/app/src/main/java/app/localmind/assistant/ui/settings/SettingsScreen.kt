@@ -34,6 +34,20 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.SnackbarHost
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.activity.compose.rememberLauncherForActivityResult
+import kotlin.math.roundToInt
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.material3.SliderDefaults
+import androidx.compose.material3.Slider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
@@ -64,12 +78,37 @@ fun SettingsScreen(
     chineseStyle: ChineseStyle,
     onChineseScriptChange: (ChineseScript) -> Unit,
     onRomanizationChange: (Boolean) -> Unit,
+    onCharScaleChange: (Float) -> Unit,
     thinking: Boolean,
     onThinkingChange: (Boolean) -> Unit,
     onOpenModels: () -> Unit,
     onOpenPersonas: () -> Unit,
     onBack: () -> Unit
 ) {
+    val vm: SettingsViewModel = hiltViewModel()
+    val reminderOn by vm.reviewReminder.collectAsStateWithLifecycle()
+    val reminderHour by vm.reminderHour.collectAsStateWithLifecycle()
+    val backupDialog by vm.dialog.collectAsStateWithLifecycle()
+    val busy by vm.busy.collectAsStateWithLifecycle()
+    val message by vm.message.collectAsStateWithLifecycle()
+    val snackbar = remember { SnackbarHostState() }
+    LaunchedEffect(message) {
+        message?.let {
+            snackbar.showSnackbar(it)
+            vm.clearMessage()
+        }
+    }
+    val context = LocalContext.current
+    val notificationPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        vm.setReviewReminder(granted)
+    }
+    val saveBackup = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/octet-stream")) { uri ->
+        vm.export(uri)
+    }
+    val openBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        vm.restore(uri)
+    }
+
     Column(Modifier.fillMaxSize().background(P.Canvas)) {
         SlothTopBar(title = "Settings", onBack = onBack)
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
@@ -110,6 +149,8 @@ fun SettingsScreen(
                             onClick = { onChineseScriptChange(script) }
                         )
                     }
+                    HorizontalDivider(color = P.Border, modifier = Modifier.padding(vertical = 6.dp))
+                    CharSizeRow(chineseStyle.charScale, onCharScaleChange)
                     HorizontalDivider(color = P.Border, modifier = Modifier.padding(vertical = 6.dp))
                     ToggleRow(
                         title = "Pinyin & Jyutping",
@@ -156,6 +197,52 @@ fun SettingsScreen(
                     LinkRow("Models", "Import, choose and delete on-device models", onOpenModels)
                     HorizontalDivider(color = P.Border)
                     LinkRow("Personas", "Built-in and custom personas", onOpenPersonas)
+                }
+
+                Section("Flashcards") {
+                    ToggleRow(
+                        title = "Daily review reminder",
+                        detail = "A notification at ${hourLabel(reminderHour)} when cards are due. Nothing if there's nothing to review.",
+                        checked = reminderOn,
+                        onCheckedChange = { on ->
+                            val granted = context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) == PackageManager.PERMISSION_GRANTED
+                            if (on && !granted) notificationPermission.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            else vm.setReviewReminder(on)
+                        }
+                    )
+                    if (reminderOn) {
+                        Row(Modifier.padding(start = 4.dp, top = 4.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(8, 12, 18, 21).forEach { hour ->
+                                val selected = hour == reminderHour
+                                Text(
+                                    hourLabel(hour),
+                                    color = if (selected) P.Accent else P.Muted, fontSize = 13.sp,
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .border(1.dp, if (selected) P.Accent else P.Border, RoundedCornerShape(10.dp))
+                                        .clickable { vm.setReviewReminder(true, hour) }
+                                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                                )
+                            }
+                        }
+                    }
+                }
+
+                Section("Backup") {
+                    Text(
+                        "Cloud backup is off, so your chats live only on this tablet. A backup file keeps " +
+                            "chats, custom personas, flashcards and settings safe (models aren't included). " +
+                            "Keep it somewhere other than this tablet.",
+                        color = P.Muted, fontSize = 12.sp, lineHeight = 17.sp,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 4.dp)
+                    )
+                    LinkRow("Export backup", busy ?: "Save everything to one file, optionally with a password") {
+                        if (busy == null) vm.startExport()
+                    }
+                    HorizontalDivider(color = P.Border)
+                    LinkRow("Restore from backup", "Add a backup's chats, personas and flashcards to this tablet") {
+                        if (busy == null) openBackup.launch(arrayOf("*/*"))
+                    }
                 }
 
                 Section("About") {
@@ -254,7 +341,51 @@ private fun SettingRow(title: String, detail: String, selected: Boolean, onClick
         Column(Modifier.weight(1f)) {
             Text(title, color = P.Text, fontSize = 15.sp)
             Text(detail, color = P.Muted, fontSize = 12.sp)
+            SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter).navigationBarsPadding())
         }
+    }
+
+    when (val dialog = backupDialog) {
+        BackupDialog.ExportPassword -> ExportPasswordDialog(
+            onConfirm = { password ->
+                vm.confirmExportPassword(password)
+                saveBackup.launch("SlothLlama backup ${java.time.LocalDate.now()}.slothllama")
+            },
+            onDismiss = vm::dismissDialog
+        )
+        is BackupDialog.RestorePassword -> RestorePasswordDialog(
+            wrongBefore = dialog.wrongBefore,
+            onConfirm = { password -> vm.restoreWithPassword(dialog.uri, password) },
+            onDismiss = vm::dismissDialog
+        )
+        null -> Unit
+    }
+}
+
+/** Size of Chinese characters in replies, with a live preview. */
+@Composable
+private fun CharSizeRow(scale: Float, onChange: (Float) -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 8.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text("Character size", color = P.Text, fontSize = 15.sp, modifier = Modifier.weight(1f))
+            Text("${(scale * 100).roundToInt()}%", color = P.Muted, fontSize = 13.sp)
+        }
+        Text(
+            buildAnnotatedString {
+                append("Reads like this: ")
+                withStyle(SpanStyle(fontSize = (15 * scale).sp)) { append("你好嗎？") }
+                append(" nǐ hǎo ma?")
+            },
+            color = P.Muted, fontSize = 15.sp, lineHeight = (22 * scale).sp,
+            modifier = Modifier.padding(top = 4.dp)
+        )
+        Slider(
+            value = scale,
+            onValueChange = { onChange((it * 20).roundToInt() / 20f) },
+            valueRange = 1f..1.6f,
+            steps = 11,
+            colors = SliderDefaults.colors(thumbColor = P.Accent, activeTrackColor = P.Accent, inactiveTrackColor = P.Border)
+        )
     }
 }
 
@@ -333,4 +464,15 @@ private fun RadioDot(selected: Boolean) {
     ) {
         if (selected) Icon(Icons.Default.Check, contentDescription = null, tint = P.OnAccent, modifier = Modifier.size(14.dp))
     }
+}
+
+/** "8:00 AM" / "20:00", following the tablet's 12/24-hour setting. */
+@Composable
+private fun hourLabel(hour: Int): String {
+    val context = LocalContext.current
+    val cal = java.util.Calendar.getInstance().apply {
+        set(java.util.Calendar.HOUR_OF_DAY, hour)
+        set(java.util.Calendar.MINUTE, 0)
+    }
+    return android.text.format.DateFormat.getTimeFormat(context).format(cal.time)
 }

@@ -19,7 +19,8 @@ class ChineseStyleStore @Inject constructor(@ApplicationContext context: Context
         ChineseStyle(
             script = ChineseScript.entries.firstOrNull { it.name == prefs.getString(KEY_SCRIPT, null) }
                 ?: ChineseScript.BOTH,
-            romanization = prefs.getBoolean(KEY_ROMANIZATION, true)
+            romanization = prefs.getBoolean(KEY_ROMANIZATION, true),
+            charScale = prefs.getFloat(KEY_CHAR_SCALE, 1.2f).coerceIn(1f, 1.6f)
         )
     )
     val style: StateFlow<ChineseStyle> = _style.asStateFlow()
@@ -28,10 +29,13 @@ class ChineseStyleStore @Inject constructor(@ApplicationContext context: Context
 
     fun setRomanization(enabled: Boolean) = save(_style.value.copy(romanization = enabled))
 
+    fun setCharScale(scale: Float) = save(_style.value.copy(charScale = scale.coerceIn(1f, 1.6f)))
+
     private fun save(style: ChineseStyle) {
         prefs.edit()
             .putString(KEY_SCRIPT, style.script.name)
             .putBoolean(KEY_ROMANIZATION, style.romanization)
+            .putFloat(KEY_CHAR_SCALE, style.charScale)
             .apply()
         _style.value = style
     }
@@ -39,5 +43,6 @@ class ChineseStyleStore @Inject constructor(@ApplicationContext context: Context
     private companion object {
         const val KEY_SCRIPT = "script"
         const val KEY_ROMANIZATION = "romanization"
+        const val KEY_CHAR_SCALE = "char_scale"
     }
 }

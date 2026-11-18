@@ -31,6 +31,8 @@ data class ChatUiState(
     val isClearAllConfirmOpen: Boolean = false,
     val isDrawerOpen: Boolean = false,
     val personas: List<Persona> = BuiltInPersonas.all,
+    /** The loaded model's context size in tokens (0 until a model is ready). */
+    val contextSize: Int = 0,
     /** The active conversation's persona, or the one new chats will use. */
     val activePersona: Persona = BuiltInPersonas.default
 ) {

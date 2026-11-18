@@ -53,6 +53,20 @@ data class ChatMessage(
     val updatedAt: Long = createdAt
 )
 
+/**
+ * Notes on a finished reply, kept in [ChatMessage.errorCode] as a comma-separated list
+ * (a COMPLETE message never uses errorCode for errors).
+ */
+object MessageNotes {
+    /** Stopped at the length limit: the chat offers "Continue". */
+    const val LENGTH = "LENGTH"
+    /** Older messages no longer fit the model's context when this reply was written. */
+    const val TRIMMED = "TRIMMED"
+}
+
+fun ChatMessage.hasNote(note: String): Boolean =
+    status == MessageStatus.COMPLETE && errorCode?.split(',')?.contains(note) == true
+
 data class Conversation(
     val id: String,
     val title: String,

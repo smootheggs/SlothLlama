@@ -58,6 +58,13 @@ import app.localmind.assistant.data.study.StudyLanguage
 import app.localmind.assistant.ui.study.AddFlashcardDialog
 import app.localmind.assistant.ui.study.FlashcardsViewModel
 import app.localmind.assistant.ui.study.LocalSaveWordAction
+import app.localmind.assistant.ui.chat.components.ChatActions
+import app.localmind.assistant.ui.chat.components.LocalChatActions
+import app.localmind.assistant.ui.chat.components.StartPage
+import app.localmind.assistant.ui.chat.components.QuickActions
+import app.localmind.assistant.domain.model.MessageStatus
+import app.localmind.assistant.domain.model.MessageRole
+import app.localmind.assistant.ui.chat.components.defaultStartTiles
 import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import app.localmind.assistant.ui.theme.SlothPalette as P
@@ -75,6 +82,9 @@ fun ChatScreen(
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val voiceState by viewModel.voiceState.collectAsStateWithLifecycle()
     val voiceLevel by viewModel.voiceLevel.collectAsStateWithLifecycle()
+    val chineseStyle by viewModel.chineseStyle.collectAsStateWithLifecycle()
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
+    val searchResults by viewModel.searchResults.collectAsStateWithLifecycle()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -122,8 +132,12 @@ fun ChatScreen(
                 modifier = Modifier.width(320.dp)
             ) {
                 ConversationDrawerContent(
-                    conversations = uiState.conversations,
-                    archivedConversations = uiState.archivedConversations,
+                    conversations = searchResults?.let { ids ->
+                        (uiState.conversations + uiState.archivedConversations).filter { it.id in ids }
+                    } ?: uiState.conversations,
+                    archivedConversations = if (searchResults == null) uiState.archivedConversations else emptyList(),
+                    searchQuery = searchQuery,
+                    onSearchQueryChange = viewModel::onSearchQueryChange,
                     activeConversationId = uiState.activeConversationId,
                     onSelectConversation = { id -> closeDrawerThen { viewModel.selectConversation(id) } },
                     onNewConversation = { closeDrawerThen { viewModel.createNewConversation() } },
@@ -143,7 +157,11 @@ fun ChatScreen(
     ) {
         CompositionLocalProvider(
             LocalSpeakAction provides speakAction,
-            LocalSaveWordAction provides { text: String -> saveWordsFrom = text }
+            LocalSaveWordAction provides { text: String -> saveWordsFrom = text },
+            LocalChatActions provides ChatActions(
+                contextSize = uiState.contextSize,
+                onContinue = viewModel::continueReply
+            )
         ) {
             Scaffold(
                 containerColor = P.Canvas,
@@ -201,7 +219,11 @@ fun ChatScreen(
                             viewModel.startVoiceInput()
                         },
                         onFinishVoice = viewModel::finishVoiceInput,
-                        onCancelVoice = viewModel::cancelVoiceInput
+                        onCancelVoice = viewModel::cancelVoiceInput,
+                        // Follow-ups make sense once the persona has replied at least once.
+                        quickActions = if (uiState.messages.any { it.role == MessageRole.ASSISTANT && it.status == MessageStatus.COMPLETE })
+                            QuickActions.forPersona(persona) else emptyList(),
+                        onQuickAction = { action -> viewModel.sendQuickAction(action.prompt) }
                     )
                 },
                 snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -222,7 +244,26 @@ fun ChatScreen(
                         emptyTitle = persona.name,
                         emptySubtitle = persona.tagline.ifBlank { "Private · on-device · offline" },
                         starterPrompts = persona.starterPrompts.ifEmpty { DefaultStarterPrompts },
-                        showMascot = persona.id == BuiltInPersonas.GENERAL_ASSISTANT.id
+                        showMascot = persona.id == BuiltInPersonas.GENERAL_ASSISTANT.id,
+                        emptyContent = {
+                            StartPage(
+                                persona = persona,
+                                script = chineseStyle.script,
+                                tiles = defaultStartTiles(
+                                    lastConversation = uiState.conversations.firstOrNull { it.id != uiState.activeConversationId },
+                                    flashcardsDue = flashcardState.dueCount,
+                                    onContinue = viewModel::selectConversation,
+                                    onMandarin = { viewModel.startConversationWith(BuiltInPersonas.MANDARIN_PARTNER.id) },
+                                    onCantonese = { viewModel.startConversationWith(BuiltInPersonas.CANTONESE_PARTNER.id) },
+                                    onFlashcards = onOpenFlashcards
+                                ),
+                                suggestions = persona.starterPrompts.ifEmpty { DefaultStarterPrompts },
+                                onSuggestion = { prompt ->
+                                    viewModel.onInputTextChanged(prompt)
+                                    viewModel.sendMessage()
+                                }
+                            )
+                        }
                     )
                 }
             }

@@ -26,6 +26,7 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.unit.TextUnit
 import app.localmind.assistant.ui.theme.SlothPalette as P
 import kotlinx.coroutines.delay
 
@@ -38,16 +39,17 @@ fun MarkdownContent(
     val blocks = remember(content) { parseMarkdownBlocks(content) }
     val codeBackground = P.Elevated
     val codeColor = P.Text
+    val hanScale = LocalChineseScale.current
 
     Column(modifier = modifier, verticalArrangement = Arrangement.spacedBy(10.dp)) {
         blocks.forEach { block ->
             when (block) {
                 is MarkdownBlock.Paragraph -> {
                     Text(
-                        text = buildAnnotatedMarkdown(block.text, codeBackground, codeColor),
+                        text = buildAnnotatedMarkdown(block.text, codeBackground, codeColor).scaleHan(hanScale),
                         color = textColor,
                         fontSize = 16.sp,
-                        lineHeight = 24.sp
+                        lineHeight = lineHeightFor(block.text, hanScale)
                     )
                 }
                 is MarkdownBlock.CodeFence -> {
@@ -63,10 +65,10 @@ fun MarkdownContent(
                     ) {
                         Text("•", color = P.Muted, fontSize = 16.sp, lineHeight = 24.sp)
                         Text(
-                            text = buildAnnotatedMarkdown(block.text, codeBackground, codeColor),
+                            text = buildAnnotatedMarkdown(block.text, codeBackground, codeColor).scaleHan(hanScale),
                             color = textColor,
                             fontSize = 16.sp,
-                            lineHeight = 24.sp
+                            lineHeight = lineHeightFor(block.text, hanScale)
                         )
                     }
                 }
@@ -213,6 +215,26 @@ fun parseMarkdownBlocks(text: String): List<MarkdownBlock> {
 
     return blocks
 }
+
+/** Size of Chinese characters relative to the text around them (Settings → Chinese). */
+val LocalChineseScale = compositionLocalOf { 1f }
+
+private val HAN_RUN = Regex("[\\u3400-\\u4DBF\\u4E00-\\u9FFF\\uF900-\\uFAFF\\u3000-\\u303F\\uFF00-\\uFFEF]+")
+private val HAN_CHAR = Regex("[\\u3400-\\u4DBF\\u4E00-\\u9FFF\\uF900-\\uFAFF]")
+
+/** Enlarges runs of Chinese characters (and their punctuation) so strokes and tones are easy to read. */
+fun AnnotatedString.scaleHan(scale: Float, base: TextUnit = 16.sp): AnnotatedString {
+    if (scale == 1f || !HAN_CHAR.containsMatchIn(text)) return this
+    val builder = AnnotatedString.Builder(this)
+    HAN_RUN.findAll(text).forEach { run ->
+        builder.addStyle(SpanStyle(fontSize = base * scale), run.range.first, run.range.last + 1)
+    }
+    return builder.toAnnotatedString()
+}
+
+/** Taller lines for paragraphs with enlarged Chinese, so lines never overlap. */
+private fun lineHeightFor(text: String, scale: Float): TextUnit =
+    if (scale > 1f && HAN_CHAR.containsMatchIn(text)) (24 * scale).sp else 24.sp
 
 fun buildAnnotatedMarkdown(
     text: String,

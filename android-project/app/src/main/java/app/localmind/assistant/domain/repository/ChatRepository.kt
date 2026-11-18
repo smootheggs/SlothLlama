@@ -16,6 +16,9 @@ interface ChatRepository {
     /** Loads the model [personaId] runs on (its own, or the default) ahead of the first message. */
     suspend fun warmUpForPersona(personaId: String)
 
+    /** Ids of chats whose title or messages contain [query] (case-insensitive for Latin text). */
+    suspend fun searchConversationIds(query: String): Set<String>
+
     fun observeConversations(): Flow<List<Conversation>>
     fun observeArchivedConversations(): Flow<List<Conversation>>
     fun observeMessages(conversationId: String): Flow<List<ChatMessage>>

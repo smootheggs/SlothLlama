@@ -1,5 +1,6 @@
 package app.localmind.assistant.data.local
 
+import kotlinx.serialization.Serializable
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
 
@@ -36,6 +37,7 @@ data class ModelDownloadEntity(
     val updatedAt: Long
 )
 
+@Serializable
 @Entity(tableName = "personas")
 data class PersonaEntity(
     @PrimaryKey val id: String,
@@ -57,6 +59,7 @@ data class PersonaEntity(
     val createdAt: Long
 )
 
+@Serializable
 @Entity(tableName = "conversations")
 data class ConversationEntity(
     @PrimaryKey val id: String,
@@ -70,6 +73,7 @@ data class ConversationEntity(
     val updatedAt: Long
 )
 
+@Serializable
 @Entity(
     tableName = "messages",
     foreignKeys = [
@@ -213,6 +217,7 @@ data class TutorProgressEntity(
     val lastPracticedAt: Long
 )
 
+@Serializable
 @Entity(tableName = "vocabulary_items")
 data class VocabularyItemEntity(
     @PrimaryKey val id: String,
