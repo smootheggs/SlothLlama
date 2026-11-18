@@ -5,6 +5,8 @@ import app.localmind.assistant.domain.model.Conversation
 import app.localmind.assistant.domain.persona.BuiltInPersonas
 import app.localmind.assistant.domain.persona.Persona
 
+enum class VoiceInputState { IDLE, LISTENING, TRANSCRIBING }
+
 enum class ModelRuntimeStatus {
     READY,
     GENERATING,

@@ -158,6 +158,9 @@ dependencies {
 
     // llama.cpp for GGUF models
     implementation(project(":llama"))
+    // Offline speech-to-text (SenseVoice). Not committed (50 MB): CI downloads the release AAR and
+    // checks its SHA-256; for a local build run android-project/scripts/fetch-sherpa-onnx.sh first.
+    implementation(files("libs/sherpa-onnx-1.13.8.aar"))
 
     // Unit & UI Testing
     testImplementation(libs.junit)

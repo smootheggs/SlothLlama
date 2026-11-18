@@ -52,6 +52,9 @@ jobs:
         with:
           gradle-version: "8.11.1"
 
+      - name: Fetch sherpa-onnx (offline voice input), checksum-verified
+        run: android-project/scripts/fetch-sherpa-onnx.sh
+
       - name: Build APK
         working-directory: android-project
         env:

@@ -1,5 +1,9 @@
 package app.localmind.assistant.ui.chat.components
 
+import android.Manifest
+import android.content.pm.PackageManager
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -25,9 +29,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowUpward
+import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.Stop
+import androidx.compose.material.icons.outlined.Mic
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -43,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -50,6 +58,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.localmind.assistant.domain.model.ChatMessage
 import app.localmind.assistant.domain.persona.Persona
+import app.localmind.assistant.ui.chat.VoiceInputState
 import app.localmind.assistant.ui.theme.SlothPalette as P
 
 /** Reading/typing column width on tablets; phones simply use the full width. */
@@ -72,8 +81,21 @@ fun ChatInputBar(
     activePersona: Persona,
     personas: List<Persona>,
     onSelectPersona: (Persona) -> Unit,
+    voiceState: VoiceInputState,
+    voiceLevel: Float,
+    onStartVoice: () -> Unit,
+    onFinishVoice: () -> Unit,
+    onCancelVoice: () -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val context = LocalContext.current
+    val micPermission = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { granted ->
+        if (granted) onStartVoice()
+    }
+    val startVoice = {
+        if (context.checkSelfPermission(Manifest.permission.RECORD_AUDIO) == PackageManager.PERMISSION_GRANTED) onStartVoice()
+        else micPermission.launch(Manifest.permission.RECORD_AUDIO)
+    }
     val canSubmit = inputText.isNotBlank()
     val submit = {
         if (canSubmit) {
@@ -115,54 +137,104 @@ fun ChatInputBar(
                 }
             }
 
-            BasicTextField(
-                value = inputText,
-                onValueChange = onInputTextChanged,
-                textStyle = TextStyle(color = P.Text, fontSize = 16.sp, lineHeight = 24.sp),
-                cursorBrush = SolidColor(P.Accent),
-                maxLines = 8,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(end = 8.dp)
-                    .heightIn(min = 24.dp),
-                decorationBox = { inner ->
-                    Box {
-                        if (inputText.isEmpty()) {
-                            Text(
-                                if (editingMessage != null) "Edit your message" else "Message ${activePersona.name}",
-                                color = P.Faint, fontSize = 16.sp, lineHeight = 24.sp,
-                                maxLines = 1, overflow = TextOverflow.Ellipsis
-                            )
+            if (voiceState != VoiceInputState.IDLE) {
+                VoiceBar(voiceState, voiceLevel, onFinishVoice, onCancelVoice)
+            } else {
+                BasicTextField(
+                    value = inputText,
+                    onValueChange = onInputTextChanged,
+                    textStyle = TextStyle(color = P.Text, fontSize = 16.sp, lineHeight = 24.sp),
+                    cursorBrush = SolidColor(P.Accent),
+                    maxLines = 8,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(end = 8.dp)
+                        .heightIn(min = 24.dp),
+                    decorationBox = { inner ->
+                        Box {
+                            if (inputText.isEmpty()) {
+                                Text(
+                                    if (editingMessage != null) "Edit your message" else "Message ${activePersona.name}",
+                                    color = P.Faint, fontSize = 16.sp, lineHeight = 24.sp,
+                                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                            inner()
                         }
-                        inner()
+                    }
+                )
+
+                Spacer(Modifier.size(8.dp))
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    PersonaChip(
+                        active = activePersona,
+                        personas = personas,
+                        enabled = !isGenerating && editingMessage == null,
+                        onSelect = onSelectPersona
+                    )
+                    Spacer(Modifier.weight(1f))
+                    if (isGenerating) {
+                        RoundAction(
+                            onClick = onStopGeneration,
+                            filled = true,
+                            contentDescription = "Stop generating"
+                        ) { tint -> Icon(Icons.Default.Stop, null, tint = tint, modifier = Modifier.size(18.dp)) }
+                    } else {
+                        if (editingMessage == null) {
+                            RoundAction(
+                                onClick = startVoice,
+                                filled = false,
+                                contentDescription = "Speak"
+                            ) { _ -> Icon(Icons.Outlined.Mic, null, tint = P.Muted, modifier = Modifier.size(19.dp)) }
+                            Spacer(Modifier.width(8.dp))
+                        }
+                        RoundAction(
+                            onClick = submit,
+                            filled = canSubmit,
+                            enabled = canSubmit,
+                            contentDescription = "Send"
+                        ) { tint -> Icon(Icons.Default.ArrowUpward, null, tint = tint, modifier = Modifier.size(18.dp)) }
                     }
                 }
-            )
+            }
+        }
+    }
+}
 
-            Spacer(Modifier.size(8.dp))
-
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                PersonaChip(
-                    active = activePersona,
-                    personas = personas,
-                    enabled = !isGenerating && editingMessage == null,
-                    onSelect = onSelectPersona
+/** Shown in place of the text field while listening or transcribing. */
+@Composable
+private fun VoiceBar(state: VoiceInputState, level: Float, onFinish: () -> Unit, onCancel: () -> Unit) {
+    val listening = state == VoiceInputState.LISTENING
+    Row(Modifier.fillMaxWidth().heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (listening) {
+            // A dot that swells with the voice: simple feedback that the mic is hearing you.
+            Box(Modifier.size(28.dp), contentAlignment = Alignment.Center) {
+                Box(
+                    Modifier
+                        .size((10 + 18 * level).dp)
+                        .clip(CircleShape)
+                        .background(P.Danger.copy(alpha = 0.25f + 0.5f * level))
                 )
-                Spacer(Modifier.weight(1f))
-                if (isGenerating) {
-                    RoundAction(
-                        onClick = onStopGeneration,
-                        filled = true,
-                        contentDescription = "Stop generating"
-                    ) { tint -> Icon(Icons.Default.Stop, null, tint = tint, modifier = Modifier.size(18.dp)) }
-                } else {
-                    RoundAction(
-                        onClick = submit,
-                        filled = canSubmit,
-                        enabled = canSubmit,
-                        contentDescription = "Send"
-                    ) { tint -> Icon(Icons.Default.ArrowUpward, null, tint = tint, modifier = Modifier.size(18.dp)) }
-                }
+                Box(Modifier.size(10.dp).clip(CircleShape).background(P.Danger))
+            }
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.weight(1f)) {
+                Text("Listening…", color = P.Text, fontSize = 15.sp)
+                Text("Tap ✓ when you're done", color = P.Faint, fontSize = 12.sp)
+            }
+            IconButton(onClick = onCancel) {
+                Icon(Icons.Default.Close, contentDescription = "Discard recording", tint = P.Muted)
+            }
+            RoundAction(onClick = onFinish, filled = true, contentDescription = "Done speaking") { tint ->
+                Icon(Icons.Default.Check, null, tint = tint, modifier = Modifier.size(18.dp))
+            }
+        } else {
+            CircularProgressIndicator(color = P.Accent, strokeWidth = 2.dp, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(12.dp))
+            Text("Turning speech into text…", color = P.Muted, fontSize = 15.sp, modifier = Modifier.weight(1f))
+            IconButton(onClick = onCancel) {
+                Icon(Icons.Default.Close, contentDescription = "Cancel", tint = P.Muted)
             }
         }
     }

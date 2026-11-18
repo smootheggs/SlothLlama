@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import app.localmind.assistant.data.inference.EngineStatus
 import app.localmind.assistant.data.models.LocalModel
 import app.localmind.assistant.data.models.ModelLibrary
+import app.localmind.assistant.data.voice.VoiceModelState
+import app.localmind.assistant.data.voice.VoiceTranscriber
 import app.localmind.assistant.domain.inference.EngineRuntimeState
 import app.localmind.assistant.domain.inference.LocalInferenceEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -38,8 +40,25 @@ data class ModelsUiState(
 class ModelsViewModel @Inject constructor(
     private val library: ModelLibrary,
     private val engine: LocalInferenceEngine,
-    status: EngineStatus
+    status: EngineStatus,
+    private val voice: VoiceTranscriber
 ) : ViewModel() {
+
+    /** The offline speech-recognition model used for voice input. */
+    val voiceModel: StateFlow<VoiceModelState> = voice.state
+
+    fun importVoiceModel(uris: List<Uri>) {
+        if (uris.isEmpty()) return
+        viewModelScope.launch {
+            voice.import(uris)
+                .onSuccess { local.update { it.copy(message = "Voice input is ready. Tap the mic in any chat.") } }
+                .onFailure { e -> local.update { it.copy(message = e.message ?: "Couldn't import the voice model.") } }
+        }
+    }
+
+    fun removeVoiceModel() {
+        viewModelScope.launch { voice.remove() }
+    }
 
     private val local = MutableStateFlow(ModelsUiState(importFolder = library.importFolder.absolutePath))
     private var importJob: Job? = null

@@ -7,9 +7,13 @@ import app.localmind.assistant.domain.inference.EngineRuntimeState
 import app.localmind.assistant.domain.model.ChatMessage
 import app.localmind.assistant.domain.model.Conversation
 import app.localmind.assistant.data.persona.PersonaRepository
+import app.localmind.assistant.data.voice.VoiceRecorder
+import app.localmind.assistant.data.voice.VoiceTranscriber
 import app.localmind.assistant.domain.persona.BuiltInPersonas
+import app.localmind.assistant.domain.persona.SpeechLanguage
 import app.localmind.assistant.domain.repository.ChatRepository
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.*
@@ -21,8 +25,17 @@ import javax.inject.Inject
 @HiltViewModel
 class ChatViewModel @Inject constructor(
     private val repository: ChatRepository,
-    personaRepository: PersonaRepository
+    personaRepository: PersonaRepository,
+    private val transcriber: VoiceTranscriber,
+    private val recorder: VoiceRecorder
 ) : ViewModel() {
+
+    private val _voiceState = MutableStateFlow(VoiceInputState.IDLE)
+    /** Voice input: idle, listening to the microphone, or turning speech into text. */
+    val voiceState: StateFlow<VoiceInputState> = _voiceState.asStateFlow()
+    /** Microphone loudness 0..1 while listening. */
+    val voiceLevel: StateFlow<Float> = recorder.level
+    private var voiceJob: Job? = null
 
     private val _activeConversationId = MutableStateFlow<String?>(null)
     private val _inputText = MutableStateFlow("")
@@ -320,6 +333,63 @@ class ChatViewModel @Inject constructor(
 
     fun clearError() {
         _errorMessage.value = null
+    }
+
+    /**
+     * Starts listening (the caller has the microphone permission). The transcript is added to the
+     * input box so it can be checked or fixed before sending.
+     */
+    fun startVoiceInput() {
+        if (_voiceState.value != VoiceInputState.IDLE) return
+        if (!transcriber.isReady) {
+            _errorMessage.value = "Voice input needs the speech model: Models → Voice input → Import."
+            return
+        }
+        // A language hint helps a learner's accent be heard as the language being practised.
+        val language = when (uiState.value.activePersona.speech) {
+            SpeechLanguage.MANDARIN -> "zh"
+            SpeechLanguage.CANTONESE -> "yue"
+            null -> "auto"
+        }
+        voiceJob = viewModelScope.launch {
+            try {
+                _voiceState.value = VoiceInputState.LISTENING
+                val samples = recorder.record()
+                if (samples.size < VoiceTranscriber.SAMPLE_RATE / 3) {
+                    _errorMessage.value = "That was too short to hear anything."
+                    return@launch
+                }
+                _voiceState.value = VoiceInputState.TRANSCRIBING
+                val text = transcriber.transcribe(samples, language)
+                if (text.isBlank()) {
+                    _errorMessage.value = "Didn't catch any speech. Try again a little closer to the mic."
+                } else {
+                    val current = _inputText.value.trimEnd()
+                    _inputText.value = if (current.isEmpty()) text else "$current $text"
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                _errorMessage.value = "Voice input failed: ${e.message ?: e.javaClass.simpleName}"
+            } finally {
+                _voiceState.value = VoiceInputState.IDLE
+            }
+        }
+    }
+
+    /** Stops listening and transcribes what was said. */
+    fun finishVoiceInput() = recorder.stop()
+
+    /** Stops listening and throws the recording away. */
+    fun cancelVoiceInput() {
+        recorder.stop()
+        voiceJob?.cancel()
+        voiceJob = null
+    }
+
+    override fun onCleared() {
+        recorder.stop()
+        super.onCleared()
     }
 
     private fun ChatUiState.withEngineState(engine: EngineRuntimeState): ChatUiState = when (engine) {

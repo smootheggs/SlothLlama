@@ -65,6 +65,8 @@ fun ChatScreen(
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    val voiceState by viewModel.voiceState.collectAsStateWithLifecycle()
+    val voiceLevel by viewModel.voiceLevel.collectAsStateWithLifecycle()
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -168,7 +170,15 @@ fun ChatScreen(
                         onSelectPersona = { selected ->
                             speaker.stop()
                             viewModel.startConversationWith(selected.id)
-                        }
+                        },
+                        voiceState = voiceState,
+                        voiceLevel = voiceLevel,
+                        onStartVoice = {
+                            speaker.stop()
+                            viewModel.startVoiceInput()
+                        },
+                        onFinishVoice = viewModel::finishVoiceInput,
+                        onCancelVoice = viewModel::cancelVoiceInput
                     )
                 },
                 snackbarHost = { SnackbarHost(snackbarHostState) },

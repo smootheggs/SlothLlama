@@ -2,6 +2,7 @@ package app.localmind.assistant.ui.models
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -29,6 +30,7 @@ import androidx.compose.material.icons.filled.DeleteOutline
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.Fingerprint
+import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -58,6 +60,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.localmind.assistant.data.models.LocalModel
 import app.localmind.assistant.data.models.ModelFormat
 import app.localmind.assistant.data.models.ModelLibrary
+import app.localmind.assistant.data.voice.VoiceModelState
 import app.localmind.assistant.domain.inference.EngineRuntimeState
 import app.localmind.assistant.ui.common.SlothTopBar
 import app.localmind.assistant.ui.theme.SlothPalette as P
@@ -68,6 +71,10 @@ fun ModelsScreen(viewModel: ModelsViewModel, onBack: () -> Unit) {
     val snackbar = remember { SnackbarHostState() }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let(viewModel::import)
+    }
+    val voiceModel by viewModel.voiceModel.collectAsStateWithLifecycle()
+    val voicePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        viewModel.importVoiceModel(uris)
     }
 
     LaunchedEffect(state.message) {
@@ -102,6 +109,14 @@ fun ModelsScreen(viewModel: ModelsViewModel, onBack: () -> Unit) {
                         folder = state.importFolder,
                         onImport = { picker.launch(arrayOf("*/*")) },
                         onCancel = viewModel::cancelImport
+                    )
+                }
+
+                item {
+                    VoiceModelCard(
+                        state = voiceModel,
+                        onImport = { voicePicker.launch(arrayOf("*/*")) },
+                        onRemove = viewModel::removeVoiceModel
                     )
                 }
 
@@ -251,6 +266,60 @@ private fun ImportCard(progress: Float?, folder: String, onImport: () -> Unit, o
                 modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp))
             )
             TextButton(onClick = onCancel) { Text("Cancel", color = P.Muted) }
+        }
+    }
+}
+
+@Composable
+private fun VoiceModelCard(state: VoiceModelState, onImport: () -> Unit, onRemove: () -> Unit) {
+    SlothCard {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.Mic, contentDescription = null, tint = P.Accent, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Text("Voice input", color = P.Text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            if (state is VoiceModelState.Ready) {
+                Text("Ready · ${ModelLibrary.formatBytes(state.sizeBytes)}", color = P.Success, fontSize = 12.sp)
+            }
+        }
+        Spacer(Modifier.height(6.dp))
+        when (state) {
+            is VoiceModelState.Missing -> {
+                Text(
+                    "Speak instead of typing, fully offline: SenseVoice understands Mandarin, Cantonese, " +
+                        "English, Japanese and Korean. Import model.int8.onnx and tokens.txt together " +
+                        "(select both in the picker).",
+                    color = P.Muted, fontSize = 12.sp, lineHeight = 17.sp
+                )
+                Spacer(Modifier.height(10.dp))
+                Button(
+                    onClick = onImport,
+                    colors = ButtonDefaults.buttonColors(containerColor = P.Elevated, contentColor = P.Text),
+                    border = BorderStroke(1.dp, P.BorderStrong),
+                    shape = RoundedCornerShape(12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Icon(Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(18.dp))
+                    Spacer(Modifier.width(8.dp))
+                    Text("Import voice model")
+                }
+            }
+            is VoiceModelState.Importing -> {
+                Text("Importing… ${(state.progress * 100).toInt()}%", color = P.Text, fontSize = 14.sp)
+                Spacer(Modifier.height(8.dp))
+                LinearProgressIndicator(
+                    progress = { state.progress },
+                    color = P.Accent,
+                    trackColor = P.Border,
+                    modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(4.dp))
+                )
+            }
+            is VoiceModelState.Ready -> {
+                Text(
+                    "Tap the mic in any chat. Tutors listen for their own language; other personas detect it.",
+                    color = P.Muted, fontSize = 12.sp, lineHeight = 17.sp
+                )
+                TextButton(onClick = onRemove) { Text("Remove voice model", color = P.Muted) }
+            }
         }
     }
 }

@@ -6,3 +6,7 @@ coverage/
 *.log
 .env*
 !.env.example
+
+# Downloaded by android-project/scripts/fetch-sherpa-onnx.sh
+android-project/app/libs/*.aar
+android-project/app/libs/*.part
