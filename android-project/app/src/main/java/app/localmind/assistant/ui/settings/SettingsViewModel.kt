@@ -9,6 +9,14 @@ import app.localmind.assistant.data.backup.BackupSummary
 import app.localmind.assistant.data.backup.PasswordRequiredException
 import app.localmind.assistant.data.settings.AssistantSettingsStore
 import app.localmind.assistant.data.study.ReviewReminder
+import app.localmind.assistant.data.backup.AutoBackup
+import app.localmind.assistant.data.backup.AutoBackupState
+import app.localmind.assistant.data.backup.WrongPasswordException
+import app.localmind.assistant.data.diagnostics.Diagnostics
+import app.localmind.assistant.data.models.ModelLibrary
+import app.localmind.assistant.data.persona.TutorLevelStore
+import app.localmind.assistant.domain.persona.SpeechLanguage
+import app.localmind.assistant.domain.persona.TutorLevel
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -29,10 +37,10 @@ sealed interface BackupDialog {
 class SettingsViewModel @Inject constructor(
     private val app: Application,
     private val backups: BackupManager,
-    private val autoBackup: app.localmind.assistant.data.backup.AutoBackup,
-    private val modelLibrary: app.localmind.assistant.data.models.ModelLibrary,
+    private val autoBackup: AutoBackup,
+    private val modelLibrary: ModelLibrary,
     private val assistant: AssistantSettingsStore,
-    private val tutorLevels: app.localmind.assistant.data.persona.TutorLevelStore
+    private val tutorLevels: TutorLevelStore
 ) : AndroidViewModel(app) {
 
     val reviewReminder: StateFlow<Boolean> = assistant.reviewReminder
@@ -40,7 +48,7 @@ class SettingsViewModel @Inject constructor(
     val openToHome: StateFlow<Boolean> = assistant.openToHome
     val levels = tutorLevels.levels
 
-    fun setLevel(language: app.localmind.assistant.domain.persona.SpeechLanguage, level: app.localmind.assistant.domain.persona.TutorLevel) =
+    fun setLevel(language: SpeechLanguage, level: TutorLevel) =
         tutorLevels.set(language, level)
 
     fun setOpenToHome(home: Boolean) = assistant.setOpenToHome(home)
@@ -73,7 +81,7 @@ class SettingsViewModel @Inject constructor(
 
     // --- Automatic backups -------------------------------------------------------------------
 
-    val autoBackupState: StateFlow<app.localmind.assistant.data.backup.AutoBackupState> = autoBackup.state
+    val autoBackupState: StateFlow<AutoBackupState> = autoBackup.state
 
     fun setAutoBackupFolder(uri: Uri?) {
         if (uri == null) return
@@ -95,7 +103,7 @@ class SettingsViewModel @Inject constructor(
         val models = runCatching { modelLibrary.refresh() }.getOrDefault(emptyList())
         val active = modelLibrary.activePath.value?.let { java.io.File(it).name } ?: "none"
         val auto = autoBackup.state.value
-        app.localmind.assistant.data.diagnostics.Diagnostics.report(
+        Diagnostics.report(
             app,
             listOf(
                 "Models" to "${models.size} (active: $active)",
@@ -109,9 +117,9 @@ class SettingsViewModel @Inject constructor(
         )
     }
 
-    fun crashCount(): Int = app.localmind.assistant.data.diagnostics.Diagnostics.crashes(app).size
+    fun crashCount(): Int = Diagnostics.crashes(app).size
 
-    fun clearCrashes() = app.localmind.assistant.data.diagnostics.Diagnostics.clear(app)
+    fun clearCrashes() = Diagnostics.clear(app)
 
     /** Password chosen for the export in progress (kept only until the file is written). */
     private var pendingExportPassword: String? = null
@@ -161,7 +169,7 @@ class SettingsViewModel @Inject constructor(
             } catch (e: PasswordRequiredException) {
                 _dialog.value = BackupDialog.RestorePassword(uri, wrongBefore = true)
                 null
-            } catch (e: app.localmind.assistant.data.backup.WrongPasswordException) {
+            } catch (e: WrongPasswordException) {
                 _dialog.value = BackupDialog.RestorePassword(uri, wrongBefore = true)
                 null
             }
