@@ -27,6 +27,12 @@ New in 1.1:
 - **Sturdier search**: Brave and Mojeek join DuckDuckGo and Bing; Settings shows which answer.
 - **Read it all here**: everything brought back opens in full in the Lobster.
 
+New in 1.2:
+
+- **Diagnostics**: Settings → Diagnostics shows the version, device, battery setting, recent
+  problems from the Log and any crash, to copy into a bug report. Nothing is sent.
+- **Updates with Obtainium**: each signed build is a GitHub release (`slothlobster-v…`).
+
 ## Setting it up
 
 1. In SlothLlama, open the **Lobster** page, switch it on, choose a mailbox folder (for example

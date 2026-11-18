@@ -29,6 +29,8 @@ sealed interface BackupDialog {
 class SettingsViewModel @Inject constructor(
     private val app: Application,
     private val backups: BackupManager,
+    private val autoBackup: app.localmind.assistant.data.backup.AutoBackup,
+    private val modelLibrary: app.localmind.assistant.data.models.ModelLibrary,
     private val assistant: AssistantSettingsStore,
     private val tutorLevels: app.localmind.assistant.data.persona.TutorLevelStore
 ) : AndroidViewModel(app) {
@@ -60,6 +62,56 @@ class SettingsViewModel @Inject constructor(
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
+
+    /** After a restore: models and Library files the backup lists that need importing again. */
+    private val _toImport = MutableStateFlow<List<String>?>(null)
+    val toImport: StateFlow<List<String>?> = _toImport.asStateFlow()
+
+    fun dismissToImport() {
+        _toImport.value = null
+    }
+
+    // --- Automatic backups -------------------------------------------------------------------
+
+    val autoBackupState: StateFlow<app.localmind.assistant.data.backup.AutoBackupState> = autoBackup.state
+
+    fun setAutoBackupFolder(uri: Uri?) {
+        if (uri == null) return
+        runCatching { autoBackup.setFolder(uri) }
+            .onFailure { _message.value = "SlothLlama couldn't keep access to that folder. Try another one." }
+    }
+
+    fun setAutoBackupPassword(password: String) {
+        runCatching { autoBackup.setPassword(password) }.onFailure { _message.value = it.message }
+    }
+
+    fun setAutoBackup(on: Boolean) = autoBackup.setEnabled(on)
+
+    fun autoBackupNow() = run("Backing up…") { "Backup saved: ${autoBackup.runNow()}." }
+
+    // --- Diagnostics -------------------------------------------------------------------------
+
+    suspend fun diagnosticsReport(): String = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+        val models = runCatching { modelLibrary.refresh() }.getOrDefault(emptyList())
+        val active = modelLibrary.activePath.value?.let { java.io.File(it).name } ?: "none"
+        val auto = autoBackup.state.value
+        app.localmind.assistant.data.diagnostics.Diagnostics.report(
+            app,
+            listOf(
+                "Models" to "${models.size} (active: $active)",
+                "Automatic backup" to when {
+                    !auto.enabled -> "off"
+                    auto.lastAt == 0L -> "on, not run yet"
+                    else -> "on, last ${if (auto.lastOk) "saved" else "failed"} " +
+                        java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date(auto.lastAt))
+                }
+            )
+        )
+    }
+
+    fun crashCount(): Int = app.localmind.assistant.data.diagnostics.Diagnostics.crashes(app).size
+
+    fun clearCrashes() = app.localmind.assistant.data.diagnostics.Diagnostics.clear(app)
 
     /** Password chosen for the export in progress (kept only until the file is written). */
     private var pendingExportPassword: String? = null
@@ -125,8 +177,11 @@ class SettingsViewModel @Inject constructor(
         _message.value = null
     }
 
-    private fun restoreDone(summary: BackupSummary) =
-        "Restored ${summary.describe()}. Restart SlothLlama to apply restored settings."
+    private fun restoreDone(summary: BackupSummary): String {
+        val missing = summary.missingModels.map { "Model: $it" } + summary.missingLibrary.map { "Library: $it" }
+        if (missing.isNotEmpty()) _toImport.value = missing
+        return "Restored ${summary.describe()}. Restart SlothLlama to apply restored settings."
+    }
 
     private fun BackupSummary.describe(): String =
         "$chats chats, $flashcards flashcards, $personas custom personas"

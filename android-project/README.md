@@ -68,7 +68,8 @@ model too big for the GPU falls back to the CPU on its own.
   `model.int8.onnx` and `tokens.txt` together. Tap the mic in any chat; Mandarin tutors listen
   for Mandarin, Cantonese tutors for Cantonese. The transcript lands in the box to check first.
 - **Flashcards.** Tap ☆ under a tutor reply to save its ⭐ words and word-list entries; review
-  them under **Flashcards** (spaced repetition: Again / Hard / Good / Easy).
+  them under **Flashcards** (spaced repetition with FSRS, the scheduler Anki uses: Again / Hard /
+  Good / Easy; cards from older versions keep their progress).
 - **Ask SlothLlama.** Select text in any app → **Ask SlothLlama** opens a new chat with the
   question waiting in the box.
 - **A model per persona.** Personas → Model, e.g. a Cantonese model for the Cantonese tutors.
@@ -133,7 +134,14 @@ model too big for the GPU falls back to the CPU on its own.
   back for you to file in the Library, Notes or a chat. In a chat, "ask the lobster to …" sends
   an order too. The format is in [docs/LOBSTER_MAILBOX.md](docs/LOBSTER_MAILBOX.md).
 - **Backups.** Settings → Backup: one file with chats, custom personas, flashcards, notes and settings,
-  optionally AES-256 encrypted with a password. Restore adds it back. Models aren't included.
+  optionally AES-256 encrypted with a password. Restore adds it back. Models aren't included, but
+  a backup lists their names (and the Library's), so a restore shows what to import again.
+  **Back up every week** saves an encrypted backup into a folder you choose (an SD card or USB
+  stick is safest) and keeps the newest four; its password is locked by the Android Keystore.
+- **Diagnostics.** Settings → About → Diagnostics: version, device, memory and any recent crash,
+  noted on the tablet only, to copy into a bug report.
+- **Updates with Obtainium.** Each signed build is published as a GitHub release
+  (`slothllama-v…`), so Obtainium can install updates. See [docs/UPDATES.md](docs/UPDATES.md).
 - **Small things.** Continue for cut-off replies, chat search, one-tap follow-ups (Correct me,
   Quiz me…), home-screen shortcuts, a character-size setting, speed / context under replies,
   and an optional daily flashcard reminder.

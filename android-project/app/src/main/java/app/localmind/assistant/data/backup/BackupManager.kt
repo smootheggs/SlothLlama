@@ -40,10 +40,28 @@ data class BackupContents(
     val personas: List<PersonaEntity>,
     val flashcards: List<VocabularyItemEntity>,
     /** SharedPreferences file → key → type-tagged value ("b:true", "i:9", "f:1.2", "l:…", "s:…"). */
-    val settings: Map<String, Map<String, String>> = emptyMap()
+    val settings: Map<String, Map<String, String>> = emptyMap(),
+    /** What else was on the device (names only), so a restore can list what to import again. */
+    val inventory: BackupInventory = BackupInventory()
 )
 
-data class BackupSummary(val chats: Int, val messages: Int, val personas: Int, val flashcards: Int)
+/** Names of the models and Library files, which are too large to go into a backup. */
+@Serializable
+data class BackupInventory(
+    val models: List<String> = emptyList(),
+    val library: List<String> = emptyList()
+)
+
+data class BackupSummary(
+    val chats: Int,
+    val messages: Int,
+    val personas: Int,
+    val flashcards: Int,
+    /** After a restore: models the backup lists that aren't on this device. */
+    val missingModels: List<String> = emptyList(),
+    /** After a restore: Library files the backup lists that aren't on this device. */
+    val missingLibrary: List<String> = emptyList()
+)
 
 class WrongPasswordException : Exception("Wrong password, or the backup file is damaged.")
 class PasswordRequiredException : Exception("This backup is protected with a password.")
@@ -61,7 +79,9 @@ class BackupManager @Inject constructor(
     @ApplicationContext private val context: Context,
     private val database: LocalMindDatabase,
     private val dao: LocalMindDao,
-    private val notes: app.localmind.assistant.data.tools.NotesStore
+    private val notes: app.localmind.assistant.data.tools.NotesStore,
+    private val models: app.localmind.assistant.data.models.ModelLibrary,
+    private val library: app.localmind.assistant.data.library.LibraryStore
 ) {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
@@ -73,7 +93,8 @@ class BackupManager @Inject constructor(
             messages = dao.getAllMessages(),
             personas = dao.getCustomPersonas(),
             flashcards = dao.getAllVocabulary(),
-            settings = readSettings()
+            settings = readSettings(),
+            inventory = inventory()
         )
         val payload = gzip(json.encodeToString(BackupContents.serializer(), contents).toByteArray())
         val bytes = if (password.isNullOrEmpty()) header(encrypted = false) + payload else seal(payload, password)
@@ -114,8 +135,20 @@ class BackupManager @Inject constructor(
         }
         writeSettings(contents.settings)
         notes.reload()
-        contents.summary()
+        val here = inventory()
+        contents.summary().copy(
+            missingModels = contents.inventory.models - here.models.toSet(),
+            missingLibrary = contents.inventory.library - here.library.toSet()
+        )
     }
+
+    private suspend fun inventory(): BackupInventory = runCatching {
+        library.refresh()
+        BackupInventory(
+            models = models.refresh().map { it.file.name }.sorted(),
+            library = library.items.value.orEmpty().map { it.name }.sorted()
+        )
+    }.getOrDefault(BackupInventory())
 
     // --- Settings --------------------------------------------------------------------------
 

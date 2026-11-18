@@ -8,7 +8,11 @@ import kotlinx.coroutines.flow.map
 import java.util.UUID
 import javax.inject.Inject
 import javax.inject.Singleton
+import java.util.Locale
+import kotlin.math.exp
 import kotlin.math.max
+import kotlin.math.min
+import kotlin.math.pow
 import kotlin.math.roundToInt
 
 /** [romanization]: the label for the pronunciation field ("" = the language needs none). */
@@ -36,7 +40,9 @@ data class Flashcard(
     val example: String,
     val ease: Float,
     val intervalDays: Int,
-    val dueAt: Long
+    val dueAt: Long,
+    /** FSRS memory state ("fsrs1|stability|difficulty|last review|reviews|lapses"); "" = not yet scheduled by FSRS. */
+    val memory: String = ""
 ) {
     fun isDue(now: Long = System.currentTimeMillis()) = dueAt <= now
 }
@@ -44,34 +50,114 @@ data class Flashcard(
 /** How well a card was remembered. */
 enum class Grade(val label: String) { AGAIN("Again"), HARD("Hard"), GOOD("Good"), EASY("Easy") }
 
+/** A card's memory as FSRS models it: how long it lasts (stability) and how hard it is (difficulty). */
+data class CardMemory(
+    /** Days until recall drops to 90%. */
+    val stability: Double,
+    /** 1 (easy) to 10 (hard). */
+    val difficulty: Double,
+    val lastReview: Long,
+    val reviews: Int = 0,
+    val lapses: Int = 0
+) {
+    fun encode(): String =
+        String.format(Locale.US, "fsrs1|%.4f|%.4f|%d|%d|%d", stability, difficulty, lastReview, reviews, lapses)
+
+    companion object {
+        fun decode(text: String): CardMemory? {
+            val p = text.split('|')
+            if (p.size != 6 || p[0] != "fsrs1") return null
+            return runCatching {
+                CardMemory(p[1].toDouble(), p[2].toDouble(), p[3].toLong(), p[4].toInt(), p[5].toInt())
+            }.getOrNull()?.takeIf { it.stability > 0 && it.difficulty in 1.0..10.0 }
+        }
+    }
+}
+
 /**
- * SM-2 spaced repetition (the scheduler behind Anki and SuperMemo). The interval itself carries
- * the card's progress: 0 = new or forgotten, then 1 day, 6 days, and growing by the ease factor.
+ * FSRS-5 spaced repetition (the scheduler Anki offers since 23.10), with its published default
+ * parameters and a 90% retention target. It models each card's stability and difficulty, and
+ * needs fewer reviews than SM-2 for the same recall. Cards scheduled by the old SM-2 code are
+ * taken over from their current interval and ease.
  */
 object Scheduler {
     private const val MINUTE = 60_000L
     private const val DAY = 24 * 60 * MINUTE
-    private const val MIN_EASE = 1.3f
+    const val RETENTION = 0.9
+    private const val DECAY = -0.5
+    private const val FACTOR = 19.0 / 81.0
+    private val W = doubleArrayOf(
+        0.40255, 1.18385, 3.173, 15.69105, 7.1949, 0.5345, 1.4604, 0.0046, 1.54575, 0.1192,
+        1.01925, 1.9395, 0.11, 0.29605, 2.2698, 0.2315, 2.9898, 0.51655, 0.6621
+    )
 
-    data class Next(val ease: Float, val intervalDays: Int, val dueAt: Long)
+    data class Next(val ease: Float, val intervalDays: Int, val dueAt: Long, val memory: String = "")
 
     fun next(card: Flashcard, grade: Grade, now: Long = System.currentTimeMillis()): Next {
-        val i = card.intervalDays
-        return when (grade) {
-            Grade.AGAIN -> Next(max(MIN_EASE, card.ease - 0.2f), 0, now + 10 * MINUTE)
-            Grade.HARD -> {
-                val days = if (i == 0) 1 else max(i + 1, (i * 1.2f).roundToInt())
-                Next(max(MIN_EASE, card.ease - 0.15f), days, now + days * DAY)
+        val g = grade.ordinal + 1
+        val before = CardMemory.decode(card.memory) ?: fromSm2(card)
+        val stability: Double
+        val difficulty: Double
+        if (before == null) {
+            stability = W[g - 1]
+            difficulty = initialDifficulty(g)
+        } else {
+            val elapsed = max(0.0, (now - before.lastReview).toDouble() / DAY)
+            val r = retrievability(elapsed, before.stability)
+            stability = when {
+                elapsed < 1.0 -> shortTerm(before.stability, g)
+                g == 1 -> forget(before.difficulty, before.stability, r)
+                else -> recall(before.difficulty, before.stability, r, g)
             }
-            Grade.GOOD -> {
-                val days = when (i) { 0 -> 1; 1 -> 6; else -> max(i + 1, (i * card.ease).roundToInt()) }
-                Next(card.ease, days, now + days * DAY)
-            }
-            Grade.EASY -> {
-                val days = when (i) { 0 -> 4; else -> max(i + 2, (i * card.ease * 1.3f).roundToInt()) }
-                Next(card.ease + 0.15f, days, now + days * DAY)
-            }
+            difficulty = nextDifficulty(before.difficulty, g)
         }
+        val s = stability.coerceIn(0.01, 36_500.0)
+        val memory = CardMemory(
+            stability = s,
+            difficulty = difficulty,
+            lastReview = now,
+            reviews = (before?.reviews ?: 0) + 1,
+            lapses = (before?.lapses ?: 0) + if (g == 1 && before != null) 1 else 0
+        ).encode()
+        if (g == 1) return Next(card.ease, 0, now + 10 * MINUTE, memory)
+        val days = interval(s).roundToInt().coerceIn(1, 3650)
+        return Next(card.ease, days, now + days * DAY, memory)
+    }
+
+    fun retrievability(elapsedDays: Double, stability: Double): Double =
+        (1 + FACTOR * elapsedDays / stability).pow(DECAY)
+
+    /** Days until recall falls to [RETENTION]. */
+    fun interval(stability: Double): Double = stability / FACTOR * (RETENTION.pow(1 / DECAY) - 1)
+
+    private fun initialDifficulty(g: Int): Double = (W[4] - exp(W[5] * (g - 1)) + 1).coerceIn(1.0, 10.0)
+
+    private fun nextDifficulty(d: Double, g: Int): Double {
+        val delta = -W[6] * (g - 3)
+        val damped = d + delta * (10 - d) / 9
+        return (W[7] * initialDifficulty(4) + (1 - W[7]) * damped).coerceIn(1.0, 10.0)
+    }
+
+    private fun recall(d: Double, s: Double, r: Double, g: Int): Double {
+        val hard = if (g == 2) W[15] else 1.0
+        val easy = if (g == 4) W[16] else 1.0
+        return s * (1 + exp(W[8]) * (11 - d) * s.pow(-W[9]) * (exp(W[10] * (1 - r)) - 1) * hard * easy)
+    }
+
+    private fun forget(d: Double, s: Double, r: Double): Double =
+        min(s, W[11] * d.pow(-W[12]) * ((s + 1).pow(W[13]) - 1) * exp(W[14] * (1 - r)))
+
+    private fun shortTerm(s: Double, g: Int): Double = s * exp(W[17] * (g - 3 + W[18]))
+
+    /** A card last scheduled by SM-2: its interval stands in for stability, its ease for difficulty. */
+    private fun fromSm2(card: Flashcard): CardMemory? {
+        if (card.intervalDays <= 0) return null
+        return CardMemory(
+            stability = card.intervalDays.toDouble(),
+            difficulty = (5 + (2.5 - card.ease) * 3.33).coerceIn(1.0, 10.0),
+            lastReview = card.dueAt - card.intervalDays * DAY,
+            reviews = 1
+        )
     }
 
     /** "10m", "1d", "6d", "3mo" for the grade buttons. */
@@ -115,10 +201,12 @@ class FlashcardRepository @Inject constructor(private val dao: LocalMindDao) {
     }
 
     suspend fun review(card: Flashcard, grade: Grade) {
-        val next = Scheduler.next(card, grade)
         val existing = dao.findVocabularyItem(card.term, card.language.code) ?: return
+        // Schedule from the stored card, so the memory is always the latest one.
+        val next = Scheduler.next(existing.toCard(), grade)
         dao.upsertVocabularyItem(
-            existing.copy(easeFactor = next.ease, intervalDays = next.intervalDays, nextReviewAt = next.dueAt)
+            // The FSRS memory lives in the card's unused level column, so the database needs no migration.
+            existing.copy(easeFactor = next.ease, intervalDays = next.intervalDays, nextReviewAt = next.dueAt, cefrLevel = next.memory)
         )
     }
 
@@ -133,7 +221,8 @@ class FlashcardRepository @Inject constructor(private val dao: LocalMindDao) {
         example = exampleSentence,
         ease = easeFactor,
         intervalDays = intervalDays,
-        dueAt = nextReviewAt
+        dueAt = nextReviewAt,
+        memory = cefrLevel
     )
 }
 

@@ -42,7 +42,14 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Intent
+import android.os.PowerManager
+import androidx.compose.runtime.remember
+import androidx.compose.ui.platform.LocalContext
 import app.slothlobster.BuildConfig
+import app.slothlobster.core.Diagnostics
 import app.slothlobster.core.Live
 import app.slothlobster.core.Saved
 import app.slothlobster.core.Settings
@@ -69,6 +76,13 @@ fun SettingsScreen(
     var pairing by rememberSaveable { mutableStateOf(false) }
     var timing by rememberSaveable { mutableStateOf(false) }
     var feeds by rememberSaveable { mutableStateOf(false) }
+    var diagnosticsOpen by rememberSaveable { mutableStateOf(false) }
+    var diagnosticsVersion by rememberSaveable { mutableStateOf(0) }
+    val context = LocalContext.current
+    val crashCount = remember(diagnosticsVersion, diagnosticsOpen) { Diagnostics.crashes(context).size }
+    val unrestricted = remember(diagnosticsVersion, diagnosticsOpen) {
+        context.getSystemService(PowerManager::class.java)?.isIgnoringBatteryOptimizations(context.packageName) == true
+    }
     val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) onFolder(uri)
     }
@@ -202,6 +216,32 @@ fun SettingsScreen(
                 }
             }
 
+            Section("Diagnostics") {
+                Panel {
+                    ListRow(
+                        "Battery use",
+                        if (unrestricted) "Unrestricted: checks run on time"
+                        else "Optimised: Android may hold checks back. Set SlothLobster to Unrestricted",
+                        onClick = {
+                            runCatching {
+                                context.startActivity(Intent(android.provider.Settings.ACTION_IGNORE_BATTERY_OPTIMIZATION_SETTINGS))
+                            }
+                            diagnosticsVersion++
+                        }
+                    ) { StatusDot(unrestricted) }
+                    ListRow(
+                        "Report",
+                        "Version, device, recent problems and " + when (crashCount) {
+                            0 -> "no crashes"
+                            1 -> "1 crash"
+                            else -> "$crashCount crashes"
+                        } + ", to copy into a bug report",
+                        onClick = { diagnosticsOpen = true },
+                        divider = false
+                    ) { Text("Open", color = Sea.Coral, fontSize = 14.sp, fontWeight = FontWeight.Medium) }
+                }
+            }
+
             GhostButton("Stop everything now", onStopEverything, Modifier.fillMaxWidth(), danger = true)
 
             Text(
@@ -217,6 +257,21 @@ fun SettingsScreen(
     if (timing) TimeDialog(s.briefHour, s.briefMinute, onDismiss = { timing = false }) { h, m ->
         onSettings { it.copy(briefHour = h, briefMinute = m, lastBriefDay = null) }
         timing = false
+    }
+    if (diagnosticsOpen) {
+        val report = remember(diagnosticsVersion) { Diagnostics.report(context, saved, live) }
+        DiagnosticsDialog(
+            report = report,
+            onCopy = {
+                context.getSystemService(ClipboardManager::class.java)
+                    ?.setPrimaryClip(ClipData.newPlainText("SlothLobster diagnostics", report))
+            },
+            onClear = {
+                Diagnostics.clear(context)
+                diagnosticsVersion++
+            },
+            onDismiss = { diagnosticsOpen = false }
+        )
     }
     if (feeds) FeedsDialog(Feeds.formatList(s.feeds, s.feedGroups), onDismiss = { feeds = false }) { text ->
         onSetFeeds(text)
@@ -288,6 +343,35 @@ private fun PairDialog(onDismiss: () -> Unit, onPair: (String) -> Boolean) {
             TextButton(onClick = { wrong = !onPair(code) }, enabled = code.isNotBlank()) { Text("Pair", color = Sea.Coral) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = Sea.Muted) } }
+    )
+}
+
+@Composable
+private fun DiagnosticsDialog(report: String, onCopy: () -> Unit, onClear: () -> Unit, onDismiss: () -> Unit) {
+    var copied by remember { mutableStateOf(false) }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Sea.Card,
+        title = { Text("Diagnostics", color = Sea.Text) },
+        text = {
+            Column(Modifier.heightIn(max = 460.dp).verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "Stays on this device unless you copy it. It can include links from the Log, so read it before you share it.",
+                    color = Sea.Muted,
+                    fontSize = 12.sp
+                )
+                Text(report, color = Sea.Text, fontSize = 11.sp, lineHeight = 15.sp, fontFamily = FontFamily.Monospace)
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { onCopy(); copied = true }) { Text(if (copied) "Copied" else "Copy", color = Sea.Coral) }
+        },
+        dismissButton = {
+            Row {
+                TextButton(onClick = onClear) { Text("Clear crashes", color = Sea.Muted) }
+                TextButton(onClick = onDismiss) { Text("Close", color = Sea.Muted) }
+            }
+        }
     )
 }
 

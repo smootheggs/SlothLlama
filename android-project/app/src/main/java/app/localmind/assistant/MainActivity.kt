@@ -71,6 +71,7 @@ class LocalMindApp : Application(), Configuration.Provider {
     @Inject lateinit var workerFactory: HiltWorkerFactory
     @Inject lateinit var assistantSettings: AssistantSettingsStore
     @Inject lateinit var attachmentStore: AttachmentStore
+    @Inject lateinit var autoBackup: app.localmind.assistant.data.backup.AutoBackup
 
     // WorkManager starts on demand with Hilt's worker factory (the default initializer is removed
     // in the manifest), so workers such as the flashcard reminder get their dependencies injected.
@@ -79,7 +80,10 @@ class LocalMindApp : Application(), Configuration.Provider {
 
     override fun onCreate() {
         super.onCreate()
+        // Crashes are noted in private storage for Settings → Diagnostics (nothing is sent).
+        app.localmind.assistant.data.diagnostics.Diagnostics.install(this)
         AppShortcuts.publish(this)
+        app.localmind.assistant.data.backup.AutoBackup.schedule(this, autoBackup.state.value.enabled)
         // Keep the daily review reminder scheduled (or cancelled) to match the setting.
         ReviewReminder.schedule(this, assistantSettings.reviewReminder.value, assistantSettings.reminderHour.value, replace = false)
         // Tidy photos left behind by deleted chats, in the background.

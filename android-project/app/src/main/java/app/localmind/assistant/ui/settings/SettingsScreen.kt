@@ -55,6 +55,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.rememberLauncherForActivityResult
 import kotlin.math.roundToInt
+import kotlinx.coroutines.launch
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.SpanStyle
@@ -130,6 +131,35 @@ fun SettingsScreen(
     }
     val openBackup = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         vm.restore(uri)
+    }
+    val auto by vm.autoBackupState.collectAsStateWithLifecycle()
+    val toImport by vm.toImport.collectAsStateWithLifecycle()
+    var autoPassword by remember { mutableStateOf(false) }
+    // Switching weekly backups on walks through what's missing: folder, then password.
+    var pendingEnable by remember { mutableStateOf(false) }
+    val continueEnable: () -> Unit = {
+        val now = vm.autoBackupState.value
+        when {
+            !pendingEnable -> Unit
+            now.folder == null -> pendingEnable = false
+            !now.hasPassword -> autoPassword = true
+            else -> {
+                pendingEnable = false
+                vm.setAutoBackup(true)
+            }
+        }
+    }
+    val pickBackupFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        vm.setAutoBackupFolder(uri)
+        if (uri == null) pendingEnable = false else continueEnable()
+    }
+    val scope = androidx.compose.runtime.rememberCoroutineScope()
+    var diagnosticsOpen by remember { mutableStateOf(false) }
+    var diagnostics by remember { mutableStateOf<String?>(null) }
+    val crashCount = remember(diagnosticsOpen) { vm.crashCount() }
+    val loadDiagnostics: () -> Unit = {
+        diagnostics = null
+        scope.launch { diagnostics = vm.diagnosticsReport() }
     }
 
     Box(Modifier.fillMaxSize().background(P.Canvas)) {
@@ -311,6 +341,36 @@ fun SettingsScreen(
                     LinkRow("Restore from backup", "Add a backup's chats, personas and flashcards to this tablet") {
                         if (busy == null) openBackup.launch(arrayOf("*/*"))
                     }
+                    HorizontalDivider(color = P.Border)
+                    ToggleRow("Back up every week", autoBackupLine(auto), auto.enabled) { on ->
+                        when {
+                            !on -> vm.setAutoBackup(false)
+                            auto.folder == null -> {
+                                pendingEnable = true
+                                pickBackupFolder.launch(null)
+                            }
+                            !auto.hasPassword -> {
+                                pendingEnable = true
+                                autoPassword = true
+                            }
+                            else -> vm.setAutoBackup(true)
+                        }
+                    }
+                    HorizontalDivider(color = P.Border)
+                    LinkRow("Backup folder", auto.folder ?: "Where weekly backups go. An SD card or USB stick is safest") {
+                        pickBackupFolder.launch(null)
+                    }
+                    HorizontalDivider(color = P.Border)
+                    LinkRow(
+                        "Backup password",
+                        if (auto.hasPassword) "Set. Tap to change it" else "Needed: weekly backups are always encrypted"
+                    ) { autoPassword = true }
+                    if (auto.ready) {
+                        HorizontalDivider(color = P.Border)
+                        LinkRow("Back up now", busy ?: "Save a weekly-style backup into the folder now") {
+                            if (busy == null) vm.autoBackupNow()
+                        }
+                    }
                 }
 
                 Section("About") {
@@ -331,6 +391,17 @@ fun SettingsScreen(
                     )
                     dictionaryLicense?.let { text ->
                         LinkRow("Dictionary sources", "CC-CEDICT (CC BY-SA 4.0) and ToJyutping") { dictionarySources = text }
+                    }
+                    LinkRow(
+                        "Diagnostics",
+                        "Version, device and " + when (crashCount) {
+                            0 -> "no crashes recorded"
+                            1 -> "1 recent crash"
+                            else -> "$crashCount recent crashes"
+                        } + ", to copy into a bug report"
+                    ) {
+                        diagnosticsOpen = true
+                        loadDiagnostics()
                     }
                 }
             }
@@ -381,6 +452,36 @@ fun SettingsScreen(
             onDismiss = vm::dismissDialog
         )
         null -> Unit
+    }
+    if (autoPassword) {
+        AutoBackupPasswordDialog(
+            changing = auto.hasPassword,
+            onConfirm = { password ->
+                vm.setAutoBackupPassword(password)
+                autoPassword = false
+                continueEnable()
+            },
+            onDismiss = {
+                autoPassword = false
+                pendingEnable = false
+            }
+        )
+    }
+    toImport?.let { items -> ToImportDialog(items, onDismiss = vm::dismissToImport) }
+    if (diagnosticsOpen) {
+        DiagnosticsDialog(
+            report = diagnostics,
+            onCopy = {
+                val clipboard = context.getSystemService(android.content.ClipboardManager::class.java)
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("SlothLlama diagnostics", diagnostics.orEmpty()))
+                scope.launch { snackbar.showSnackbar("Diagnostics copied.") }
+            },
+            onClear = {
+                vm.clearCrashes()
+                loadDiagnostics()
+            },
+            onDismiss = { diagnosticsOpen = false }
+        )
     }
     dictionarySources?.let { text ->
         AlertDialog(
@@ -613,4 +714,14 @@ private fun hourLabel(hour: Int): String {
         set(java.util.Calendar.MINUTE, 0)
     }
     return android.text.format.DateFormat.getTimeFormat(context).format(cal.time)
+}
+
+private fun autoBackupLine(auto: app.localmind.assistant.data.backup.AutoBackupState): String {
+    val day = { ms: Long -> java.text.SimpleDateFormat("d MMM", java.util.Locale.getDefault()).format(java.util.Date(ms)) }
+    return when {
+        !auto.enabled -> "Keeps the newest ${app.localmind.assistant.data.backup.AutoBackup.KEEP} encrypted backups in a folder you choose"
+        auto.lastAt == 0L -> "On. The first backup runs within a day"
+        !auto.lastOk -> "Last try (${day(auto.lastAt)}) failed: ${auto.lastResult.orEmpty()}"
+        else -> "On. Last saved ${day(auto.lastAt)}: ${auto.lastResult.orEmpty()}"
+    }
 }
