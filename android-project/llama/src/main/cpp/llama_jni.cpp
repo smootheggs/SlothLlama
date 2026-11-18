@@ -45,6 +45,9 @@ static common_chat_templates_ptr          g_chat_templates;
 static common_sampler                   * g_sampler;
 static int                                g_n_ctx = DEFAULT_CONTEXT_SIZE;
 static bool                               g_last_stop_eog = false;
+// Reasoning models (Qwen3 / Qwen3.5, DeepSeek-R1 distills, …): their chat template mentions <think>.
+static bool                               g_template_thinks = false;
+static bool                               g_thinking_enabled = false;
 
 extern "C"
 JNIEXPORT void JNICALL
@@ -130,6 +133,8 @@ Java_app_localmind_llama_LlamaNative_prepare(JNIEnv * /*env*/, jobject /*unused*
     g_context = context;
     g_batch = common_batch(context);
     g_chat_templates = common_chat_templates_init(g_model, "");
+    const char *raw_template = llama_model_chat_template(g_model, /* name */ nullptr);
+    g_template_thinks = raw_template != nullptr && std::string(raw_template).find("<think>") != std::string::npos;
     g_sampler = new_sampler(DEFAULT_SAMPLER_TEMP);
     return 0;
 }
@@ -289,13 +294,19 @@ static void reset_long_term_states(const bool clear_kv_cache = true) {
  * - take half of the last (system_prompt_position - system_prompt_position) tokens
  * - recompute the logits in batches
  */
-static void shift_context() {
+static bool shift_context() {
     const int n_discard = (current_position - system_prompt_position) / 2;
     LOGi("%s: Discarding %d tokens", __func__, n_discard);
-    llama_memory_seq_rm(llama_get_memory(g_context), 0, system_prompt_position, system_prompt_position + n_discard);
+    // Hybrid / recurrent models (e.g. Qwen3.5) can't drop a middle range of their memory.
+    // Stop cleanly instead; the app then replays a trimmed history on the next turn.
+    if (!llama_memory_seq_rm(llama_get_memory(g_context), 0, system_prompt_position, system_prompt_position + n_discard)) {
+        LOGw("%s: this model's memory can't be shifted; stopping here", __func__);
+        return false;
+    }
     llama_memory_seq_add(llama_get_memory(g_context), 0, system_prompt_position + n_discard, current_position, -n_discard);
     current_position -= n_discard;
     LOGi("%s: Context shifting done! Current position: %d", __func__, current_position);
+    return true;
 }
 
 static std::string chat_add_and_format(const std::string &role, const std::string &content) {
@@ -342,7 +353,7 @@ static int decode_tokens_in_batches(
         // Shift context if current batch cannot fit into the context
         if (start_pos + i + cur_batch_size >= g_n_ctx - OVERFLOW_HEADROOM) {
             LOGw("%s: Current batch won't fit into context! Shifting...", __func__);
-            shift_context();
+            if (!shift_context()) return 1;
         }
 
         // Add tokens to the batch with proper positions
@@ -433,6 +444,11 @@ Java_app_localmind_llama_LlamaNative_processUserPrompt(
     const bool has_chat_template = common_chat_templates_was_explicit(g_chat_templates.get());
     if (has_chat_template) {
         formatted_user_prompt = chat_add_and_format(ROLE_USER, user_prompt);
+        // Reasoning models: open the reply with an empty think block to skip thinking (what the
+        // official templates do for enable_thinking=false), or with "<think>" to let it think.
+        if (g_template_thinks) {
+            formatted_user_prompt += g_thinking_enabled ? "<think>\n" : "<think>\n\n</think>\n\n";
+        }
     }
     env->ReleaseStringUTFChars(juser_prompt, user_prompt);
 
@@ -506,7 +522,7 @@ Java_app_localmind_llama_LlamaNative_generateNextToken(
     // Infinite text generation via context shifting
     if (current_position >= g_n_ctx - OVERFLOW_HEADROOM) {
         LOGw("%s: Context full! Shifting...", __func__);
-        shift_context();
+        if (!shift_context()) return nullptr;
     }
 
     // Stop if reaching the marked position
@@ -591,6 +607,18 @@ Java_app_localmind_llama_LlamaNative_setSampling(
  * roles[i] is "system", "user" or "assistant". The next processUserPrompt continues from here.
  * Returns 0 on success, 1 if it doesn't fit the context, 2 if decoding failed.
  */
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_app_localmind_llama_LlamaNative_supportsThinking(JNIEnv * /*env*/, jobject /*unused*/) {
+    return g_template_thinks ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_app_localmind_llama_LlamaNative_setThinking(JNIEnv * /*env*/, jobject /*unused*/, jboolean enabled) {
+    g_thinking_enabled = enabled == JNI_TRUE;
+}
+
 extern "C"
 JNIEXPORT jint JNICALL
 Java_app_localmind_llama_LlamaNative_loadConversation(

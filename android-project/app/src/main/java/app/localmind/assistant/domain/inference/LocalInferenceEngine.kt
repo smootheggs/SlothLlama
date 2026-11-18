@@ -23,7 +23,8 @@ interface LocalInferenceEngine {
 sealed interface EngineRuntimeState {
     data object Idle : EngineRuntimeState
     data class Loading(val modelName: String) : EngineRuntimeState
-    data class Ready(val modelName: String, val maxTokens: Int) : EngineRuntimeState
+    /** [canThink]: a reasoning model whose thinking can be switched on or off. */
+    data class Ready(val modelName: String, val maxTokens: Int, val canThink: Boolean = false) : EngineRuntimeState
     data class NoModelFound(val sideloadPath: String) : EngineRuntimeState
     data class Failed(val modelName: String, val message: String) : EngineRuntimeState
 }
@@ -97,7 +98,9 @@ data class GenerationRequest(
     val userPrompt: String,
     val temperature: Float = 0.4f,
     val maxOutputTokens: Int = 1024,
-    val totalContextBudgetTokens: Int = 4096
+    val totalContextBudgetTokens: Int = 4096,
+    /** Reasoning models only: think before answering (slower, sometimes smarter). */
+    val allowThinking: Boolean = false
 )
 
 data class PromptTurn(

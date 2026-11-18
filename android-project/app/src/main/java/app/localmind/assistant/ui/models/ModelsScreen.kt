@@ -191,7 +191,12 @@ fun ModelsScreen(viewModel: ModelsViewModel, onBack: () -> Unit) {
 @Composable
 private fun RuntimeCard(engine: EngineRuntimeState) {
     val (dot, title, detail) = when (engine) {
-        is EngineRuntimeState.Ready -> Triple(P.Success, "Loaded in Memory", "${engine.modelName} · ${engine.maxTokens} token context")
+        is EngineRuntimeState.Ready -> Triple(
+            P.Success,
+            "Loaded in Memory",
+            "${engine.modelName} · ${engine.maxTokens} token context" +
+                if (engine.canThink) "\nReasoning model · thinking is set in Settings → Assistant" else ""
+        )
         is EngineRuntimeState.Loading -> Triple(P.Warning, "Loading…", engine.modelName)
         is EngineRuntimeState.Failed -> Triple(P.Danger, "Couldn't load ${engine.modelName}", engine.message)
         is EngineRuntimeState.NoModelFound -> Triple(P.Warning, "No model yet", "Import one below to start chatting.")

@@ -64,6 +64,8 @@ fun SettingsScreen(
     chineseStyle: ChineseStyle,
     onChineseScriptChange: (ChineseScript) -> Unit,
     onRomanizationChange: (Boolean) -> Unit,
+    thinking: Boolean,
+    onThinkingChange: (Boolean) -> Unit,
     onOpenModels: () -> Unit,
     onOpenPersonas: () -> Unit,
     onBack: () -> Unit
@@ -143,6 +145,14 @@ fun SettingsScreen(
                 }
 
                 Section("Assistant") {
+                    ToggleRow(
+                        title = "Thinking",
+                        detail = "For reasoning models such as Qwen3.5: think before answering. Better on hard " +
+                            "questions, but adds a 20–60 s pause per reply on the tablet. Off is best for conversation practice.",
+                        checked = thinking,
+                        onCheckedChange = onThinkingChange
+                    )
+                    HorizontalDivider(color = P.Border)
                     LinkRow("Models", "Import, choose and delete on-device models", onOpenModels)
                     HorizontalDivider(color = P.Border)
                     LinkRow("Personas", "Built-in and custom personas", onOpenPersonas)

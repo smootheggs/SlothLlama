@@ -64,7 +64,7 @@ class LlamaCppInferenceEngine @Inject constructor(
             loadedFile = file
             loadedContext = LlamaNative.contextSize()
             nativeChat = null
-            status.set(EngineRuntimeState.Ready(file.name, loadedContext))
+            status.set(EngineRuntimeState.Ready(file.name, loadedContext, canThink = LlamaNative.supportsThinking()))
             Log.i(TAG, "Loaded ${file.name}, context=$loadedContext\n${LlamaNative.systemInfo()}")
             Unit
         }.onFailure { e ->
@@ -105,10 +105,15 @@ class LlamaCppInferenceEngine @Inject constructor(
             return@flow
         }
 
+        // Reasoning models think only when asked; thinking needs extra room for the hidden reasoning.
+        val thinks = request.allowThinking && LlamaNative.supportsThinking()
+        LlamaNative.setThinking(thinks)
+
         // Budget against the real context; keep room for the reply.
         val effective = request.copy(
             totalContextBudgetTokens = loadedContext,
-            maxOutputTokens = minOf(request.maxOutputTokens, loadedContext / 3)
+            maxOutputTokens = if (thinks) minOf(request.maxOutputTokens + THINKING_TOKENS, loadedContext / 2)
+            else minOf(request.maxOutputTokens, loadedContext / 3)
         )
         val plan = promptAssembler.planChat(effective)
         val desiredChat = buildList {
@@ -152,7 +157,8 @@ class LlamaCppInferenceEngine @Inject constructor(
             return@flow
         }
 
-        val filter = ReplyFilter()
+        // When thinking, the prompt already opened "<think>", so the reply starts inside it.
+        val filter = ReplyFilter(startsThinking = thinks)
         var pieces = 0
         try {
             while (!cancelRequested && !filter.stopped) {
@@ -205,8 +211,13 @@ class LlamaCppInferenceEngine @Inject constructor(
 
     private companion object {
         const val TAG = "LlamaCppEngine"
-        /** Tokens of context. 4096 keeps a 7B Q4 model comfortably inside a 12 GB tablet. */
-        const val CONTEXT_TOKENS = 4096
+        /**
+         * Tokens of context. 6144 leaves room for longer tutoring sessions and for thinking, while a
+         * 7B Q4 model plus its cache still fits comfortably in a 12 GB tablet.
+         */
+        const val CONTEXT_TOKENS = 6144
+        /** Extra reply budget for hidden reasoning when thinking is on. */
+        const val THINKING_TOKENS = 1536
         const val TOP_P = 0.95f
         const val TOP_K = 40
     }

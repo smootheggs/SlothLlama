@@ -23,6 +23,7 @@ import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.localmind.assistant.data.persona.ChineseStyleStore
+import app.localmind.assistant.data.settings.AssistantSettingsStore
 import app.localmind.assistant.domain.persona.ChineseScript
 import app.localmind.assistant.domain.persona.ChineseStyle
 import app.localmind.assistant.ui.chat.ChatScreen
@@ -49,6 +50,7 @@ class MainActivity : ComponentActivity() {
 
     @Inject lateinit var appearance: AppearanceStore
     @Inject lateinit var chineseStyleStore: ChineseStyleStore
+    @Inject lateinit var assistantSettings: AssistantSettingsStore
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -57,6 +59,7 @@ class MainActivity : ComponentActivity() {
             val mode by appearance.mode.collectAsStateWithLifecycle()
             val privacyScreen by appearance.privacyScreen.collectAsStateWithLifecycle()
             val chineseStyle by chineseStyleStore.style.collectAsStateWithLifecycle()
+            val thinking by assistantSettings.thinking.collectAsStateWithLifecycle()
             val colors = resolveColors(mode)
 
             // Privacy screen: no screenshots or recordings, and a blank card in Recents.
@@ -83,7 +86,9 @@ class MainActivity : ComponentActivity() {
                     onPrivacyScreenChange = appearance::setPrivacyScreen,
                     chineseStyle = chineseStyle,
                     onChineseScriptChange = chineseStyleStore::setScript,
-                    onRomanizationChange = chineseStyleStore::setRomanization
+                    onRomanizationChange = chineseStyleStore::setRomanization,
+                    thinking = thinking,
+                    onThinkingChange = assistantSettings::setThinking
                 )
             }
         }
@@ -104,7 +109,9 @@ private fun SlothRoot(
     onPrivacyScreenChange: (Boolean) -> Unit,
     chineseStyle: ChineseStyle,
     onChineseScriptChange: (ChineseScript) -> Unit,
-    onRomanizationChange: (Boolean) -> Unit
+    onRomanizationChange: (Boolean) -> Unit,
+    thinking: Boolean,
+    onThinkingChange: (Boolean) -> Unit
 ) {
     var destination by rememberSaveable { mutableStateOf(Destination.CHAT) }
     val chatViewModel: ChatViewModel = hiltViewModel()
@@ -138,6 +145,8 @@ private fun SlothRoot(
                     chineseStyle = chineseStyle,
                     onChineseScriptChange = onChineseScriptChange,
                     onRomanizationChange = onRomanizationChange,
+                    thinking = thinking,
+                    onThinkingChange = onThinkingChange,
                     onOpenModels = { destination = Destination.MODELS },
                     onOpenPersonas = { destination = Destination.PERSONAS },
                     onBack = goHome

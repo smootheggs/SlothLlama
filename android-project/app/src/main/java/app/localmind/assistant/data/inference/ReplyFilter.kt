@@ -6,9 +6,13 @@ package app.localmind.assistant.data.inference
  * - ends the reply at the first stop marker, if any
  * - holds back a trailing "<…" that might still become a tag or marker
  */
-class ReplyFilter(private val stopMarkers: List<String> = emptyList()) {
+class ReplyFilter(
+    private val stopMarkers: List<String> = emptyList(),
+    /** True when the prompt already opened a <think> block, so the output starts mid-reasoning. */
+    startsThinking: Boolean = false
+) {
 
-    private val raw = StringBuilder()
+    private val raw = StringBuilder(if (startsThinking) THINK_OPEN else "")
     private var emitted = 0
 
     /** Set once a stop marker appeared; callers should stop generating. */
@@ -64,6 +68,10 @@ class ReplyFilter(private val stopMarkers: List<String> = emptyList()) {
         fun visibleText(text: String): String {
             val out = StringBuilder()
             var i = 0
+            // A closing tag with no opener: the reasoning started before the output did; drop it.
+            val firstClose = text.indexOf(THINK_CLOSE)
+            val firstOpen = text.indexOf(THINK_OPEN)
+            if (firstClose >= 0 && (firstOpen < 0 || firstClose < firstOpen)) i = firstClose + THINK_CLOSE.length
             while (i < text.length) {
                 val open = text.indexOf(THINK_OPEN, i)
                 if (open < 0) {

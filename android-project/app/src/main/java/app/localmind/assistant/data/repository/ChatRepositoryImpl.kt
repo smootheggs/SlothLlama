@@ -5,6 +5,7 @@ import app.localmind.assistant.data.local.LocalMindDao
 import app.localmind.assistant.data.local.MessageEntity
 import app.localmind.assistant.data.persona.ChineseStyleStore
 import app.localmind.assistant.data.persona.PersonaRepository
+import app.localmind.assistant.data.settings.AssistantSettingsStore
 import app.localmind.assistant.domain.inference.EngineRuntimeState
 import app.localmind.assistant.domain.inference.GenerationEvent
 import app.localmind.assistant.domain.inference.GenerationRequest
@@ -33,7 +34,8 @@ class ChatRepositoryImpl @Inject constructor(
     private val dao: LocalMindDao,
     private val engine: LocalInferenceEngine,
     private val personaRepository: PersonaRepository,
-    private val chineseStyle: ChineseStyleStore
+    private val chineseStyle: ChineseStyleStore,
+    private val assistantSettings: AssistantSettingsStore
 ) : ChatRepository {
 
     override val engineState: StateFlow<EngineRuntimeState>
@@ -191,7 +193,8 @@ class ChatRepositoryImpl @Inject constructor(
             userMemories = emptyList(),
             userPrompt = content.trim(),
             temperature = persona.temperature,
-            maxOutputTokens = persona.maxOutputTokens
+            maxOutputTokens = persona.maxOutputTokens,
+            allowThinking = assistantSettings.thinking.value
         )
 
         // 5. Update assistant status to STREAMING

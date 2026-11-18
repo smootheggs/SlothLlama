@@ -47,6 +47,15 @@ object LlamaNative {
     /** Next piece of text; "" while a multi-byte character is incomplete; null when generation ends. */
     external fun generateNextToken(): String?
 
+    /** True if the loaded model is a reasoning model (its chat template uses <think>). */
+    external fun supportsThinking(): Boolean
+
+    /**
+     * For reasoning models: let the next reply think first ("<think>" is pre-filled, so the reply
+     * starts inside the thinking block), or skip thinking with an empty think block.
+     */
+    external fun setThinking(enabled: Boolean)
+
     /** True if the last generation ended on the model's own end-of-turn token (chat history is in sync). */
     external fun lastStopWasEog(): Boolean
 
