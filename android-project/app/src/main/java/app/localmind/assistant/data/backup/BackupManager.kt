@@ -10,6 +10,7 @@ import app.localmind.assistant.data.local.LocalMindDatabase
 import app.localmind.assistant.data.local.MessageEntity
 import app.localmind.assistant.data.local.PersonaEntity
 import app.localmind.assistant.data.local.VocabularyItemEntity
+import app.localmind.assistant.data.local.UserMemoryEntity
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -42,7 +43,9 @@ data class BackupContents(
     /** SharedPreferences file → key → type-tagged value ("b:true", "i:9", "f:1.2", "l:…", "s:…"). */
     val settings: Map<String, Map<String, String>> = emptyMap(),
     /** What else was on the device (names only), so a restore can list what to import again. */
-    val inventory: BackupInventory = BackupInventory()
+    val inventory: BackupInventory = BackupInventory(),
+    /** Memory of you (Settings → Memory). */
+    val memories: List<UserMemoryEntity> = emptyList()
 )
 
 /** Names of the models and Library files, which are too large to go into a backup. */
@@ -57,6 +60,7 @@ data class BackupSummary(
     val messages: Int,
     val personas: Int,
     val flashcards: Int,
+    val memories: Int = 0,
     /** After a restore: models the backup lists that aren't on this device. */
     val missingModels: List<String> = emptyList(),
     /** After a restore: Library files the backup lists that aren't on this device. */
@@ -94,7 +98,8 @@ class BackupManager @Inject constructor(
             personas = dao.getCustomPersonas(),
             flashcards = dao.getAllVocabulary(),
             settings = readSettings(),
-            inventory = inventory()
+            inventory = inventory(),
+            memories = dao.getAllMemories()
         )
         val payload = gzip(json.encodeToString(BackupContents.serializer(), contents).toByteArray())
         val bytes = if (password.isNullOrEmpty()) header(encrypted = false) + payload else seal(payload, password)
@@ -132,6 +137,7 @@ class BackupManager @Inject constructor(
             contents.messages.filter { it.conversationId in conversationIds }.forEach { dao.insertMessage(it) }
             contents.personas.filter { !it.isBuiltIn }.forEach { dao.upsertPersona(it) }
             contents.flashcards.forEach { dao.upsertVocabularyItem(it) }
+            contents.memories.forEach { dao.upsertMemory(it) }
         }
         writeSettings(contents.settings)
         notes.reload()
@@ -249,7 +255,7 @@ class BackupManager @Inject constructor(
     }
 
     private fun BackupContents.summary() =
-        BackupSummary(conversations.size, messages.size, personas.size, flashcards.size)
+        BackupSummary(conversations.size, messages.size, personas.size, flashcards.size, memories = memories.size)
 
     companion object {
         const val FORMAT = 1
@@ -263,6 +269,6 @@ class BackupManager @Inject constructor(
         private const val PBKDF2_ROUNDS = 310_000
         private const val CIPHER = "AES/GCM/NoPadding"
         /** Settings worth carrying over (appearance, Chinese, assistant, persona models). */
-        private val SETTINGS_FILES = listOf("appearance", "chinese_style", "assistant", "persona_models", "tutor_levels", "notes")
+        private val SETTINGS_FILES = listOf("appearance", "chinese_style", "assistant", "persona_models", "tutor_levels", "notes", "memory")
     }
 }

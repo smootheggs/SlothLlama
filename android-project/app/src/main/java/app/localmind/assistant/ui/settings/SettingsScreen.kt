@@ -133,6 +133,9 @@ fun SettingsScreen(
         vm.restore(uri)
     }
     val auto by vm.autoBackupState.collectAsStateWithLifecycle()
+    val memoryOn by vm.memoryOn.collectAsStateWithLifecycle()
+    val memories by vm.memories.collectAsStateWithLifecycle()
+    var memoryOpen by remember { mutableStateOf(false) }
     val toImport by vm.toImport.collectAsStateWithLifecycle()
     var autoPassword by remember { mutableStateOf(false) }
     // Switching weekly backups on walks through what's missing: folder, then password.
@@ -293,6 +296,25 @@ fun SettingsScreen(
                     LinkRow("Personas", "Built-in and custom personas", onOpenPersonas)
                     HorizontalDivider(color = P.Border)
                     LinkRow("SlothLobster 🦞", "The separate app that goes online for you: mailbox and pairing", onOpenLobster)
+                }
+
+                Section("Memory") {
+                    ToggleRow(
+                        title = "Remember things about me",
+                        detail = "Facts you ask SlothLlama to keep (\"remember that I'm vegetarian\") go with each " +
+                            "message as background. Only what you add is kept, and it stays on the tablet.",
+                        checked = memoryOn,
+                        onCheckedChange = vm::setMemoryOn
+                    )
+                    HorizontalDivider(color = P.Border)
+                    LinkRow(
+                        "What SlothLlama remembers",
+                        when (memories.size) {
+                            0 -> "Nothing yet. Add a fact, or say \"remember that …\" in a chat"
+                            1 -> "1 memory · add, edit or delete"
+                            else -> "${memories.size} memories · add, edit or delete"
+                        }
+                    ) { memoryOpen = true }
                 }
 
             }
@@ -468,6 +490,15 @@ fun SettingsScreen(
         )
     }
     toImport?.let { items -> ToImportDialog(items, onDismiss = vm::dismissToImport) }
+    if (memoryOpen) {
+        MemoryDialog(
+            memories = memories,
+            onSave = vm::saveMemory,
+            onDelete = vm::deleteMemory,
+            onDeleteAll = vm::deleteAllMemories,
+            onDismiss = { memoryOpen = false }
+        )
+    }
     if (diagnosticsOpen) {
         DiagnosticsDialog(
             report = diagnostics,

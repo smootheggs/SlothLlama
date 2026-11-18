@@ -39,7 +39,8 @@ class ToolRunner @Inject constructor(
     private val calendar: CalendarReader,
     private val dictionary: ChineseDictionary,
     private val library: LibraryStore,
-    private val mailbox: LobsterMailbox
+    private val mailbox: LobsterMailbox,
+    private val memory: app.localmind.assistant.data.memory.MemoryStore
 ) {
     class Outcome(val results: List<ToolResult>, val passages: List<LibraryPassage>) {
         val isEmpty: Boolean get() = results.isEmpty() && passages.isEmpty()
@@ -55,7 +56,7 @@ class ToolRunner @Inject constructor(
     fun preview(message: String, persona: Persona): List<Pair<String, String>> {
         if (message.isBlank()) return emptyList()
         val routed = ToolRouter.route(message, ZonedDateTime.now())
-        val requests = if (enabledFor(persona)) routed else routed.filterIsInstance<ToolRequest.Lobster>()
+        val requests = if (enabledFor(persona)) routed else routed.filter(::isDirect)
         return requests.map { r ->
             when {
                 r is ToolRequest.Lobster && !mailbox.isReady -> ToolNames.LOBSTER to "The Lobster isn't set up yet"
@@ -67,8 +68,9 @@ class ToolRunner @Inject constructor(
 
     suspend fun run(message: String, persona: Persona): Outcome {
         val routed = ToolRouter.route(message, ZonedDateTime.now())
-        // "Ask the lobster to …" is a direct order, so it works even where the tools are off.
-        val requests = if (enabledFor(persona)) routed else routed.filterIsInstance<ToolRequest.Lobster>()
+        // "Ask the lobster to …" and "remember that …" are direct orders, so they work even where
+        // the tools are off.
+        val requests = if (enabledFor(persona)) routed else routed.filter(::isDirect)
         if (requests.isEmpty()) return none
         val results = mutableListOf<ToolResult>()
         val passages = mutableListOf<LibraryPassage>()
@@ -88,6 +90,9 @@ class ToolRunner @Inject constructor(
                     is ToolRequest.Define -> define(request.words)?.let { results += it }
                     is ToolRequest.Library -> passages += library.search(request.query)
                     is ToolRequest.Lobster -> results += lobster(request.text)
+                    is ToolRequest.Remember -> results += remember(request.text)
+                    is ToolRequest.Forget -> results += forget(request.text)
+                    ToolRequest.ListMemories -> results += listMemories()
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -96,6 +101,45 @@ class ToolRunner @Inject constructor(
             }
         }
         return Outcome(results, passages)
+    }
+
+    private fun isDirect(r: ToolRequest): Boolean =
+        r is ToolRequest.Lobster || r is ToolRequest.Remember || r is ToolRequest.Forget || r is ToolRequest.ListMemories
+
+    private suspend fun remember(text: String): ToolResult {
+        val saved = memory.add(text)
+        val note = if (memory.enabled.value) "" else " Memory is switched off in Settings, so it won't be used until it's on again."
+        return ToolResult(
+            ToolNames.MEMORY, "Remembered",
+            "Saved to the user's memory (Settings → Memory): \"${saved.text}\".$note Acknowledge it in a few words."
+        )
+    }
+
+    private suspend fun forget(text: String): ToolResult {
+        val gone = memory.forget(text)
+        return if (gone != null) {
+            ToolResult(ToolNames.MEMORY, "Forgotten", "Deleted from the user's memory: \"${gone.text}\". Confirm in a few words.")
+        } else {
+            ToolResult(
+                ToolNames.MEMORY, "Nothing matched",
+                "No saved memory matched \"$text\". Say so, and that Settings → Memory lists everything kept."
+            )
+        }
+    }
+
+    private suspend fun listMemories(): ToolResult {
+        val all = memory.all()
+        if (all.isEmpty()) {
+            return ToolResult(
+                ToolNames.MEMORY, "No memories yet",
+                "Nothing is saved about the user yet. They can say \"remember that …\" or add facts in Settings → Memory."
+            )
+        }
+        val list = all.take(40).joinToString("\n") { "- ${it.text}" }
+        return ToolResult(
+            ToolNames.MEMORY, "${all.size} memories",
+            "Everything saved about the user (their own words), newest first:\n$list\nList them plainly; they can be edited in Settings → Memory."
+        )
     }
 
     /** Puts the request in the Lobster's mailbox; its catch comes back on the Lobster page. */

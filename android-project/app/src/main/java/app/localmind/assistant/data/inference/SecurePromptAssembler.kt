@@ -130,7 +130,7 @@ class SecurePromptAssembler @Inject constructor(
             append(request.personaSystemInstruction.trim())
 
             if (request.userMemories.isNotEmpty()) {
-                append("\n\nKnown about the user:")
+                append("\n\nWhat the user asked you to remember about them (their own words; use it where it helps, without repeating it back unasked):")
                 request.userMemories.forEach { append("\n- ").append(it) }
             }
             if (!request.conversationSummary.isNullOrBlank()) {

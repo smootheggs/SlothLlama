@@ -3,6 +3,7 @@ package app.localmind.assistant.data.repository
 import app.localmind.assistant.data.local.ConversationEntity
 import app.localmind.assistant.data.local.LocalMindDao
 import app.localmind.assistant.data.local.MessageEntity
+import app.localmind.assistant.data.meaning.ChatBusy
 import app.localmind.assistant.data.persona.ChineseStyleStore
 import app.localmind.assistant.data.persona.PersonaModelStore
 import app.localmind.assistant.data.persona.PersonaRepository
@@ -41,7 +42,8 @@ class ChatRepositoryImpl @Inject constructor(
     private val chineseStyle: ChineseStyleStore,
     private val assistantSettings: AssistantSettingsStore,
     private val personaModels: PersonaModelStore,
-    private val tutorLevels: TutorLevelStore
+    private val tutorLevels: TutorLevelStore,
+    private val memory: app.localmind.assistant.data.memory.MemoryStore
 ) : ChatRepository {
 
     override val engineState: StateFlow<EngineRuntimeState>
@@ -209,7 +211,8 @@ class ChatRepositoryImpl @Inject constructor(
             conversationSummary = conversation.rollingSummary,
             recentMessages = existingMessages,
             retrievedPassages = emptyList(),
-            userMemories = emptyList(),
+            // What the user asked SlothLlama to remember (Settings → Memory), when memory is on.
+            userMemories = runCatching { memory.forPrompt(content.trim()) }.getOrDefault(emptyList()),
             userPrompt = content.trim(),
             temperature = persona.temperature,
             maxOutputTokens = persona.maxOutputTokens,
@@ -229,6 +232,9 @@ class ChatRepositoryImpl @Inject constructor(
         var lastDbFlushTime = System.currentTimeMillis()
         var lastTokenCount = 0
 
+        // Background reading for meaning waits while a reply is written.
+        ChatBusy.begin()
+        try {
         engine.generate(request).collect { event ->
             when (event) {
                 is GenerationEvent.Started -> {
@@ -341,6 +347,9 @@ class ChatRepositoryImpl @Inject constructor(
                     // Phase 1 preserves tool invocation event without interrupting stream
                 }
             }
+        }
+        } finally {
+            ChatBusy.end()
         }
     }.flowOn(Dispatchers.IO)
 

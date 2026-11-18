@@ -64,6 +64,8 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.localmind.assistant.data.library.LibraryItem
 import app.localmind.assistant.data.library.LibraryKind
+import app.localmind.assistant.data.library.MeaningIndex
+import app.localmind.assistant.data.meaning.MeaningModelState
 import app.localmind.assistant.domain.attachments.LibraryPassage
 import app.localmind.assistant.ui.common.SlothTopBar
 import app.localmind.assistant.ui.home.WIDE
@@ -80,6 +82,13 @@ fun LibraryScreen(viewModel: LibraryViewModel, onBack: () -> Unit) {
     val message by viewModel.message.collectAsStateWithLifecycle()
     val results by viewModel.results.collectAsStateWithLifecycle()
     val searching by viewModel.searching.collectAsStateWithLifecycle()
+    val meaningState by viewModel.meaningState.collectAsStateWithLifecycle()
+    val meaningIndex by viewModel.meaningIndex.collectAsStateWithLifecycle()
+    var confirmRemoveMeaning by remember { mutableStateOf(false) }
+    // .gguf files have no registered type either.
+    val meaningPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        viewModel.importMeaningModel(uri)
+    }
     val snackbar = remember { SnackbarHostState() }
     var pendingRemove by remember { mutableStateOf<LibraryItem?>(null) }
 
@@ -114,7 +123,16 @@ fun LibraryScreen(viewModel: LibraryViewModel, onBack: () -> Unit) {
                         onAddWiki = { wikiPicker.launch(arrayOf("*/*")) },
                         onToggle = viewModel::setEnabled,
                         onRemove = { pendingRemove = it },
-                        modifier = m
+                        modifier = m,
+                        meaningCard = {
+                            MeaningCard(
+                                state = meaningState,
+                                index = meaningIndex,
+                                onImport = { meaningPicker.launch(arrayOf("*/*")) },
+                                onRemove = { confirmRemoveMeaning = true },
+                                modifier = Modifier.fillMaxWidth().padding(top = 12.dp)
+                            )
+                        }
                     )
                 }
                 val search: @Composable (Modifier) -> Unit = { m ->
@@ -147,6 +165,19 @@ fun LibraryScreen(viewModel: LibraryViewModel, onBack: () -> Unit) {
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
     }
 
+    if (confirmRemoveMeaning) {
+        AlertDialog(
+            onDismissRequest = { confirmRemoveMeaning = false },
+            containerColor = P.Elevated,
+            title = { Text("Turn off search by meaning?", color = P.Text) },
+            text = { Text("The model and the library's meaning index are deleted. Searches go back to words only.", color = P.Muted) },
+            confirmButton = {
+                TextButton(onClick = { viewModel.removeMeaningModel(); confirmRemoveMeaning = false }) { Text("Turn off", color = P.Danger) }
+            },
+            dismissButton = { TextButton(onClick = { confirmRemoveMeaning = false }) { Text("Cancel", color = P.Muted) } }
+        )
+    }
+
     pendingRemove?.let { item ->
         AlertDialog(
             onDismissRequest = { pendingRemove = null },
@@ -175,13 +206,15 @@ private fun Shelf(
     onAddWiki: () -> Unit,
     onToggle: (LibraryItem, Boolean) -> Unit,
     onRemove: (LibraryItem) -> Unit,
-    modifier: Modifier
+    modifier: Modifier,
+    meaningCard: @Composable () -> Unit = {}
 ) {
     Column(modifier.padding(top = 12.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             AddButton(Icons.Outlined.NoteAdd, "Books & documents", "PDF, EPUB, HTML, text", Modifier.weight(1f), working == null, onAddDocuments)
             AddButton(Icons.Outlined.Language, "Wikipedia", "Kiwix .zim file", Modifier.weight(1f), working == null, onAddWiki)
         }
+        meaningCard()
         if (working != null) {
             Row(Modifier.padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
                 CircularProgressIndicator(Modifier.size(16.dp), color = P.Accent, strokeWidth = 2.dp)
@@ -342,6 +375,54 @@ private fun PassageCard(n: Int, p: LibraryPassage) {
         )
         Text(p.text, color = P.Muted, fontSize = 13.sp, lineHeight = 19.sp, maxLines = 12, overflow = TextOverflow.Ellipsis,
             modifier = Modifier.padding(top = 6.dp))
+    }
+}
+
+/** Search by meaning: set it up, watch it read the library, or turn it off. */
+@Composable
+private fun MeaningCard(state: MeaningModelState, index: MeaningIndex, onImport: () -> Unit, onRemove: () -> Unit, modifier: Modifier) {
+    val shape = RoundedCornerShape(16.dp)
+    Column(
+        modifier
+            .clip(shape)
+            .background(P.Card)
+            .border(1.dp, P.Border, shape)
+            .padding(horizontal = 14.dp, vertical = 12.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.Search, contentDescription = null, tint = if (state is MeaningModelState.Ready) P.Accent else P.Faint, modifier = Modifier.size(20.dp))
+            Spacer(Modifier.width(10.dp))
+            Text("Search by meaning", color = P.Text, fontSize = 14.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+            when (state) {
+                is MeaningModelState.Ready -> TextButton(onClick = onRemove) { Text("Turn off", color = P.Muted, fontSize = 13.sp) }
+                is MeaningModelState.Importing -> Unit
+                else -> TextButton(onClick = onImport) { Text("Import model", color = P.Accent, fontSize = 13.sp) }
+            }
+        }
+        val line = when (state) {
+            MeaningModelState.Missing ->
+                "Finds passages that say the same thing in other words, or in another language. Needs the " +
+                    "EmbeddingGemma file (embeddinggemma-300M-Q8_0.gguf, 334 MB from huggingface.co/ggml-org/embeddinggemma-300M-GGUF), imported once."
+            is MeaningModelState.Importing -> "Importing… ${(state.fraction * 100).toInt()}%"
+            is MeaningModelState.Failed -> state.message
+            is MeaningModelState.Ready -> when {
+                index.total == 0 -> "On. Add books or documents and they'll be read for meaning too."
+                index.done < index.total ->
+                    "Reading your library for meaning: %,d of %,d passages%s".format(
+                        index.done, index.total, if (index.running) "" else " (continues next time you search)"
+                    )
+                else -> "On · all %,d passages. Word search and meaning search work together.".format(index.total)
+            }
+        }
+        Text(line, color = P.Muted, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 4.dp))
+        if (state is MeaningModelState.Ready && index.running && index.total > 0) {
+            androidx.compose.material3.LinearProgressIndicator(
+                progress = { index.done.toFloat() / index.total },
+                color = P.Accent,
+                trackColor = P.Elevated,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp)
+            )
+        }
     }
 }
 

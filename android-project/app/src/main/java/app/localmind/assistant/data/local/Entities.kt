@@ -194,6 +194,7 @@ data class CitationEntity(
     val whyUsedExplanation: String
 )
 
+@Serializable
 @Entity(tableName = "user_memories")
 data class UserMemoryEntity(
     @PrimaryKey val id: String,

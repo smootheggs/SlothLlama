@@ -26,12 +26,20 @@ class LibraryDb(context: Context) : SQLiteOpenHelper(context, NAME, null, VERSIO
         )
         db.execSQL("CREATE INDEX chunks_doc ON chunks(doc_id, ord)")
         db.execSQL("CREATE VIRTUAL TABLE chunks_fts USING fts4(tokens, tokenize=simple)")
+        createVectors(db)
     }
 
-    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) = Unit
+    override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
+        if (oldVersion < 2) createVectors(db)
+    }
+
+    /** Search by meaning: one vector per passage (float32, little-endian), and the model that made it. */
+    private fun createVectors(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS vectors (chunk_id INTEGER PRIMARY KEY, model TEXT NOT NULL, vec BLOB NOT NULL)")
+    }
 
     companion object {
         const val NAME = "library.db"
-        private const val VERSION = 1
+        private const val VERSION = 2
     }
 }

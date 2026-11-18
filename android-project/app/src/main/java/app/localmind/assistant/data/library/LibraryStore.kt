@@ -12,6 +12,15 @@ import app.localmind.assistant.data.tools.Note
 import app.localmind.assistant.data.tools.NotesStore
 import app.localmind.assistant.domain.attachments.Attachments
 import app.localmind.assistant.domain.attachments.LibraryPassage
+import app.localmind.assistant.data.meaning.ChatBusy
+import app.localmind.assistant.data.meaning.MeaningModel
+import app.localmind.assistant.data.meaning.MeaningModelState
+import app.localmind.assistant.data.meaning.Vectors
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -41,6 +50,9 @@ data class LibraryItem(
 
 enum class LibraryKind { DOCUMENT, WIKI }
 
+/** Search by meaning's reading of the library: [done] of [total] passages have a vector. */
+data class MeaningIndex(val done: Int = 0, val total: Int = 0, val running: Boolean = false)
+
 /**
  * The private library: documents (PDF, EPUB, HTML, text) indexed on the tablet, and Kiwix files
  * (Wikipedia and others) read in place. [search] finds the passages that best match a question;
@@ -56,7 +68,8 @@ class LibraryStore @Inject constructor(
     private val attachments: AttachmentStore,
     private val dictionary: ChineseDictionary,
     private val kiwix: KiwixShelf,
-    private val notes: NotesStore
+    private val notes: NotesStore,
+    private val meaning: MeaningModel
 ) {
     private val db by lazy { LibraryDb(context) }
     /** One writer at a time (adding a 500-page book takes a few seconds). */
@@ -71,6 +84,163 @@ class LibraryStore @Inject constructor(
     val working: StateFlow<String?> = _working.asStateFlow()
 
     suspend fun refresh() = withContext(io) { _items.value = readItems() }
+
+    // --- Search by meaning -------------------------------------------------------------------
+
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    private var indexJob: Job? = null
+
+    private val _meaningIndex = MutableStateFlow(MeaningIndex())
+    /** How far the library has been read for meaning. */
+    val meaningIndex: StateFlow<MeaningIndex> = _meaningIndex.asStateFlow()
+
+    /** Vectors held in memory for searching, for one model; null when they need reading again. */
+    private class VectorCache(val model: String, val chunks: LongArray, val docs: LongArray, val dims: Int, val data: FloatArray)
+    @Volatile private var cache: VectorCache? = null
+
+    /**
+     * Gives every document passage a vector, in the background, a few at a time, pausing while a
+     * reply is being written. Safe to call often: it does nothing when already running or done.
+     */
+    @Synchronized
+    fun startMeaningIndex() {
+        if (indexJob?.isActive == true) return
+        indexJob = scope.launch {
+            try {
+                indexMeaning()
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Throwable) {
+                Log.w(TAG, "Reading for meaning stopped", e)
+            } finally {
+                _meaningIndex.value = _meaningIndex.value.copy(running = false)
+            }
+        }
+    }
+
+    /** After the meaning model changes or is removed. */
+    suspend fun meaningModelChanged() {
+        indexJob?.cancel()
+        withContext(io) {
+            val model = meaning.readyId
+            if (model == null) db.writableDatabase.execSQL("DELETE FROM vectors")
+            else db.writableDatabase.execSQL("DELETE FROM vectors WHERE model != ?", arrayOf(model))
+            cache = null
+            _meaningIndex.value = counts(model)
+        }
+        startMeaningIndex()
+    }
+
+    private suspend fun indexMeaning() {
+        val model = meaning.readyId ?: run {
+            _meaningIndex.value = withContext(io) { counts(null) }
+            return
+        }
+        withContext(io) {
+            db.writableDatabase.execSQL("DELETE FROM vectors WHERE model != ?", arrayOf(model))
+            _meaningIndex.value = counts(model).copy(running = true)
+        }
+        while (true) {
+            if (meaning.readyId != model) return
+            ChatBusy.busy.first { !it }
+            val batch = withContext(io) {
+                db.readableDatabase.rawQuery(
+                    "SELECT c.id, d.name, c.heading, c.text FROM chunks c JOIN documents d ON d.id = c.doc_id " +
+                        "WHERE d.kind = ? AND NOT EXISTS (SELECT 1 FROM vectors v WHERE v.chunk_id = c.id) " +
+                        "ORDER BY d.enabled DESC, c.id LIMIT $INDEX_BATCH",
+                    arrayOf(LibraryKind.DOCUMENT.name)
+                ).use { c ->
+                    buildList { while (c.moveToNext()) add(Triple(c.getLong(0), c.getString(1), c.getString(2) + "\n" + c.getString(3))) }
+                }
+            }
+            if (batch.isEmpty()) break
+            val made = batch.mapNotNull { (id, name, text) ->
+                meaning.embedDocument(name.substringBeforeLast('.'), text)?.let { id to it }
+            }
+            if (made.isEmpty()) {
+                Log.w(TAG, "The meaning model gave no vectors; stopping for now")
+                break
+            }
+            withContext(io) {
+                val w = db.writableDatabase
+                w.beginTransaction()
+                try {
+                    val insert = w.compileStatement("INSERT OR REPLACE INTO vectors (chunk_id, model, vec) VALUES (?, ?, ?)")
+                    made.forEach { (id, v) ->
+                        insert.clearBindings()
+                        insert.bindLong(1, id)
+                        insert.bindString(2, model)
+                        insert.bindBlob(3, Vectors.toBytes(v))
+                        insert.executeInsert()
+                    }
+                    w.setTransactionSuccessful()
+                } finally {
+                    w.endTransaction()
+                }
+                cache = null
+                _meaningIndex.value = counts(model).copy(running = true)
+            }
+        }
+        _meaningIndex.value = withContext(io) { counts(model) }
+    }
+
+    private fun counts(model: String?): MeaningIndex {
+        val r = db.readableDatabase
+        val total = r.rawQuery(
+            "SELECT COUNT(*) FROM chunks c JOIN documents d ON d.id = c.doc_id WHERE d.kind = ?",
+            arrayOf(LibraryKind.DOCUMENT.name)
+        ).use { if (it.moveToFirst()) it.getInt(0) else 0 }
+        val done = if (model == null) 0 else r.rawQuery("SELECT COUNT(*) FROM vectors WHERE model = ?", arrayOf(model))
+            .use { if (it.moveToFirst()) it.getInt(0) else 0 }
+        return MeaningIndex(done = minOf(done, total), total = total)
+    }
+
+    /** Refreshes the counts shown in the Library (cheap). */
+    suspend fun refreshMeaningIndex() = withContext(io) {
+        _meaningIndex.value = counts(meaning.readyId).copy(running = indexJob?.isActive == true)
+    }
+
+    private fun vectorCache(model: String): VectorCache? {
+        cache?.takeIf { it.model == model }?.let { return it }
+        val chunks = ArrayList<Long>()
+        val docs = ArrayList<Long>()
+        var dims = 0
+        var data = FloatArray(0)
+        db.readableDatabase.rawQuery(
+            "SELECT v.chunk_id, c.doc_id, v.vec FROM vectors v JOIN chunks c ON c.id = v.chunk_id WHERE v.model = ?",
+            arrayOf(model)
+        ).use { c ->
+            while (c.moveToNext()) {
+                val v = Vectors.fromBytes(c.getBlob(2))
+                if (dims == 0) {
+                    dims = v.size
+                    data = FloatArray(dims * maxOf(c.count, 1))
+                }
+                if (v.size != dims) continue
+                System.arraycopy(v, 0, data, chunks.size * dims, dims)
+                chunks += c.getLong(0)
+                docs += c.getLong(1)
+            }
+        }
+        if (chunks.isEmpty()) return null
+        return VectorCache(model, chunks.toLongArray(), docs.toLongArray(), dims, data).also { cache = it }
+    }
+
+    /** The passages closest in meaning to [question] among enabled documents: (chunk id, similarity). */
+    private suspend fun searchByMeaning(question: String, enabledDocs: Set<Long>): List<Pair<Long, Float>> {
+        val model = meaning.readyId ?: return emptyList()
+        val vectors = withContext(Dispatchers.IO) { vectorCache(model) } ?: return emptyList()
+        val q = meaning.embedQuery(question) ?: return emptyList()
+        return withContext(Dispatchers.Default) {
+            val scored = ArrayList<Pair<Long, Float>>()
+            for (i in vectors.chunks.indices) {
+                if (vectors.docs[i] !in enabledDocs) continue
+                scored += vectors.chunks[i] to Vectors.similarity(q, vectors.data, i, vectors.dims)
+            }
+            scored.sortByDescending { it.second }
+            scored.take(MEANING_CANDIDATES)
+        }
+    }
 
     /** Reads a document in full, cuts it into passages and indexes them. */
     suspend fun addDocument(uri: Uri): LibraryItem = withContext(io) {
@@ -138,6 +308,7 @@ class LibraryStore @Inject constructor(
             w.endTransaction()
         }
         _items.value = readItems()
+        startMeaningIndex()
         return _items.value.orEmpty().first { it.id == id }
     }
 
@@ -180,12 +351,15 @@ class LibraryStore @Inject constructor(
         w.beginTransaction()
         try {
             w.execSQL("DELETE FROM chunks_fts WHERE docid IN (SELECT id FROM chunks WHERE doc_id = ?)", arrayOf(id))
+            w.execSQL("DELETE FROM vectors WHERE chunk_id IN (SELECT id FROM chunks WHERE doc_id = ?)", arrayOf(id))
             w.execSQL("DELETE FROM chunks WHERE doc_id = ?", arrayOf(id))
             w.execSQL("DELETE FROM documents WHERE id = ?", arrayOf(id))
             w.setTransactionSuccessful()
         } finally {
             w.endTransaction()
         }
+        cache = null
+        _meaningIndex.value = counts(meaning.readyId).copy(running = indexJob?.isActive == true)
         if (uri != null) {
             val parsed = Uri.parse(uri)
             kiwix.close(parsed)
@@ -212,6 +386,8 @@ class LibraryStore @Inject constructor(
     suspend fun search(question: String, limit: Int = 4, maxTokens: Int = 1_500): List<LibraryPassage> {
         val q = question.trim()
         if (q.isEmpty()) return emptyList()
+        // Catch up on anything not yet read for meaning (does nothing when there's nothing to do).
+        if (meaning.state.value is MeaningModelState.Ready) startMeaningIndex()
         val fromNotes = runCatching { searchNotes(q) }.getOrDefault(emptyList())
         val local = runCatching { searchDocuments(q, limit) }
             .onFailure { if (it is CancellationException) throw it; Log.w(TAG, "Library search failed", it) }
@@ -260,7 +436,40 @@ class LibraryStore @Inject constructor(
     /** Test search for the library screen: what a question would bring along. */
     suspend fun preview(question: String): List<LibraryPassage> = search(question)
 
+    /**
+     * Word search (BM25) merged with search by meaning when a meaning model is set up: a passage
+     * that says the same thing in other words (or another language) can be found too.
+     */
     private suspend fun searchDocuments(question: String, limit: Int): List<LibraryPassage> {
+        val byWords = searchByWords(question)
+        val enabled = withContext(Dispatchers.IO) {
+            db.readableDatabase.rawQuery("SELECT id FROM documents WHERE enabled = 1 AND kind = ?", arrayOf(LibraryKind.DOCUMENT.name))
+                .use { c -> buildSet { while (c.moveToNext()) add(c.getLong(0)) } }
+        }
+        val byMeaning = if (enabled.isEmpty() || meaning.state.value !is MeaningModelState.Ready) emptyList()
+        else runCatching { searchByMeaning(question, enabled) }
+            .onFailure { if (it is CancellationException) throw it; Log.w(TAG, "Meaning search failed", it) }
+            .getOrDefault(emptyList())
+        return withContext(Dispatchers.IO) {
+            val docOf = HashMap<Long, Long>()
+            byWords.forEach { (chunk, doc) -> docOf[chunk] = doc }
+            val ranked = if (byMeaning.isEmpty()) byWords.map { it.first }
+            else Vectors.fuse(byWords.map { it.first }, byMeaning, MEANING_FLOOR)
+            val perDoc = HashMap<Long, Int>()
+            ranked.asSequence()
+                .filter { chunk ->
+                    val doc = docOf[chunk] ?: docOfChunk(chunk) ?: return@filter false
+                    val n = perDoc.getOrDefault(doc, 0)
+                    if (n >= MAX_PER_DOCUMENT) false else { perDoc[doc] = n + 1; true }
+                }
+                .take(limit)
+                .mapNotNull { passage(it) }
+                .toList()
+        }
+    }
+
+    /** Passages with enough of the question's words, best first: (chunk id, document id). */
+    private suspend fun searchByWords(question: String): List<Pair<Long, Long>> {
         val terms = SearchTokens.forQuery(dictionary.toSimplified(question)).take(MAX_QUERY_TERMS)
         if (terms.isEmpty()) return emptyList()
         return withContext(Dispatchers.IO) {
@@ -279,14 +488,13 @@ class LibraryStore @Inject constructor(
                 }
             }
             scored.sortByDescending { it.third }
-            val perDoc = HashMap<Long, Int>()
-            val best = scored.filter { (_, doc, _) ->
-                val n = perDoc.getOrDefault(doc, 0)
-                if (n >= MAX_PER_DOCUMENT) false else { perDoc[doc] = n + 1; true }
-            }.take(limit)
-            best.mapNotNull { (chunkId, _, _) -> passage(chunkId) }
+            scored.take(WORD_CANDIDATES).map { it.first to it.second }
         }
     }
+
+    private fun docOfChunk(chunkId: Long): Long? =
+        db.readableDatabase.rawQuery("SELECT doc_id FROM chunks WHERE id = ?", arrayOf(chunkId.toString()))
+            .use { if (it.moveToFirst()) it.getLong(0) else null }
 
     /**
      * BM25 for one row from matchinfo 'pcnalx' (32-bit native-order ints: phrases, columns,
@@ -366,5 +574,13 @@ class LibraryStore @Inject constructor(
         const val MIN_TERM_SHARE = 0.4
         const val MAX_CANDIDATES = 4_000
         const val MAX_PER_DOCUMENT = 3
+        const val WORD_CANDIDATES = 60
+        const val MEANING_CANDIDATES = 60
+        /**
+         * How close in meaning a passage must be when none of its words match the question
+         * (cosine similarity with EmbeddingGemma; unrelated text scores well below this).
+         */
+        const val MEANING_FLOOR = 0.42f
+        const val INDEX_BATCH = 16
     }
 }

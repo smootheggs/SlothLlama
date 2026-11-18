@@ -21,6 +21,12 @@ sealed interface ToolRequest {
     data class Library(val query: String) : ToolRequest
     /** An order for the SlothLobster ("ask the lobster to …"). */
     data class Lobster(val text: String) : ToolRequest
+    /** "Remember that …": keep a fact about the user (Settings → Memory). */
+    data class Remember(val text: String) : ToolRequest
+    /** "Forget that …": remove the memory that best matches. */
+    data class Forget(val text: String) : ToolRequest
+    /** "What do you remember about me?" */
+    data object ListMemories : ToolRequest
 }
 
 /** Tool names, as stored in messages and shown on their chips. */
@@ -35,6 +41,7 @@ object ToolNames {
     const val CALENDAR = "calendar"
     const val DICTIONARY = "dictionary"
     const val LOBSTER = "lobster"
+    const val MEMORY = "memory"
 }
 
 /**
@@ -57,6 +64,9 @@ object ToolRouter {
         is ToolRequest.Define -> ToolNames.DICTIONARY to "Will look up ${request.words.joinToString(", ")}"
         is ToolRequest.Library -> "library" to "Will search your library for “${request.query}”"
         is ToolRequest.Lobster -> ToolNames.LOBSTER to "Will send this to the Lobster"
+        is ToolRequest.Remember -> ToolNames.MEMORY to "Will remember this about you"
+        is ToolRequest.Forget -> ToolNames.MEMORY to "Will forget the closest memory"
+        ToolRequest.ListMemories -> ToolNames.MEMORY to "Will look at what it remembers about you"
     }
 
     private fun duration(seconds: Int): String {
@@ -74,7 +84,7 @@ object ToolRouter {
         val out = mutableListOf<ToolRequest>()
 
         // Actions first: they're commands, and their numbers aren't sums.
-        val action = lobster(lower, text) ?: timer(lower, text) ?: alarm(lower, text) ?: note(lower, text)
+        val action = lobster(lower, text) ?: memory(lower, text) ?: timer(lower, text) ?: alarm(lower, text) ?: note(lower, text)
         if (action != null) return listOf(action)
 
         library(lower, text)?.let { out += it }
@@ -196,6 +206,36 @@ object ToolRouter {
             r.find(lower)?.let { return ToolRequest.SearchNotes(it.groupValues[1].trim()) }
         }
         if (LIST_NOTES.containsMatchIn(lower)) return ToolRequest.ListNotes
+        return null
+    }
+
+    // --- memory of you ---
+
+    private val REMEMBER = listOf(
+        Regex("^(?:please\\s+)?(?:can you\\s+|could you\\s+)?(?:remember|keep in mind|don't forget)(?:\\s+that|\\s+this)?\\s*[:,-]?\\s+(.+)$", RegexOption.DOT_MATCHES_ALL),
+        Regex("^(?:please\\s+)?(?:add|save|put)\\s+(?:this\\s+)?(?:to|in)\\s+(?:your\\s+)?memory\\s*[:,-]\\s*(.+)$", RegexOption.DOT_MATCHES_ALL)
+    )
+    /** "Remember to buy milk" is a to-do, and "remember when …" a question: not facts to keep. */
+    private val NOT_A_FACT = Regex("^(?:to|when|how|what|who|where|why|if|whether|me|it)\\b")
+    private val FORGET = Regex("^(?:please\\s+)?(?:forget|stop remembering|delete the memory)(?:\\s+that)?\\s*[:,-]?\\s+(.+)$", RegexOption.DOT_MATCHES_ALL)
+    private val LIST_MEMORIES = Regex(
+        "^(?:what|which things|what things)\\s+(?:do|did)\\s+you\\s+(?:remember|know)\\s+about\\s+me\\b|" +
+            "^(?:show|list)\\s+(?:me\\s+)?(?:your|my)\\s+memor(?:y|ies)\\b"
+    )
+
+    private fun memory(lower: String, original: String): ToolRequest? {
+        if (LIST_MEMORIES.containsMatchIn(lower)) return ToolRequest.ListMemories
+        FORGET.find(lower)?.let { m ->
+            val body = original.substring(m.groups[1]!!.range.first).trim()
+            if (body.length >= 2 && !NOT_A_FACT.containsMatchIn(m.groupValues[1])) return ToolRequest.Forget(body)
+        }
+        for (r in REMEMBER) {
+            val m = r.find(lower) ?: continue
+            val group = m.groups[1] ?: continue
+            if (NOT_A_FACT.containsMatchIn(group.value)) return null
+            val body = original.substring(group.range.first).trim()
+            if (body.length >= 2) return ToolRequest.Remember(body)
+        }
         return null
     }
 

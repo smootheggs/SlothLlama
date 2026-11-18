@@ -146,6 +146,9 @@ interface LocalMindDao {
     @Query("SELECT * FROM user_memories ORDER BY updatedAt DESC")
     fun observeMemories(): Flow<List<UserMemoryEntity>>
 
+    @Query("SELECT * FROM user_memories ORDER BY updatedAt DESC")
+    suspend fun getAllMemories(): List<UserMemoryEntity>
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertMemory(memory: UserMemoryEntity)
 

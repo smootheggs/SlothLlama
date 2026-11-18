@@ -17,6 +17,10 @@ import app.localmind.assistant.data.models.ModelLibrary
 import app.localmind.assistant.data.persona.TutorLevelStore
 import app.localmind.assistant.domain.persona.SpeechLanguage
 import app.localmind.assistant.domain.persona.TutorLevel
+import app.localmind.assistant.data.memory.Memory
+import app.localmind.assistant.data.memory.MemoryStore
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.stateIn
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,6 +43,7 @@ class SettingsViewModel @Inject constructor(
     private val backups: BackupManager,
     private val autoBackup: AutoBackup,
     private val modelLibrary: ModelLibrary,
+    private val memoryStore: MemoryStore,
     private val assistant: AssistantSettingsStore,
     private val tutorLevels: TutorLevelStore
 ) : AndroidViewModel(app) {
@@ -96,6 +101,32 @@ class SettingsViewModel @Inject constructor(
     fun setAutoBackup(on: Boolean) = autoBackup.setEnabled(on)
 
     fun autoBackupNow() = run("Backing up…") { "Backup saved: ${autoBackup.runNow()}." }
+
+    // --- Memory of you ----------------------------------------------------------------------
+
+    val memoryOn: StateFlow<Boolean> = memoryStore.enabled
+    val memories: StateFlow<List<Memory>> =
+        memoryStore.memories.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
+    fun setMemoryOn(on: Boolean) = memoryStore.setEnabled(on)
+
+    fun saveMemory(id: String?, text: String) {
+        viewModelScope.launch {
+            runCatching { if (id == null) memoryStore.add(text) else memoryStore.update(id, text) }
+                .onFailure { _message.value = it.message }
+        }
+    }
+
+    fun deleteMemory(id: String) {
+        viewModelScope.launch { memoryStore.delete(id) }
+    }
+
+    fun deleteAllMemories() {
+        viewModelScope.launch {
+            memoryStore.deleteAll()
+            _message.value = "Everything SlothLlama remembered about you is deleted."
+        }
+    }
 
     // --- Diagnostics -------------------------------------------------------------------------
 
@@ -192,7 +223,7 @@ class SettingsViewModel @Inject constructor(
     }
 
     private fun BackupSummary.describe(): String =
-        "$chats chats, $flashcards flashcards, $personas custom personas"
+        "$chats chats, $flashcards flashcards, $personas custom personas" + if (memories > 0) ", $memories memories" else ""
 
     /** Runs [work] with a busy label; its result (if any) becomes the snackbar message. */
     private fun run(label: String, work: suspend () -> String?) {

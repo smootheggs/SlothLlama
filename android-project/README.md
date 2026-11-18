@@ -112,9 +112,18 @@ model too big for the GPU falls back to the CPU on its own.
   (offline Wikipedia from library.kiwix.org; the "mini" and "nopic" editions are small) and they
   are read where they are. In a chat, the book button next to **+** sends each question with the
   passages that best answer it, and the reply cites them as [1], [2]. Search is by key words
-  (BM25), and handles Chinese and Japanese without spaces. Each item can be switched off or
+  (BM25), and handles Chinese and Japanese without spaces. **Search by meaning** (Library → Import
+  model, once: EmbeddingGemma, `embeddinggemma-300M-Q8_0.gguf`, 334 MB from
+  huggingface.co/ggml-org/embeddinggemma-300M-GGUF) also finds passages that say the same thing
+  in other words or another language; it reads the library in the background (pausing while a
+  reply is written) and runs on the CPU beside the chat model. Each item can be switched off or
   removed; the library has its own database and isn't in backups. Kiwix files are read with
   [libkiwix](https://github.com/kiwix/java-libkiwix) (GPLv3).
+- **Memory of you.** Say "remember that I'm vegetarian" in any chat (or add it in Settings →
+  Memory) and it goes with later messages as background. Only what you add is kept, in your
+  words; "forget that …" or Settings → Memory removes it, and "what do you remember about me?"
+  lists it. Memories are in backups. With search by meaning, the ones closest to the question go
+  first when there are many.
 - **Offline tools.** When a message asks for it, the app works it out on the tablet and hands
   the exact result to the assistant, so it doesn't guess: sums ("18% of 2,450", "12 times
   7.5"), unit conversions ("350 F to C", "how many cups in a litre"), the time in other cities

@@ -10,6 +10,8 @@
 #include <string>
 #include <cstdlib>
 #include <unistd.h>
+#include <mutex>
+#include <vector>
 #include <sampling.h>
 
 #include "logging.h"
@@ -890,3 +892,129 @@ JNIEXPORT void JNICALL
 Java_app_localmind_llama_LlamaNative_shutdown(JNIEnv *, jobject /*unused*/) {
     llama_backend_free();
 }
+
+// --- Search by meaning --------------------------------------------------------------------------
+// A small embedding model (e.g. EmbeddingGemma) held apart from the chat model, with its own
+// context, always on the CPU so it never competes for the GPU. A text goes in, a normalised vector
+// comes out. Calls are serialised by their own lock, so they may come from another thread than
+// the chat's.
+
+constexpr int EMBED_CONTEXT = 2048;
+constexpr int EMBED_THREADS = 4;
+
+static std::mutex                g_embed_lock;
+static llama_model             * g_embed_model = nullptr;
+static llama_context           * g_embed_ctx = nullptr;
+static int                       g_embed_n_ctx = 0;
+static int                       g_embed_dims = 0;
+
+static void embed_free_locked() {
+    if (g_embed_ctx) { llama_free(g_embed_ctx); }
+    g_embed_ctx = nullptr;
+    if (g_embed_model) { llama_model_free(g_embed_model); }
+    g_embed_model = nullptr;
+    g_embed_dims = 0;
+    g_embed_n_ctx = 0;
+}
+
+/** 0 = ready, 1 = the file couldn't be loaded, 2 = it isn't an embedding model, 3 = no memory for its context. */
+extern "C"
+JNIEXPORT jint JNICALL
+Java_app_localmind_llama_LlamaNative_embedLoad(JNIEnv *env, jobject /*unused*/, jstring jpath) {
+    std::lock_guard<std::mutex> lock(g_embed_lock);
+    embed_free_locked();
+
+    llama_model_params model_params = llama_model_default_params();
+    static ggml_backend_dev_t no_devices[] = { nullptr };
+    model_params.devices = no_devices;
+    model_params.n_gpu_layers = 0;
+
+    const char *path = env->GetStringUTFChars(jpath, nullptr);
+    llama_model *model = llama_model_load_from_file(path, model_params);
+    env->ReleaseStringUTFChars(jpath, path);
+    if (!model) { return 1; }
+    if (llama_model_has_encoder(model) && llama_model_has_decoder(model)) {
+        llama_model_free(model);
+        return 2;
+    }
+
+    int n_ctx = EMBED_CONTEXT;
+    const int trained = llama_model_n_ctx_train(model);
+    if (trained > 0 && trained < n_ctx) { n_ctx = trained; }
+
+    llama_context_params ctx_params = llama_context_default_params();
+    ctx_params.n_ctx = n_ctx;
+    ctx_params.n_batch = n_ctx;
+    ctx_params.n_ubatch = n_ctx;   // non-causal models need the whole text in one micro-batch
+    ctx_params.n_seq_max = 1;
+    ctx_params.n_threads = EMBED_THREADS;
+    ctx_params.n_threads_batch = EMBED_THREADS;
+    ctx_params.embeddings = true;
+    llama_context *ctx = llama_init_from_model(model, ctx_params);
+    if (!ctx) {
+        llama_model_free(model);
+        return 3;
+    }
+    if (llama_pooling_type(ctx) == LLAMA_POOLING_TYPE_NONE || llama_pooling_type(ctx) == LLAMA_POOLING_TYPE_RANK) {
+        llama_free(ctx);
+        llama_model_free(model);
+        return 2;
+    }
+    g_embed_model = model;
+    g_embed_ctx = ctx;
+    g_embed_n_ctx = n_ctx;
+    g_embed_dims = llama_model_n_embd_out(model);
+    LOGi("%s: embedding model ready, %d dimensions, context %d", __func__, g_embed_dims, n_ctx);
+    return 0;
+}
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_app_localmind_llama_LlamaNative_embedDimensions(JNIEnv * /*env*/, jobject /*unused*/) {
+    std::lock_guard<std::mutex> lock(g_embed_lock);
+    return g_embed_dims;
+}
+
+/** The text's vector (unit length), or null if no embedding model is loaded or it failed. */
+extern "C"
+JNIEXPORT jfloatArray JNICALL
+Java_app_localmind_llama_LlamaNative_embed(JNIEnv *env, jobject /*unused*/, jstring jtext) {
+    std::lock_guard<std::mutex> lock(g_embed_lock);
+    if (!g_embed_ctx || g_embed_dims <= 0) { return nullptr; }
+
+    const char *chars = env->GetStringUTFChars(jtext, nullptr);
+    const std::string text(chars);
+    env->ReleaseStringUTFChars(jtext, chars);
+
+    // Special tokens in the text are read as plain text, so a document can't smuggle any in.
+    llama_tokens tokens = common_tokenize(g_embed_ctx, text, /* add_special */ true, /* parse_special */ false);
+    if (tokens.empty()) { return nullptr; }
+    if ((int) tokens.size() > g_embed_n_ctx) { tokens.resize(g_embed_n_ctx); }
+
+    common_batch batch(g_embed_ctx);
+    batch.clear();
+    for (size_t i = 0; i < tokens.size(); i++) {
+        batch.add(tokens[i], (llama_pos) i, 0, true);
+    }
+    llama_memory_clear(llama_get_memory(g_embed_ctx), true);
+    if (llama_process(g_embed_ctx, LLAMA_PROCESS_TYPE_DECODE, batch.get()) < 0) {
+        LOGe("%s: decode failed", __func__);
+        return nullptr;
+    }
+    const float *raw = llama_get_embeddings_seq(g_embed_ctx, 0);
+    if (!raw) { return nullptr; }
+
+    std::vector<float> out(g_embed_dims);
+    common_embd_normalize(raw, out.data(), g_embed_dims, 2);
+    jfloatArray result = env->NewFloatArray(g_embed_dims);
+    if (result) { env->SetFloatArrayRegion(result, 0, g_embed_dims, out.data()); }
+    return result;
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_app_localmind_llama_LlamaNative_embedUnload(JNIEnv * /*env*/, jobject /*unused*/) {
+    std::lock_guard<std::mutex> lock(g_embed_lock);
+    embed_free_locked();
+}
+

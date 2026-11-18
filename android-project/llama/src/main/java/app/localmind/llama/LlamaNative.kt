@@ -94,5 +94,19 @@ object LlamaNative {
 
     external fun unload()
 
+    // --- Search by meaning: a separate embedding model, always on the CPU ---------------------
+    // Its calls are locked on the native side, so they may run on another thread than the chat.
+
+    /** 0 = ready, 1 = couldn't load the file, 2 = not an embedding model, 3 = no memory for it. */
+    external fun embedLoad(path: String): Int
+
+    /** Length of the vectors [embed] returns (0 when no embedding model is loaded). */
+    external fun embedDimensions(): Int
+
+    /** [text]'s vector, unit length, or null when no embedding model is loaded or it failed. */
+    external fun embed(text: String): FloatArray?
+
+    external fun embedUnload()
+
     external fun shutdown()
 }

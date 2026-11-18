@@ -229,6 +229,7 @@ class ModelLibrary @Inject constructor(
         val name = file.name.lowercase()
         if (name.endsWith(".part")) return false
         if ("mmproj" in name) return false           // vision projector, not a chat model
+        if ("embedding" in name) return false        // search-by-meaning model: imported in the Library
         if (SPLIT_TAIL.containsMatchIn(name)) return false // only show part 1 of split GGUFs
         return true
     }

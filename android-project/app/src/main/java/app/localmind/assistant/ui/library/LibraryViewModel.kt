@@ -5,6 +5,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.localmind.assistant.data.library.LibraryItem
 import app.localmind.assistant.data.library.LibraryStore
+import app.localmind.assistant.data.library.MeaningIndex
+import app.localmind.assistant.data.meaning.MeaningModel
+import app.localmind.assistant.data.meaning.MeaningModelState
 import app.localmind.assistant.domain.attachments.LibraryPassage
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
@@ -16,7 +19,10 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class LibraryViewModel @Inject constructor(private val store: LibraryStore) : ViewModel() {
+class LibraryViewModel @Inject constructor(
+    private val store: LibraryStore,
+    private val meaning: MeaningModel
+) : ViewModel() {
 
     val items: StateFlow<List<LibraryItem>?> = store.items
     val working: StateFlow<String?> = store.working
@@ -32,8 +38,36 @@ class LibraryViewModel @Inject constructor(private val store: LibraryStore) : Vi
     val searching: StateFlow<Boolean> = _searching.asStateFlow()
     private var searchJob: Job? = null
 
+    /** Search by meaning: the model, and how much of the library it has read. */
+    val meaningState: StateFlow<MeaningModelState> = meaning.state
+    val meaningIndex: StateFlow<MeaningIndex> = store.meaningIndex
+
     init {
-        viewModelScope.launch { runCatching { store.refresh() } }
+        viewModelScope.launch {
+            runCatching { store.refresh() }
+            runCatching { store.refreshMeaningIndex() }
+            if (meaning.state.value is MeaningModelState.Ready) store.startMeaningIndex()
+        }
+    }
+
+    fun importMeaningModel(uri: Uri?) {
+        if (uri == null) return
+        viewModelScope.launch {
+            meaning.import(uri)
+                .onSuccess {
+                    store.meaningModelChanged()
+                    _message.value = "Search by meaning is on. Your library is being read in the background."
+                }
+                .onFailure { e -> _message.value = e.message ?: "Couldn't import that model." }
+        }
+    }
+
+    fun removeMeaningModel() {
+        viewModelScope.launch {
+            meaning.remove()
+            store.meaningModelChanged()
+            _message.value = "Search by meaning is off. Searches use words only."
+        }
     }
 
     fun addDocuments(uris: List<Uri>) {
