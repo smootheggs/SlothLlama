@@ -1,0 +1,99 @@
+# Builds the Sloth Lobster, SlothLlama's sister app (lobster-app/), on GitHub's servers.
+# Signed with the same private key as SlothLlama when the SLOTH_KEYSTORE_* secrets are set;
+# otherwise it's the debug build. Its unit tests run first, in the same job.
+name: Build Sloth Lobster APK
+
+on:
+  push:
+    paths:
+      - "lobster-app/**"
+      - ".github/workflows/lobster.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: lobster-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v5
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install the SDK platform
+        run: |
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/android-sdk}}"
+          SDKM="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" --install "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: "8.11.1"
+          cache-read-only: false
+
+      # Mailbox encryption, link safety, search and page reading. A failure is flagged in the
+      # summary but doesn't hold back the APK.
+      - name: Run unit tests
+        id: tests
+        continue-on-error: true
+        working-directory: lobster-app
+        run: |
+          if gradle :app:testDebugUnitTest --console=plain; then
+            echo "### ✅ Sloth Lobster unit tests passed" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### ⚠️ Sloth Lobster unit tests failed: open the \"Run unit tests\" step's log" >> "$GITHUB_STEP_SUMMARY"
+            echo "::warning::Unit tests failed"
+            exit 1
+          fi
+
+      - name: Build APK
+        working-directory: lobster-app
+        env:
+          SLOTH_KEYSTORE_B64: ${{ secrets.SLOTH_KEYSTORE_B64 }}
+          SLOTH_KEYSTORE_PASSWORD: ${{ secrets.SLOTH_KEYSTORE_PASSWORD }}
+        run: |
+          mkdir -p "$RUNNER_TEMP/out"
+          if [ -n "$SLOTH_KEYSTORE_B64" ] && [ -n "$SLOTH_KEYSTORE_PASSWORD" ]; then
+            echo "Building the release APK, signed with your private key"
+            echo "$SLOTH_KEYSTORE_B64" | base64 -d > "$RUNNER_TEMP/release.p12"
+            export SLOTH_KEYSTORE="$RUNNER_TEMP/release.p12"
+            gradle :app:assembleRelease --stacktrace
+            rm -f "$RUNNER_TEMP/release.p12"
+            cp app/build/outputs/apk/release/app-release.apk "$RUNNER_TEMP/out/SlothLobster.apk"
+          else
+            echo "::warning::No release key in GitHub Secrets, so this is the debug build (debuggable, public debug key)."
+            gradle :app:assembleDebug --stacktrace
+            cp app/build/outputs/apk/debug/app-debug.apk "$RUNNER_TEMP/out/SlothLobster.apk"
+          fi
+
+      # The Lobster is the one that goes online; make sure it asks only for what it needs.
+      - name: Check the APK's permissions
+        run: |
+          PERMS=$("$ANDROID_HOME"/build-tools/35.0.0/aapt2 dump permissions "$RUNNER_TEMP/out/SlothLobster.apk")
+          echo "$PERMS"
+          for bad in READ_CONTACTS READ_SMS SEND_SMS CAMERA RECORD_AUDIO ACCESS_FINE_LOCATION ACCESS_COARSE_LOCATION READ_EXTERNAL_STORAGE MANAGE_EXTERNAL_STORAGE READ_CALENDAR; do
+            if echo "$PERMS" | grep -q "android.permission.$bad'"; then
+              echo "::error::The Lobster asks for $bad, which it should never need."
+              exit 1
+            fi
+          done
+          echo "Only network, notifications and staying awake: as intended."
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: slothlobster-apk
+          path: ${{ runner.temp }}/out/SlothLobster.apk
+          if-no-files-found: error
