@@ -16,6 +16,7 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.withContext
 import app.localmind.assistant.data.attachments.AttachmentStore
+import app.localmind.assistant.data.dictionary.ReplyPolisher
 import app.localmind.assistant.data.models.ModelLibrary
 import app.localmind.assistant.domain.attachments.Attachments
 import java.io.File
@@ -38,7 +39,8 @@ class LlamaCppInferenceEngine @Inject constructor(
     private val status: EngineStatus,
     private val gpu: GpuSettings,
     private val library: ModelLibrary,
-    private val attachments: AttachmentStore
+    private val attachments: AttachmentStore,
+    private val polisher: ReplyPolisher
 ) {
     /** Every native call happens on this one thread. */
     private val nativeThread = Dispatchers.IO.limitedParallelism(1)
@@ -311,6 +313,9 @@ class LlamaCppInferenceEngine @Inject constructor(
             val filter = ReplyFilter(startsThinking = thinks)
             var pieces = 0
             var firstTokenAt = 0L
+            // Small models sometimes get stuck repeating a line; stop as soon as that happens.
+            val shown = StringBuilder()
+            var looped = false
             try {
                 while (!cancelRequested && !filter.stopped) {
                     val piece = LlamaNative.generateNextToken() ?: break
@@ -322,7 +327,15 @@ class LlamaCppInferenceEngine @Inject constructor(
                         gpuAttemptOpen = false
                     }
                     val visible = filter.push(piece)
-                    if (visible.isNotEmpty()) emit(GenerationEvent.TokenDelta(visible))
+                    if (visible.isNotEmpty()) {
+                        emit(GenerationEvent.TokenDelta(visible))
+                        shown.append(visible)
+                        if (RepeatGuard.period(shown) > 0) {
+                            looped = true
+                            Log.w(TAG, "Reply started repeating itself; stopped")
+                            break
+                        }
+                    }
                 }
             } catch (e: CancellationException) {
                 throw e
@@ -338,8 +351,11 @@ class LlamaCppInferenceEngine @Inject constructor(
                 return@flow
             }
 
-            val (tail, visibleReply) = filter.finish()
+            val (tail, rawReply) = filter.finish()
             if (tail.isNotEmpty()) emit(GenerationEvent.TokenDelta(tail))
+            // Keep one copy of a repeated block, then check the readings against the dictionary.
+            val unrepeated = if (looped) RepeatGuard.trim(rawReply) else rawReply
+            val visibleReply = if (cancelRequested) unrepeated else polisher.polish(unrepeated, request.speechLanguage)
 
             if (cancelRequested) {
                 emit(GenerationEvent.Canceled(visibleReply))
@@ -365,7 +381,7 @@ class LlamaCppInferenceEngine @Inject constructor(
                     peakMemoryMb = usedMemoryMb(),
                     contextUsed = LlamaNative.usedTokens(),
                     contextSize = loadedContext,
-                    stoppedAtLimit = !endedCleanly && !filter.stopped && pieces > 0,
+                    stoppedAtLimit = !endedCleanly && !filter.stopped && !looped && pieces > 0,
                     historyTrimmed = plan.history.size < effective.recentMessages.count {
                         it.role.equals("USER", ignoreCase = true) || it.role.equals("ASSISTANT", ignoreCase = true)
                     }

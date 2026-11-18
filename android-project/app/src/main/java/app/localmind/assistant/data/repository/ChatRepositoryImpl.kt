@@ -209,7 +209,8 @@ class ChatRepositoryImpl @Inject constructor(
             userPrompt = content.trim(),
             temperature = persona.temperature,
             maxOutputTokens = persona.maxOutputTokens,
-            allowThinking = assistantSettings.thinking.value
+            allowThinking = assistantSettings.thinking.value,
+            speechLanguage = persona.speech
         )
 
         // 5. Update assistant status to STREAMING

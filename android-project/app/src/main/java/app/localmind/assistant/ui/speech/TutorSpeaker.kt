@@ -158,7 +158,7 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
         private val NOT_CHINESE = Regex("[^\\u3000-\\u303F\\u3400-\\u4DBF\\u4E00-\\u9FFF\\uF900-\\uFAFF\\uFF00-\\uFFEF]+")
 
         /** "简:" / "繁:" line labels used when the tutors write both scripts. */
-        private val SCRIPT_LABEL = Regex("^\\s*[简繁簡]\\s*[:：]\\s*")
+        private val SCRIPT_LABEL = Regex("^\\s*(?:[简繁簡]|繁/简)\\s*[:：]\\s*")
 
         /**
          * Keeps the lines that contain Chinese characters, minus any Latin text on them.

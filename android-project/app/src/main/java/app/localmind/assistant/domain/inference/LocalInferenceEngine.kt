@@ -111,7 +111,9 @@ data class GenerationRequest(
     val maxOutputTokens: Int = 1024,
     val totalContextBudgetTokens: Int = 4096,
     /** Reasoning models only: think before answering (slower, sometimes smarter). */
-    val allowThinking: Boolean = false
+    val allowThinking: Boolean = false,
+    /** A tutor's language: its finished replies get their Pinyin / Jyutping checked against the dictionary. */
+    val speechLanguage: app.localmind.assistant.domain.persona.SpeechLanguage? = null
 )
 
 data class PromptTurn(

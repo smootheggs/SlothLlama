@@ -229,8 +229,10 @@ fun parseMarkdownBlocks(text: String): List<MarkdownBlock> {
             } else if (trimmed.isEmpty()) {
                 flushParagraph()
             } else {
+                // Keep the reply's line breaks: tutors put 繁 / 简 / reading / English on separate
+                // lines, and joining them into one run made replies unreadable.
                 if (paragraphAccumulator.isNotEmpty()) {
-                    paragraphAccumulator.append(" ")
+                    paragraphAccumulator.append("\n")
                 }
                 paragraphAccumulator.append(trimmed)
             }

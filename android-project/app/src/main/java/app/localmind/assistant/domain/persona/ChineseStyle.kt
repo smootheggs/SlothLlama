@@ -106,6 +106,8 @@ object ChineseRules {
             append(" – time")
         }
         lines += "- In word lists, write each item as: $wordFormat. For example: $wordExample"
+        lines += "- You only see typed text, so never comment on the learner's tones or pronunciation. " +
+            "Correct only what they wrote: characters, words and grammar."
         lines += "Example of a Chinese sentence in the required format:"
         lines += exampleLines
         return lines.joinToString("\n")
