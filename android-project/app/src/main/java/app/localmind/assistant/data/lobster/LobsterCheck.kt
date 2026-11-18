@@ -63,7 +63,7 @@ object LobsterCheck {
         if (context.checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return
         val manager = context.getSystemService(NotificationManager::class.java)
         manager.createNotificationChannel(
-            NotificationChannel(CHANNEL_ID, "Sloth Lobster", NotificationManager.IMPORTANCE_LOW).apply {
+            NotificationChannel(CHANNEL_ID, "SlothLobster", NotificationManager.IMPORTANCE_LOW).apply {
                 description = "When the Lobster brings something back"
             }
         )

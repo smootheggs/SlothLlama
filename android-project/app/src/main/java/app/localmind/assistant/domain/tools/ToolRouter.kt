@@ -19,7 +19,7 @@ sealed interface ToolRequest {
     data class Calendar(val from: LocalDate, val days: Int, val label: String) : ToolRequest
     data class Define(val words: List<String>) : ToolRequest
     data class Library(val query: String) : ToolRequest
-    /** An order for the Sloth Lobster ("ask the lobster to …"). */
+    /** An order for the SlothLobster ("ask the lobster to …"). */
     data class Lobster(val text: String) : ToolRequest
 }
 
@@ -155,10 +155,10 @@ object ToolRouter {
         return source.substring(g.range.first, g.range.last + 1).trim().takeIf { it.length >= 2 }
     }
 
-    // --- the Sloth Lobster ---
+    // --- the SlothLobster ---
 
     private val LOBSTER = Regex(
-        "^(?:🦞\\s*)?(?:please\\s+)?(?:(?:ask|tell|have|get|send)\\s+(?:the\\s+)?(?:sloth\\s+)?lobster\\s+(?:to\\s+|for\\s+)?|lobster[:,]\\s*|🦞\\s+)(.+)$",
+        "^(?:🦞\\s*)?(?:please\\s+)?(?:(?:ask|tell|have|get|send)\\s+(?:the\\s+)?(?:sloth\\s*)?lobster\\s+(?:to\\s+|for\\s+)?|(?:sloth\\s*)?lobster[:,]\\s*|🦞\\s+)(.+)$",
         RegexOption.DOT_MATCHES_ALL
     )
 

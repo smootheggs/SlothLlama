@@ -35,6 +35,10 @@ class Store(private val file: File) {
         s.copy(watches = s.watches.map { if (it.id == id) change(it) else it })
     }
 
+    fun updateRepeat(id: String, change: (Repeat) -> Repeat) = update { s ->
+        s.copy(repeats = s.repeats.map { if (it.id == id) change(it) else it })
+    }
+
     fun log(kind: String, what: String, detail: String = "") = update { s ->
         s.copy(log = listOf(LogEntry(System.currentTimeMillis(), kind, what, detail.take(300))) + s.log)
     }
@@ -49,7 +53,8 @@ class Store(private val file: File) {
             log = log,
             jobs = jobs.sortedByDescending { it.createdAt },
             delivered = s.delivered.take(MAX_DELIVERED),
-            seenOrders = s.seenOrders.takeLast(MAX_SEEN_ORDERS)
+            seenOrders = s.seenOrders.takeLast(MAX_SEEN_ORDERS),
+            sentHeadlines = s.sentHeadlines.takeLast(MAX_SENT_HEADLINES)
         )
     }
 
@@ -79,5 +84,6 @@ class Store(private val file: File) {
         private const val MAX_CLOSED_JOBS = 60
         private const val MAX_DELIVERED = 100
         private const val MAX_SEEN_ORDERS = 1_000
+        private const val MAX_SENT_HEADLINES = 3_000
     }
 }

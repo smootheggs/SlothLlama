@@ -46,7 +46,7 @@ object Notifier {
     fun awake(context: Context, text: String): Notification =
         NotificationCompat.Builder(context, AWAKE_CHANNEL)
             .setSmallIcon(R.drawable.ic_stat_lobster)
-            .setContentTitle("Sloth Lobster is awake")
+            .setContentTitle("SlothLobster is awake")
             .setContentText(text)
             .setOngoing(true)
             .setSilent(true)

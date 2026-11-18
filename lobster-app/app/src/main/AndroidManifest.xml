@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- The Sloth Lobster is the one that goes online, so SlothLlama never has to. -->
+    <!-- The SlothLobster is the one that goes online, so SlothLlama never has to. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <!-- "Brought back" and "a page you watch changed" notices. -->

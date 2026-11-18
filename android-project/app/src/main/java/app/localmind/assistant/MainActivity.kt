@@ -249,7 +249,7 @@ private fun SlothRoot(
 
     BackHandler(enabled = destination != Destination.HOME, onBack = goBack)
 
-    // The Sloth Lobster shows up on Home and in the chat list once it's switched on.
+    // The SlothLobster shows up on Home and in the chat list once it's switched on.
     val lobster: LobsterViewModel = hiltViewModel()
     val lobsterState by lobster.state.collectAsStateWithLifecycle()
     val openLobster: (() -> Unit)? = if (lobsterState.enabled) ({ navigate(Destination.LOBSTER) }) else null

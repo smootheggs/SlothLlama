@@ -117,7 +117,7 @@ fun ConversationDrawerContent(
         NavRow(Icons.Outlined.Translate, "Dictionary", onOpenDictionary)
         NavRow(Icons.Outlined.LocalLibrary, "Library", onOpenLibrary)
         NavRow(Icons.Outlined.StickyNote2, "Notes", onOpenNotes)
-        onOpenLobster?.let { NavRow(Icons.Outlined.Sailing, "Sloth Lobster", it) }
+        onOpenLobster?.let { NavRow(Icons.Outlined.Sailing, "SlothLobster", it) }
         NavRow(Icons.Outlined.Memory, "Models", onOpenModels, trailing = modelStatus)
         NavRow(Icons.Outlined.Settings, "Settings", onOpenSettings)
 

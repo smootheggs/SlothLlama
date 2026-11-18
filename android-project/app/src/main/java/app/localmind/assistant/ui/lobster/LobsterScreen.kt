@@ -69,7 +69,7 @@ import app.localmind.assistant.ui.theme.SlothPalette as P
 import kotlinx.coroutines.delay
 
 /**
- * The Sloth Lobster's page: whether it's awake, orders for it, what it brought back, and pairing.
+ * The SlothLobster's page: whether it's awake, orders for it, what it brought back, and pairing.
  * The Lobster is a separate app that goes online; SlothLlama only shares a mailbox folder with it.
  */
 @Composable
@@ -102,7 +102,7 @@ fun LobsterScreen(viewModel: LobsterViewModel, onBack: () -> Unit) {
 
     Box(Modifier.fillMaxSize().background(P.Canvas)) {
         Column(Modifier.fillMaxSize()) {
-            SlothTopBar(title = "Sloth Lobster", subtitle = "Goes online for you · 🦞", onBack = onBack)
+            SlothTopBar(title = "SlothLobster", subtitle = "Goes online for you · 🦞", onBack = onBack)
             BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                 val wide = maxWidth >= WIDE
                 when {
@@ -174,7 +174,7 @@ private fun Intro(onTurnOn: () -> Unit) {
         Text("The Lobster goes where the sloth doesn't.", color = P.Text, fontSize = 20.sp, fontWeight = FontWeight.SemiBold,
             modifier = Modifier.padding(top = 8.dp))
         Text(
-            "SlothLlama never goes online. The Sloth Lobster is a separate app that does: it researches, fetches " +
+            "SlothLlama never goes online. The SlothLobster is a separate app that does: it researches, fetches " +
                 "articles and watches pages for you, and brings back what it finds. The two only share a mailbox " +
                 "folder, and everything in it is encrypted with a key that only they hold.\n\n" +
                 "What comes back is shown to you, never acted on: you decide whether it goes into your Library, " +
@@ -402,7 +402,7 @@ private fun Pairing(
             Row(Modifier.padding(top = 4.dp)) {
                 Action("Copy") {
                     val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    val clip = ClipData.newPlainText("Sloth Lobster pairing code", shown)
+                    val clip = ClipData.newPlainText("SlothLobster pairing code", shown)
                     // Marked sensitive: Android hides it from the clipboard preview and keyboard suggestions.
                     clip.description.extras = android.os.PersistableBundle().apply {
                         putBoolean(android.content.ClipDescription.EXTRA_IS_SENSITIVE, true)

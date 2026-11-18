@@ -40,6 +40,10 @@ data class Job(
     val deep: Boolean = false,
     val deliver: String = "library",
     val createdAt: Long,
+    /** Extra searches for a research job (the question itself is searched when there are none). */
+    val queries: List<String> = emptyList(),
+    /** The repeating order that made this job, if any. */
+    val repeatId: String? = null,
     val state: String = JobState.QUEUED,
     val sources: List<SourceState> = emptyList(),
     /** Asked to stop gathering and send what it has. */
@@ -73,10 +77,44 @@ data class Watch(
     val lastChange: Long = 0,
     val added: List<String> = emptyList(),
     val removed: List<String> = emptyList(),
-    val failures: Int = 0
+    val failures: Int = 0,
+    /** Only this part of the page: the heading it sits under ("" = the whole page). */
+    val section: String = "",
+    /** Only lines with one of these words (empty = every line). */
+    val keywords: List<String> = emptyList(),
+    /** The page's headings at the last look, to choose a part from. */
+    val headings: List<String> = emptyList()
 ) {
     val isTopic: Boolean get() = !target.startsWith("https://") && !target.startsWith("http://")
 }
+
+/** An order that runs again every day or every week. */
+@Serializable
+data class Repeat(
+    val id: String,
+    val kind: String,
+    val text: String,
+    val deep: Boolean = false,
+    val from: String = From.MINE,
+    /** 1 = every day, 7 = every week (on [weekday]). */
+    val everyDays: Int = 1,
+    /** Calendar.MONDAY … Calendar.SUNDAY, for weekly ones. */
+    val weekday: Int = 2,
+    val hour: Int = 7,
+    val minute: Int = 0,
+    val enabled: Boolean = true,
+    val createdAt: Long = 0,
+    /** The day it last ran ("2026-11-18"), so it runs once a day at most. */
+    val lastRunDay: String? = null
+)
+
+/** How a search engine has been answering, so a broken one is noticed and tried last. */
+@Serializable
+data class EngineHealth(
+    val lastOk: Long = 0,
+    val lastFailed: Long = 0,
+    val failsInRow: Int = 0
+)
 
 /** One line in the Log: everything the Lobster did online. */
 @Serializable
@@ -108,6 +146,8 @@ data class Settings(
     val briefHour: Int = 6,
     val briefMinute: Int = 30,
     val feeds: List<String> = DEFAULT_FEEDS,
+    /** A group name for each feed link ("News", "F1"), used to arrange the brief. */
+    val feedGroups: Map<String, String> = emptyMap(),
     val notify: Boolean = true,
     val wifiOnly: Boolean = false,
     /** Stay awake with a quiet notification (checks every half minute) instead of every 15 minutes. */
@@ -134,5 +174,9 @@ data class Saved(
     val delivered: List<Delivered> = emptyList(),
     val settings: Settings = Settings(),
     /** Ids of orders already taken, so a copy of an old order file can't make it run again. */
-    val seenOrders: List<String> = emptyList()
+    val seenOrders: List<String> = emptyList(),
+    val repeats: List<Repeat> = emptyList(),
+    /** Headlines already sent in a brief (their links), so a brief never repeats one. */
+    val sentHeadlines: List<String> = emptyList(),
+    val engines: Map<String, EngineHealth> = emptyMap()
 )

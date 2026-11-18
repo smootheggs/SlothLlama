@@ -19,7 +19,7 @@ dependencyResolutionManagement {
     }
 }
 
-// The Sloth Lobster: SlothLlama's sister app, the only one of the two that goes online.
+// The SlothLobster: SlothLlama's sister app, the only one of the two that goes online.
 // A separate build from android-project/, so SlothLlama's APK can never pick up its network code.
 rootProject.name = "SlothLobster"
 include(":app")

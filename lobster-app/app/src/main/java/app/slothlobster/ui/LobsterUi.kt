@@ -69,6 +69,8 @@ fun LobsterUi(vm: LobsterViewModel) {
     var tab by rememberSaveable { mutableStateOf(Tab.DECK) }
     var settingsOpen by rememberSaveable { mutableStateOf(false) }
     var openJob by rememberSaveable { mutableStateOf<String?>(null) }
+    var readerId by rememberSaveable { mutableStateOf<String?>(null) }
+    var listOpen by rememberSaveable { mutableStateOf(false) }
 
     // Something shared from another app goes to the order box.
     LaunchedEffect(shared) {
@@ -76,6 +78,8 @@ fun LobsterUi(vm: LobsterViewModel) {
             tab = Tab.ORDERS
             settingsOpen = false
             openJob = null
+            readerId = null
+            listOpen = false
         }
     }
 
@@ -88,9 +92,11 @@ fun LobsterUi(vm: LobsterViewModel) {
         val railed = maxWidth >= 600.dp
         val twoPane = maxWidth >= 840.dp
 
-        BackHandler(enabled = settingsOpen || (!twoPane && openJob != null) || tab != Tab.DECK) {
+        BackHandler(enabled = settingsOpen || readerId != null || listOpen || (!twoPane && openJob != null) || tab != Tab.DECK) {
             when {
                 settingsOpen -> settingsOpen = false
+                readerId != null -> readerId = null
+                listOpen -> listOpen = false
                 !twoPane && openJob != null -> openJob = null
                 else -> tab = Tab.DECK
             }
@@ -99,6 +105,8 @@ fun LobsterUi(vm: LobsterViewModel) {
         val pickTab: (Tab) -> Unit = { t ->
             tab = t
             settingsOpen = false
+            readerId = null
+            listOpen = false
             if (!twoPane) openJob = null
         }
 
@@ -112,13 +120,38 @@ fun LobsterUi(vm: LobsterViewModel) {
                     onUnpair = vm::unpair,
                     onFolder = vm::setFolder,
                     onSettings = vm::settings,
+                    onSetFeeds = vm::setFeeds,
+                    onImportOpml = vm::importOpml,
                     onBriefNow = vm::briefNow,
                     onStopEverything = vm::stopEverything,
                     modifier = mod
                 )
+                readerId != null -> {
+                    val id = readerId.orEmpty()
+                    ReaderScreen(
+                        id = id,
+                        now = now,
+                        jobId = saved.delivered.find { it.id == id }?.jobId?.takeIf { j -> saved.jobs.any { it.id == j } },
+                        load = vm::loadCatch,
+                        onBack = { readerId = null },
+                        onOpenJob = { j ->
+                            readerId = null
+                            listOpen = false
+                            tab = Tab.ORDERS
+                            openJob = j
+                        },
+                        modifier = mod
+                    )
+                }
+                listOpen -> BroughtBackScreen(
+                    saved, live, now,
+                    onBack = { listOpen = false },
+                    onOpen = { d -> readerId = d.id },
+                    modifier = mod
+                )
                 tab == Tab.WATCH -> WatchScreen(
                     saved, now,
-                    onAdd = vm::addWatch, onToggle = vm::setWatchOn, onEvery = vm::setWatchEvery,
+                    onAdd = vm::addWatch, onFilter = vm::setWatchFilter, onToggle = vm::setWatchOn, onEvery = vm::setWatchEvery,
                     onCheckNow = vm::checkWatchNow, onRemove = vm::removeWatch, modifier = mod
                 )
                 tab == Tab.LOG -> LogScreen(saved, now, mod)
@@ -133,6 +166,8 @@ fun LobsterUi(vm: LobsterViewModel) {
                             onSendNow = vm::sendNow,
                             onAgain = vm::again,
                             onRemove = { id -> vm.remove(id); openJob = null },
+                            catchId = saved.delivered.firstOrNull { it.jobId == selected }?.id,
+                            onRead = { c -> readerId = c },
                             modifier = m
                         )
                     }
@@ -143,6 +178,8 @@ fun LobsterUi(vm: LobsterViewModel) {
                                 onSharedUsed = vm::sharedUsed,
                                 onSend = vm::send,
                                 onOpenJob = { openJob = it },
+                                onRepeatOn = vm::setRepeatOn,
+                                onRepeatRemove = vm::removeRepeat,
                                 modifier = m
                             )
                         } else {
@@ -150,6 +187,8 @@ fun LobsterUi(vm: LobsterViewModel) {
                                 saved, live, now, railed, selected,
                                 onSettings = { settingsOpen = true },
                                 onOpenJob = { openJob = it },
+                                onOpenCatch = { readerId = it },
+                                onSeeAll = { listOpen = true },
                                 onPause = vm::setPaused,
                                 onPair = { settingsOpen = true },
                                 modifier = m
@@ -229,7 +268,7 @@ private fun Rail(tab: Tab, settingsOpen: Boolean, onTab: (Tab) -> Unit, onSettin
     ) {
         Image(
             painterResource(R.drawable.sloth_lobster),
-            contentDescription = "Sloth Lobster: a sloth riding a lobster",
+            contentDescription = "SlothLobster: a sloth riding a lobster",
             modifier = Modifier.size(width = 72.dp, height = 63.dp)
         )
         Spacer(Modifier.height(10.dp))

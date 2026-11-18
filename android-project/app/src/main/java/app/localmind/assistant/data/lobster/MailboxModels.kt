@@ -3,7 +3,7 @@ package app.localmind.assistant.data.lobster
 import kotlinx.serialization.Serializable
 
 /*
- * The Sloth Lobster mailbox, version 1 (docs/LOBSTER_MAILBOX.md has the full format).
+ * The SlothLobster mailbox, version 1 (docs/LOBSTER_MAILBOX.md has the full format).
  * Every file is AES-256-GCM encrypted with the key both apps share; these are the JSON bodies.
  */
 
@@ -20,7 +20,9 @@ data class LobsterOrder(
     val depth: String = "quick",
     /** Where the catch should go: library, notes or chat. */
     val deliver: String = "library",
-    val createdAt: Long
+    val createdAt: Long,
+    /** Optional (1.1): the searches to run for a research order. */
+    val queries: List<String> = emptyList()
 )
 
 @Serializable

@@ -23,7 +23,7 @@ sealed interface LaunchRequest {
         val photo: String? = null,
         val document: app.localmind.assistant.domain.attachments.DocumentText? = null
     ) : LaunchRequest
-    /** Open the Sloth Lobster page. */
+    /** Open the SlothLobster page. */
     data object Lobster : LaunchRequest
 }
 

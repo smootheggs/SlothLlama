@@ -5,6 +5,8 @@ import app.slothlobster.core.Delivered
 import app.slothlobster.core.From
 import app.slothlobster.core.Job
 import app.slothlobster.core.JobState
+import app.slothlobster.core.EngineHealth
+import app.slothlobster.core.Repeat
 import app.slothlobster.core.Lobster
 import app.slothlobster.core.SourceState
 import app.slothlobster.core.Store
@@ -84,6 +86,7 @@ class Engine(private val lobster: Lobster) {
             val offline = lobster.offlineReason()
             lobster.setLive { it.copy(waitingFor = offline) }
             if (offline != null) return
+            checkRepeats()
             while (!lobster.isPaused()) {
                 val next = store.value.jobs.filter { it.state == JobState.QUEUED }.minByOrNull { it.createdAt } ?: break
                 work(next)
@@ -118,18 +121,53 @@ class Engine(private val lobster: Lobster) {
                 store.log("problem", "Ignored an out-of-date order", "${OrderKind.of(order.kind).label}: ${order.text.take(80)}")
                 continue
             }
+            // "every Monday at 7 …" makes it a repeating order: it runs now, then on schedule.
+            val rule = if (OrderKind.of(order.kind) == OrderKind.WATCH) null else Repeats.parse(order.text)
+            val text = (if (rule != null) Repeats.strip(order.text) else order.text).take(4_000)
+            val repeatId = rule?.let { UUID.randomUUID().toString() }
             val job = Job(
                 id = UUID.randomUUID().toString(),
                 orderId = order.id,
                 from = From.TABLET,
                 kind = order.kind,
-                text = order.text.take(4_000),
+                text = text,
                 deep = order.depth == "deep",
                 deliver = order.deliver,
-                createdAt = System.currentTimeMillis()
+                createdAt = System.currentTimeMillis(),
+                queries = order.queries.map { it.take(200) }.take(Plans.MAX_SEARCHES),
+                repeatId = repeatId
             )
-            store.update { it.copy(jobs = listOf(job) + it.jobs) }
-            store.log("mailbox", "Took an order from SlothLlama", "${OrderKind.of(order.kind).label}: ${order.text.take(80)}")
+            store.update { s ->
+                val repeats = if (rule == null || repeatId == null) s.repeats else s.repeats + Repeat(
+                    id = repeatId, kind = order.kind, text = text, deep = job.deep, from = From.TABLET,
+                    everyDays = rule.everyDays, weekday = rule.weekday, hour = rule.hour, minute = rule.minute,
+                    createdAt = now, lastRunDay = Repeats.dayKey(Calendar.getInstance())
+                )
+                s.copy(jobs = listOf(job) + s.jobs, repeats = repeats)
+            }
+            store.log("mailbox", "Took an order from SlothLlama", "${OrderKind.of(order.kind).label}: ${text.take(80)}")
+            if (rule != null) store.log("order", "Set to repeat", "${OrderKind.of(order.kind).label} · ${rule.describe()}")
+        }
+    }
+
+    /** Queues each repeating order that's due (once a day at most). */
+    private fun checkRepeats() {
+        val now = Calendar.getInstance()
+        val day = Repeats.dayKey(now)
+        for (r in store.value.repeats) {
+            if (!r.enabled || !Repeats.due(r.everyDays, r.weekday, r.hour, r.minute, r.lastRunDay, now)) continue
+            val job = Job(
+                id = UUID.randomUUID().toString(),
+                from = r.from,
+                kind = r.kind,
+                text = r.text,
+                deep = r.deep,
+                createdAt = System.currentTimeMillis(),
+                repeatId = r.id
+            )
+            store.update { s -> s.copy(jobs = listOf(job) + s.jobs) }
+            store.updateRepeat(r.id) { it.copy(lastRunDay = day) }
+            store.log("order", "Repeating order is due", "${OrderKind.of(r.kind).label}: ${r.text.take(80)}")
         }
     }
 
@@ -214,7 +252,7 @@ class Engine(private val lobster: Lobster) {
     }
 
     private suspend fun research(job: Job): Outcome {
-        val question = job.text.trim()
+        val (question, searches) = Plans.searches(job.text, job.queries)
         if (question.isBlank()) throw WebException("The order has no question")
         val read = ArrayList<Pair<SourceState, String>>()
 
@@ -230,11 +268,22 @@ class Engine(private val lobster: Lobster) {
         setSources(job.id, read.map { it.first })
         checkpoint(job.id)
 
-        val (engine, hits) = runCatching { Search.web(question, if (job.deep) 7 else 4) }.getOrElse {
-            store.log("problem", "Web search didn't answer", friendly(it))
-            "" to emptyList<Hit>()
+        // Each search adds its share of pages, never the same site twice.
+        val total = if (job.deep) 7 else 4
+        val per = Plans.perSearch(total, searches.size)
+        val seen = HashSet<String>()
+        val hits = ArrayList<Hit>()
+        for (q in searches) {
+            checkpoint(job.id)
+            val (engine, found) = runCatching { Search.web(q, per + 4, engineOrder(), ::recordEngine) }.getOrElse {
+                store.log("problem", "Web search didn't answer", friendly(it))
+                "" to emptyList<Hit>()
+            }
+            if (engine.isNotEmpty()) store.log("search", "Searched $engine", q)
+            hits += found.filter { seen.add(Web.site(it.url)) }.take(per)
+            if (hits.size >= total + 2) break
         }
-        if (engine.isNotEmpty()) store.log("search", "Searched $engine", question)
+        while (hits.size > total) hits.removeAt(hits.lastIndex)
         setSources(job.id, read.map { it.first } + hits.map { SourceState(it.title, it.url, Web.site(it.url)) })
 
         for (hit in hits) {
@@ -264,7 +313,10 @@ class Engine(private val lobster: Lobster) {
 
         val text = buildString {
             append("# ").append(question).append("\n\n")
-            append("_Gathered by the Sloth Lobster on ").append(today()).append(" from ").append(read.size)
+            if (searches.size > 1 || searches.firstOrNull() != question) {
+                append("Searches: ").append(searches.joinToString(" · ")).append("\n\n")
+            }
+            append("_Gathered by the SlothLobster on ").append(today()).append(" from ").append(read.size)
             append(if (read.size == 1) " source" else " sources")
             append(". Not summarised yet: ask SlothLlama to read it and answer, citing the sources by number._\n\n")
             read.forEachIndexed { i, (source, body) ->
@@ -339,27 +391,30 @@ class Engine(private val lobster: Lobster) {
     }
 
     private suspend fun watchOrder(job: Job): Outcome {
-        val link = Web.firstLink(job.text)?.let(Web::safeUrl)
-        val target = link ?: job.text.trim().take(120)
+        val link = Regex("""https?://\S+""").find(job.text)?.value?.trimEnd('.', ',', ';', ':')?.let(Web::safeUrl)
+        val target = link ?: Watches.topicFrom(job.text)
         if (target.isBlank()) throw WebException("The order doesn't say what to watch")
         val first = Watch(
             id = UUID.randomUUID().toString(),
             target = target,
             title = if (link != null) Web.site(link) else "News · $target",
-            createdAt = System.currentTimeMillis()
+            createdAt = System.currentTimeMillis(),
+            keywords = if (link != null) Watches.keywordsFrom(job.text) else emptyList()
         )
-        val (title, lines) = look(first)
+        val seen = look(first)
         val watch = first.copy(
-            title = title, lastChecked = System.currentTimeMillis(),
-            lastLines = lines, lastHash = Changes.hash(lines)
+            title = seen.title, lastChecked = System.currentTimeMillis(), headings = seen.headings,
+            lastLines = seen.lines, lastHash = Changes.hash(seen.lines)
         )
+        val title = watch.title
         store.update { it.copy(watches = listOf(watch) + it.watches) }
         val catch = LobsterCatch(
             id = UUID.randomUUID().toString(),
             orderId = job.orderId,
             kind = "message",
             title = "Watching · $title",
-            text = "The Sloth Lobster is now watching **$title** and checks it every ${watch.everyHours} hours. " +
+            text = "The SlothLobster is now watching **$title** and checks it every ${watch.everyHours} hours. " +
+                (if (watch.keywords.isNotEmpty()) "It only looks at lines that mention ${watch.keywords.joinToString(", ")}. " else "") +
                 "When it changes, an alert comes to the mailbox.\n\nSource: ${watchUrl(watch)}",
             sources = listOf(LobsterSource(title, watchUrl(watch))),
             createdAt = System.currentTimeMillis()
@@ -369,9 +424,11 @@ class Engine(private val lobster: Lobster) {
 
     private suspend fun briefOrder(job: Job): Outcome {
         val links = Regex("""https?://\S+""").findAll(job.text).map { it.value }.mapNotNull(Web::safeUrl).toList()
-        val topic = job.text.replace(Regex("""https?://\S+"""), "").trim()
+        val topic = job.text.replace(Regex("""https?://\S+"""), "")
+            .replace(Regex("""^(?:a\s+|the\s+)?(?:brief|briefing|round-?up|news)\s+(?:on|about|of)\s+""", RegexOption.IGNORE_CASE), "")
+            .trim()
         val feeds = links.ifEmpty { listOf(Feeds.newsSearch(topic.ifBlank { "world news" })) }
-        val (text, sources) = gatherBrief(feeds, perFeed = if (links.isEmpty()) 10 else 5)
+        val (text, sources) = gatherBrief(feeds, perFeed = if (links.isEmpty()) 10 else 5, skipSeen = job.repeatId != null)
         val title = "Brief · " + (topic.ifBlank { "your feeds" }).take(80)
         val catch = LobsterCatch(
             id = UUID.randomUUID().toString(),
@@ -391,13 +448,30 @@ class Engine(private val lobster: Lobster) {
             orderId = job.orderId,
             kind = "message",
             title = "The Lobster has no brain switched on",
-            text = "The Sloth Lobster runs free jobs only for now, with no AI model of its own, so it can't " +
+            text = "The SlothLobster runs free jobs only for now, with no AI model of its own, so it can't " +
                 "answer this itself. It can research (gather sources for SlothLlama to read and answer from), " +
                 "fetch a link, watch a page or topic, or make a brief. Send it again as **Research** and " +
                 "SlothLlama will answer from what comes back.\n\nYour order: ${job.text.take(300)}",
             createdAt = System.currentTimeMillis()
         )
         return Outcome(catch, "Needs a model, which is switched off. Try Research instead.", "Needs a model")
+    }
+
+    // --- search engines ---
+
+    /** Engines that have been failing go last; the rest keep their usual order. */
+    private fun engineOrder(): List<String> {
+        val health = store.value.engines
+        return Search.ENGINES.sortedBy { minOf(health[it]?.failsInRow ?: 0, 3) }
+    }
+
+    private fun recordEngine(name: String, ok: Boolean) {
+        val before = store.value.engines[name] ?: EngineHealth()
+        val now = System.currentTimeMillis()
+        val after = if (ok) before.copy(lastOk = now, failsInRow = 0) else before.copy(lastFailed = now, failsInRow = before.failsInRow + 1)
+        store.update { it.copy(engines = it.engines + (name to after)) }
+        if (!ok && after.failsInRow == 3) store.log("problem", "$name has stopped answering searches", "Tried 3 times in a row; the other engines are used first")
+        if (ok && before.failsInRow >= 3) store.log("search", "$name is answering again")
     }
 
     // --- watches ---
@@ -408,12 +482,14 @@ class Engine(private val lobster: Lobster) {
         for (watch in due) {
             if (lobster.isPaused()) return
             try {
-                val (title, lines) = look(watch)
+                val seen = look(watch)
+                val title = seen.title
+                val lines = seen.lines
                 val hash = Changes.hash(lines)
                 val checkedAt = System.currentTimeMillis()
                 if (watch.lastHash.isEmpty() || hash == watch.lastHash) {
                     store.updateWatch(watch.id) {
-                        it.copy(title = title, lastChecked = checkedAt, lastHash = hash, lastLines = lines, failures = 0)
+                        it.copy(title = title, lastChecked = checkedAt, lastHash = hash, lastLines = lines, failures = 0, headings = seen.headings)
                     }
                     store.log("watch", "Checked a watched page", "$title · no change")
                     continue
@@ -421,7 +497,7 @@ class Engine(private val lobster: Lobster) {
                 val change = Changes.between(watch.lastLines, lines, watch.isTopic)
                 store.updateWatch(watch.id) {
                     it.copy(
-                        title = title, lastChecked = checkedAt, lastHash = hash, lastLines = lines, failures = 0,
+                        title = title, lastChecked = checkedAt, lastHash = hash, lastLines = lines, failures = 0, headings = seen.headings,
                         lastChange = if (change.isEmpty) it.lastChange else checkedAt,
                         added = if (change.isEmpty) it.added else change.added,
                         removed = if (change.isEmpty) it.removed else change.removed
@@ -456,21 +532,37 @@ class Engine(private val lobster: Lobster) {
         }
     }
 
-    /** The watched thing's title and lines now: a page's text, or a topic's headlines. */
-    private suspend fun look(watch: Watch): Pair<String, List<String>> {
+    /** What a look at a watched page or topic found. */
+    private class Look(val title: String, val lines: List<String>, val headings: List<String>)
+
+    /**
+     * The watched thing now: a page's text (only the chosen part, if one is set), or a topic's
+     * headlines; then only the lines with the chosen words, if any.
+     */
+    private suspend fun look(watch: Watch): Look {
         if (watch.isTopic) {
             val page = Web.get(Feeds.newsSearch(watch.target))
             store.log("feed", "Read news headlines", watch.target)
             val feed = Feeds.parse(page.text, watch.target)
-            return "News · ${watch.target}" to Changes.normalise(feed.items.map { it.title })
+            val lines = feed.items.map { it.title }.filter { Watches.matches(it, watch.keywords) }
+            return Look("News · ${watch.target}", Changes.normalise(lines), emptyList())
         }
         val page = Web.get(watch.target)
         store.log("page", "Opened a watched page", page.url)
         if (!page.isHtml) {
-            return Web.site(page.url) to Changes.normalise(page.text.lines())
+            val lines = page.text.lines().filter { Watches.matches(it, watch.keywords) }
+            return Look(Web.site(page.url), Changes.normalise(lines), emptyList())
         }
         val readable = Readable.extract(page.text, page.url)
-        return readable.title.take(80) to Changes.normalise(readable.lines)
+        var lines = readable.lines
+        if (watch.section.isNotBlank()) {
+            lines = Watches.section(lines, watch.section) ?: run {
+                store.log("problem", "A watched part wasn't found", "\"${watch.section}\" is no longer on ${Web.site(page.url)}; watching the whole page")
+                lines
+            }
+        }
+        lines = lines.filter { Watches.matches(it, watch.keywords) }
+        return Look(readable.title.take(80), Changes.normalise(lines), Watches.headings(readable.lines))
     }
 
     private fun watchUrl(watch: Watch) = if (watch.isTopic) Feeds.newsSearch(watch.target) else watch.target
@@ -488,7 +580,7 @@ class Engine(private val lobster: Lobster) {
         // A brief asked for by hand doesn't use up the day's scheduled one.
         if (due) store.update { it.copy(settings = it.settings.copy(lastBriefDay = day)) }
         try {
-            val (text, sources) = gatherBrief(settings.feeds, perFeed = 5)
+            val (text, sources) = gatherBrief(settings.feeds, perFeed = 5, groups = settings.feedGroups, skipSeen = true)
             val hour = now.get(Calendar.HOUR_OF_DAY)
             val name = when {
                 hour < 12 -> "Morning brief"
@@ -513,42 +605,72 @@ class Engine(private val lobster: Lobster) {
         }
     }
 
-    /** Headlines from each feed, in Markdown, with the links as sources. */
-    private suspend fun gatherBrief(feeds: List<String>, perFeed: Int): Pair<String, List<LobsterSource>> {
+    /**
+     * Headlines from each feed, in Markdown, with the links as sources; arranged under the feeds'
+     * [groups] when they have them. With [skipSeen], headlines sent in an earlier brief are left out.
+     */
+    private suspend fun gatherBrief(
+        feeds: List<String>,
+        perFeed: Int,
+        groups: Map<String, String> = emptyMap(),
+        skipSeen: Boolean = false
+    ): Pair<String, List<LobsterSource>> {
         val sources = ArrayList<LobsterSource>()
-        val text = StringBuilder()
-        for (url in feeds) {
+        val seen = if (skipSeen) store.value.sentHeadlines.toHashSet() else HashSet()
+        val sections = LinkedHashMap<String, StringBuilder>()
+        var answered = 0
+        // Ungrouped feeds first, then each group in the order its first feed appears.
+        val ordered = feeds.sortedBy { if (groups[it].isNullOrBlank()) 0 else 1 }
+        for (url in ordered) {
             if (lobster.isPaused()) break
             try {
                 val page = Web.get(url)
                 val feed = Feeds.parse(page.text, Web.site(url))
+                answered++
                 store.log("feed", "Read a feed", feed.title)
-                val items = feed.items.take(perFeed)
+                val items = feed.items.filter { item -> key(item.link, item.title) !in seen }.take(perFeed)
                 if (items.isEmpty()) continue
-                text.append("## ").append(feed.title).append("\n\n")
+                val group = groups[url].orEmpty()
+                val out = sections.getOrPut(group) { StringBuilder() }
+                out.append(if (group.isBlank()) "## " else "### ").append(feed.title).append("\n\n")
                 for (item in items) {
-                    text.append("- ")
-                    if (item.link.isNotBlank()) text.append('[').append(item.title).append("](").append(item.link).append(')')
-                    else text.append(item.title)
-                    if (item.summary.isNotBlank() && item.summary != item.title) text.append(" — ").append(item.summary)
-                    text.append('\n')
+                    out.append("- ")
+                    if (item.link.isNotBlank()) out.append('[').append(item.title).append("](").append(item.link).append(')')
+                    else out.append(item.title)
+                    if (item.summary.isNotBlank() && item.summary != item.title) out.append(" — ").append(item.summary)
+                    out.append('\n')
+                    seen += key(item.link, item.title)
                     if (item.link.isNotBlank()) sources += LobsterSource(item.title, item.link)
                 }
-                text.append('\n')
+                out.append('\n')
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
                 store.log("problem", "Couldn't read a feed", "${Web.site(url)}: ${friendly(e)}")
             }
         }
-        if (sources.isEmpty() && text.isEmpty()) throw WebException("None of the feeds answered")
-        return text.toString().trim() to sources
+        if (answered == 0) throw WebException("None of the feeds answered")
+        if (skipSeen) {
+            val keys = sources.map { key(it.url, it.title) }
+            store.update { it.copy(sentHeadlines = it.sentHeadlines + keys) }
+        }
+        val text = buildString {
+            sections.forEach { (group, body) ->
+                if (group.isNotBlank()) append("## ").append(group).append("\n\n")
+                append(body)
+            }
+        }.trim()
+        return text.ifBlank { "Nothing new since the last brief." } to sources
     }
+
+    /** A headline's identity for "already sent": its link, or its title when it has none. */
+    private fun key(link: String, title: String): String = link.ifBlank { title }.trim().lowercase().take(300)
 
     // --- delivery ---
 
     /** Puts the catch in the mailbox and remembers it. False if there's no mailbox to put it in. */
     private fun deliver(catch: LobsterCatch, jobId: String?, subtitle: String): Boolean {
+        lobster.shelf.keep(catch)
         val name = runCatching { mailbox.deliver(catch) }.getOrElse {
             store.log("problem", "Couldn't write to the mailbox", it.message.orEmpty())
             null
@@ -557,6 +679,7 @@ class Engine(private val lobster: Lobster) {
         store.update {
             it.copy(delivered = listOf(Delivered(catch.id, catch.title, catch.kind, System.currentTimeMillis(), name, jobId, subtitle)) + it.delivered)
         }
+        lobster.shelf.prune(store.value.delivered.map { it.id }.toSet())
         lobster.refreshLive()
         return name != null
     }

@@ -27,7 +27,7 @@ object Search {
     /** Sites whose pages are videos, logins or apps rather than text worth reading. */
     private val SKIP_SITES = listOf(
         "youtube.com", "youtu.be", "facebook.com", "instagram.com", "tiktok.com", "x.com", "twitter.com",
-        "pinterest.com", "linkedin.com", "duckduckgo.com", "bing.com", "msn.com"
+        "pinterest.com", "linkedin.com", "duckduckgo.com", "bing.com", "msn.com", "brave.com", "mojeek.com"
     )
 
     // --- Wikipedia ---
@@ -77,14 +77,29 @@ object Search {
 
     // --- the web ---
 
-    /** Up to [count] links for the question, from the first search engine that answers. */
-    suspend fun web(query: String, count: Int): Pair<String, List<Hit>> {
+    /** The engines, tried in this order unless one has been failing. */
+    val ENGINES = listOf("DuckDuckGo", "DuckDuckGo Lite", "Bing", "Brave", "Mojeek")
+
+    /**
+     * Up to [count] links for the question, from the first engine (in [order]) that answers with
+     * any. [report] hears how each engine tried did, for the Log and the engines' health.
+     */
+    suspend fun web(
+        query: String,
+        count: Int,
+        order: List<String> = ENGINES,
+        report: (engine: String, ok: Boolean) -> Unit = { _, _ -> }
+    ): Pair<String, List<Hit>> {
         var problem: Exception? = null
-        for (name in ENGINES) {
+        for (name in order) {
             try {
                 val hits = usable(engine(name, query)).take(count)
+                report(name, hits.isNotEmpty())
                 if (hits.isNotEmpty()) return name to hits
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
             } catch (e: Exception) {
+                report(name, false)
                 problem = e
             }
         }
@@ -92,12 +107,28 @@ object Search {
         return "" to emptyList()
     }
 
-    private val ENGINES = listOf("DuckDuckGo", "DuckDuckGo Lite", "Bing")
-
     private suspend fun engine(name: String, query: String): List<Hit> = when (name) {
         "DuckDuckGo" -> duckDuckGo(Web.get("https://html.duckduckgo.com/html/?q=" + enc(query)).text)
         "DuckDuckGo Lite" -> duckDuckGoLite(Web.get("https://lite.duckduckgo.com/lite/?q=" + enc(query)).text)
+        "Brave" -> generic(Web.get("https://search.brave.com/search?source=web&q=" + enc(query)).text, "https://search.brave.com/", "brave.com")
+        "Mojeek" -> generic(Web.get("https://www.mojeek.com/search?q=" + enc(query)).text, "https://www.mojeek.com/", "mojeek.com")
         else -> bing(Web.get("https://www.bing.com/search?setlang=en&q=" + enc(query)).text)
+    }
+
+    /**
+     * Any results page, read without knowing its layout: links to other sites whose words look
+     * like a title. Used for engines whose pages change too often to read by their classes.
+     */
+    fun generic(html: String, base: String, engineSite: String): List<Hit> {
+        val doc = Jsoup.parse(html, base)
+        return doc.select("a[href]").mapNotNull { a ->
+            val url = a.absUrl("href")
+            val text = a.text().trim().replace(Regex("\\s+"), " ")
+            if (!url.startsWith("https://") || text.length < 15) return@mapNotNull null
+            val site = Web.site(url).lowercase()
+            if (site == engineSite || site.endsWith(".$engineSite")) return@mapNotNull null
+            Hit(text.take(160), url)
+        }
     }
 
     fun duckDuckGo(html: String): List<Hit> {

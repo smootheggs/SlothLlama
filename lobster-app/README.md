@@ -1,4 +1,4 @@
-# Sloth Lobster 🦞
+# SlothLobster 🦞
 
 SlothLlama's sister app: **the sloth goes to sea**. SlothLlama never goes online; the Lobster is
 the one that does. It takes orders from SlothLlama through a shared, encrypted mailbox folder,
@@ -16,11 +16,22 @@ goes out on the web, and brings back what it finds for SlothLlama to read offlin
 Orders come from SlothLlama's Lobster page, or can be given in the Lobster itself (or shared to it
 from any app). Everything it opens is listed in the **Log**.
 
+New in 1.1:
+
+- **Watch part of a page, or only chosen words**: pick a heading on the Watch tab, or list words.
+- **Repeating orders**: research or briefs every day or every week, from the Lobster or by
+  writing "every Monday at 7" in an order from SlothLlama.
+- **Several searches per research order**: put extra searches on new lines.
+- **Better briefs**: feeds in groups ("# F1"), import from a news reader's OPML file, and no
+  headline is sent twice.
+- **Sturdier search**: Brave and Mojeek join DuckDuckGo and Bing; Settings shows which answer.
+- **Read it all here**: everything brought back opens in full in the Lobster.
+
 ## Setting it up
 
 1. In SlothLlama, open the **Lobster** page, switch it on, choose a mailbox folder (for example
    `Documents/SlothMailbox`) and copy the **pairing code**.
-2. In the Sloth Lobster: **Settings → Paste the code**, then **Mailbox folder → Choose** the same folder.
+2. In the SlothLobster: **Settings → Paste the code**, then **Mailbox folder → Choose** the same folder.
 3. Leave **Stay awake** on so SlothLlama sees it as awake (a quiet notification shows while it is).
 
 On a phone, keep the same folder in sync with the tablet using Syncthing.

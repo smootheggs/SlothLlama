@@ -46,6 +46,8 @@ import app.slothlobster.BuildConfig
 import app.slothlobster.core.Live
 import app.slothlobster.core.Saved
 import app.slothlobster.core.Settings
+import app.slothlobster.web.Feeds
+import app.slothlobster.web.Search
 import app.slothlobster.web.Web
 
 @Composable
@@ -57,6 +59,8 @@ fun SettingsScreen(
     onUnpair: () -> Unit,
     onFolder: (android.net.Uri) -> Unit,
     onSettings: ((Settings) -> Settings) -> Unit,
+    onSetFeeds: (String) -> Unit,
+    onImportOpml: (android.net.Uri) -> Unit,
     onBriefNow: () -> Unit,
     onStopEverything: () -> Unit,
     modifier: Modifier = Modifier
@@ -67,6 +71,9 @@ fun SettingsScreen(
     var feeds by rememberSaveable { mutableStateOf(false) }
     val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) onFolder(uri)
+    }
+    val pickOpml = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        if (uri != null) onImportOpml(uri)
     }
 
     Column(
@@ -120,6 +127,32 @@ fun SettingsScreen(
                 )
             }
 
+            Section("Search engines") {
+                Panel {
+                    Search.ENGINES.forEachIndexed { i, name ->
+                        val h = saved.engines[name]
+                        val now = System.currentTimeMillis()
+                        ListRow(
+                            name,
+                            when {
+                                h == null -> "Not used yet"
+                                h.failsInRow >= 3 -> "Not answering (${h.failsInRow} tries in a row); tried last"
+                                h.lastOk > 0 -> "Working · answered ${ago(h.lastOk, now)}"
+                                else -> "No answer yet"
+                            },
+                            divider = i < Search.ENGINES.size - 1
+                        ) {
+                            StatusDot(h != null && h.failsInRow < 3 && h.lastOk > 0)
+                        }
+                    }
+                }
+                Text(
+                    "Free engines, no account. They're tried in this order; one that keeps failing goes last, and the Log says so.",
+                    color = Sea.Faint,
+                    fontSize = 12.sp
+                )
+            }
+
             Section("Brain") {
                 Panel {
                     Radio(
@@ -148,8 +181,11 @@ fun SettingsScreen(
                     ListRow("Brief time", "%02d:%02d".format(s.briefHour, s.briefMinute), onClick = { timing = true }) {
                         Text("Edit", color = Sea.Coral, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                     }
-                    ListRow("Feeds", s.feeds.joinToString(" · ") { Web.site(it) }.ifBlank { "None" }, onClick = { feeds = true }) {
+                    ListRow("Feeds", feedsLine(s), onClick = { feeds = true }) {
                         Text("Edit", color = Sea.Coral, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                    }
+                    ListRow("Import feeds", "From a news reader's OPML file; its folders become groups", onClick = { pickOpml.launch(arrayOf("*/*")) }) {
+                        Text("Choose", color = Sea.Coral, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                     }
                     ListRow("Make a brief now", "Sent to the mailbox like the daily one", onClick = onBriefNow, divider = false)
                 }
@@ -169,7 +205,7 @@ fun SettingsScreen(
             GhostButton("Stop everything now", onStopEverything, Modifier.fillMaxWidth(), danger = true)
 
             Text(
-                "Sloth Lobster ${BuildConfig.VERSION_NAME}. No account, no tracking. Every page it opens is in the Log, " +
+                "SlothLobster ${BuildConfig.VERSION_NAME}. No account, no tracking. Every page it opens is in the Log, " +
                     "and pages are only ever read as text: nothing in them is followed as an instruction.",
                 color = Sea.Faint,
                 fontSize = 12.sp
@@ -182,8 +218,8 @@ fun SettingsScreen(
         onSettings { it.copy(briefHour = h, briefMinute = m, lastBriefDay = null) }
         timing = false
     }
-    if (feeds) FeedsDialog(s.feeds, onDismiss = { feeds = false }) { list ->
-        onSettings { it.copy(feeds = list) }
+    if (feeds) FeedsDialog(Feeds.formatList(s.feeds, s.feedGroups), onDismiss = { feeds = false }) { text ->
+        onSetFeeds(text)
         feeds = false
     }
 }
@@ -257,7 +293,7 @@ private fun PairDialog(onDismiss: () -> Unit, onPair: (String) -> Boolean) {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun TimeDialog(hour: Int, minute: Int, onDismiss: () -> Unit, onSet: (Int, Int) -> Unit) {
+internal fun TimeDialog(hour: Int, minute: Int, onDismiss: () -> Unit, onSet: (Int, Int) -> Unit) {
     val state = rememberTimePickerState(initialHour = hour, initialMinute = minute, is24Hour = true)
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -281,31 +317,37 @@ private fun TimeDialog(hour: Int, minute: Int, onDismiss: () -> Unit, onSet: (In
 }
 
 @Composable
-private fun FeedsDialog(feeds: List<String>, onDismiss: () -> Unit, onSave: (List<String>) -> Unit) {
-    var text by rememberSaveable { mutableStateOf(feeds.joinToString("\n")) }
+private fun FeedsDialog(initial: String, onDismiss: () -> Unit, onSave: (String) -> Unit) {
+    var text by rememberSaveable { mutableStateOf(initial) }
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Sea.Card,
         title = { Text("Feeds for the brief", color = Sea.Text) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text("One RSS or Atom feed link per line.", color = Sea.Muted, fontSize = 13.sp)
+                Text(
+                    "One RSS or Atom feed link per line. A line like \"# F1\" starts a group; the brief is arranged by group.",
+                    color = Sea.Muted,
+                    fontSize = 13.sp
+                )
                 OutlinedTextField(
                     value = text,
                     onValueChange = { text = it },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .heightIn(min = 140.dp),
+                        .heightIn(min = 180.dp),
                     textStyle = androidx.compose.ui.text.TextStyle(fontSize = 13.sp, color = Sea.Text),
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Sea.Coral, cursorColor = Sea.Coral)
                 )
             }
         },
-        confirmButton = {
-            TextButton(onClick = {
-                onSave(text.lines().mapNotNull { line -> line.trim().takeIf { it.isNotEmpty() }?.let(Web::safeUrl) }.distinct())
-            }) { Text("Save", color = Sea.Coral) }
-        },
+        confirmButton = { TextButton(onClick = { onSave(text) }) { Text("Save", color = Sea.Coral) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = Sea.Muted) } }
     )
+}
+
+private fun feedsLine(s: Settings): String {
+    if (s.feeds.isEmpty()) return "None"
+    val groups = s.feedGroups.values.distinct()
+    return "${s.feeds.size} feeds" + if (groups.isNotEmpty()) " · " + groups.joinToString(", ") else ""
 }

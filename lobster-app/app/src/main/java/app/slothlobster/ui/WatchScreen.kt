@@ -42,6 +42,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.slothlobster.core.Saved
 import app.slothlobster.core.Watch
+import app.slothlobster.jobs.Watches
 
 private val EVERY = listOf(1 to "Hourly", 6 to "Every 6 h", 24 to "Daily")
 
@@ -50,7 +51,8 @@ private val EVERY = listOf(1 to "Hourly", 6 to "Every 6 h", 24 to "Daily")
 fun WatchScreen(
     saved: Saved,
     now: Long,
-    onAdd: (String, Int) -> Unit,
+    onAdd: (String, Int, List<String>) -> Unit,
+    onFilter: (String, String, List<String>) -> Unit,
     onToggle: (String, Boolean) -> Unit,
     onEvery: (String, Int) -> Unit,
     onCheckNow: (String) -> Unit,
@@ -97,6 +99,7 @@ fun WatchScreen(
                                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                                     EVERY.forEach { (h, label) -> Chip(label, selected = w.everyHours == h, onClick = { onEvery(w.id, h) }) }
                                 }
+                                WatchFilter(w, onFilter)
                                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                     GhostButton("Check now", { onCheckNow(w.id) }, icon = LobsterIcons.Refresh)
                                     GhostButton("Stop watching", { onRemove(w.id); openId = null }, icon = LobsterIcons.Trash)
@@ -131,10 +134,53 @@ fun WatchScreen(
         }
     }
 
-    if (adding) AddWatchDialog(onDismiss = { adding = false }, onAdd = { t, h -> onAdd(t, h); adding = false })
+    if (adding) AddWatchDialog(onDismiss = { adding = false }, onAdd = { t, h, k -> onAdd(t, h, k); adding = false })
 }
 
-private fun watchLine(w: Watch, now: Long): String = when {
+/** Narrowing a watch: which part of the page, and which words. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun WatchFilter(w: Watch, onFilter: (String, String, List<String>) -> Unit) {
+    var words by rememberSaveable(w.id) { mutableStateOf(w.keywords.joinToString(", ")) }
+    if (!w.isTopic) {
+        Text("Watch only this part", color = Sea.Soft, fontSize = 13.sp)
+        if (w.headings.isEmpty()) {
+            Text("The page's parts appear here after its first check.", color = Sea.Faint, fontSize = 12.sp)
+        } else {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Chip("Whole page", selected = w.section.isBlank(), onClick = { onFilter(w.id, "", w.keywords) })
+                w.headings.take(16).forEach { h ->
+                    Chip(h.take(40), selected = w.section.equals(h, ignoreCase = true), onClick = { onFilter(w.id, h, w.keywords) })
+                }
+            }
+        }
+    }
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedTextField(
+            value = words,
+            onValueChange = { words = it },
+            label = { Text("Only lines with these words") },
+            placeholder = { Text("remote, Berlin", color = Sea.Faint) },
+            singleLine = true,
+            colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Sea.Coral, focusedLabelColor = Sea.Coral, cursorColor = Sea.Coral),
+            modifier = Modifier.weight(1f)
+        )
+        TextButton(onClick = { onFilter(w.id, w.section, Watches.split(words)) }) { Text("Save", color = Sea.Coral) }
+    }
+    if (w.section.isNotBlank() || w.keywords.isNotEmpty()) {
+        Text("Changing these starts a fresh comparison, so the next check sends no alert.", color = Sea.Faint, fontSize = 12.sp)
+    }
+}
+
+private fun watchLine(w: Watch, now: Long): String {
+    val narrowed = listOfNotNull(
+        w.section.takeIf { it.isNotBlank() }?.let { "only \"${it.take(30)}\"" },
+        w.keywords.takeIf { it.isNotEmpty() }?.let { "words: ${it.joinToString(", ").take(40)}" }
+    ).joinToString(" · ")
+    return listOf(watchState(w, now), narrowed).filter { it.isNotBlank() }.joinToString(" · ")
+}
+
+private fun watchState(w: Watch, now: Long): String = when {
     !w.enabled -> "Paused by you"
     w.lastChecked == 0L -> "First look soon"
     w.failures >= 3 -> "Couldn't open it the last ${w.failures} times"
@@ -181,9 +227,10 @@ private fun DiffBlock(lines: List<String>, sign: String, text: Color, bar: Color
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun AddWatchDialog(onDismiss: () -> Unit, onAdd: (String, Int) -> Unit) {
+private fun AddWatchDialog(onDismiss: () -> Unit, onAdd: (String, Int, List<String>) -> Unit) {
     var target by rememberSaveable { mutableStateOf("") }
     var hours by rememberSaveable { mutableStateOf(6) }
+    var words by rememberSaveable { mutableStateOf("") }
     AlertDialog(
         onDismissRequest = onDismiss,
         containerColor = Sea.Card,
@@ -198,13 +245,21 @@ private fun AddWatchDialog(onDismiss: () -> Unit, onAdd: (String, Int) -> Unit) 
                     colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Sea.Coral, focusedLabelColor = Sea.Coral, cursorColor = Sea.Coral),
                     modifier = Modifier.fillMaxWidth()
                 )
+                OutlinedTextField(
+                    value = words,
+                    onValueChange = { words = it },
+                    label = { Text("Only lines with these words (optional)") },
+                    singleLine = true,
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Sea.Coral, focusedLabelColor = Sea.Coral, cursorColor = Sea.Coral),
+                    modifier = Modifier.fillMaxWidth()
+                )
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     EVERY.forEach { (h, label) -> Chip(label, selected = hours == h, onClick = { hours = h }) }
                 }
             }
         },
         confirmButton = {
-            TextButton(onClick = { onAdd(target, hours) }, enabled = target.isNotBlank()) { Text("Watch", color = if (target.isNotBlank()) Sea.Coral else Sea.Faint) }
+            TextButton(onClick = { onAdd(target, hours, Watches.split(words)) }, enabled = target.isNotBlank()) { Text("Watch", color = if (target.isNotBlank()) Sea.Coral else Sea.Faint) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = Sea.Muted) } }
     )

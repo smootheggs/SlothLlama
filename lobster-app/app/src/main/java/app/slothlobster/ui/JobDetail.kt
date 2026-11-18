@@ -38,6 +38,8 @@ fun JobDetail(
     onSendNow: (String) -> Unit,
     onAgain: (String) -> Unit,
     onRemove: (String) -> Unit,
+    catchId: String? = null,
+    onRead: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     if (job == null) {
@@ -83,6 +85,7 @@ fun JobDetail(
                             SelectionContainer {
                                 Text(job.resultPreview, color = Sea.Soft, fontSize = 13.sp, lineHeight = 19.sp)
                             }
+                            if (catchId != null) GhostButton("Read it all", { onRead(catchId) })
                         }
                     }
                 }

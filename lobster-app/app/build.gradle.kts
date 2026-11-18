@@ -13,9 +13,9 @@ android {
         applicationId = "app.slothlobster"
         minSdk = 29
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0.0"
-        manifestPlaceholders["appLabel"] = "Sloth Lobster"
+        versionCode = 2
+        versionName = "1.1.0"
+        manifestPlaceholders["appLabel"] = "SlothLobster"
     }
 
     // Signed with the same private key as SlothLlama (the SLOTH_KEYSTORE_* secrets), so only you
@@ -49,7 +49,7 @@ android {
         }
         debug {
             applicationIdSuffix = ".debug"
-            manifestPlaceholders["appLabel"] = "Sloth Lobster Dev"
+            manifestPlaceholders["appLabel"] = "SlothLobster Dev"
             signingConfig = signingConfigs.getByName("debug")
         }
     }

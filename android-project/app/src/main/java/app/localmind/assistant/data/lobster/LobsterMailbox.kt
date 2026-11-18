@@ -46,7 +46,7 @@ enum class OrderState(val label: String) {
 }
 
 /**
- * The mailbox shared with the Sloth Lobster, the separate app that goes online for you.
+ * The mailbox shared with the SlothLobster, the separate app that goes online for you.
  * SlothLlama itself never goes online: it only reads and writes this folder.
  *
  *   orders/   jobs for the Lobster (SlothLlama writes them; the Lobster removes them when taken)
@@ -134,7 +134,7 @@ class LobsterMailbox @Inject constructor(@ApplicationContext private val context
 
     /** Puts an order in the mailbox. Throws with a readable message if it can't. */
     suspend fun send(kind: OrderKind, text: String, deep: Boolean = false, deliver: String = "library"): LobsterOrder = withContext(io) {
-        check(_state.value.enabled) { "The Sloth Lobster is switched off (Lobster page)." }
+        check(_state.value.enabled) { "The SlothLobster is switched off (Lobster page)." }
         val root = folder() ?: error("Choose the Lobster's mailbox folder first (Lobster page).")
         val order = LobsterOrder(
             id = UUID.randomUUID().toString(),

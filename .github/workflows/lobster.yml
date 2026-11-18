@@ -1,7 +1,7 @@
-# Builds the Sloth Lobster, SlothLlama's sister app (lobster-app/), on GitHub's servers.
+# Builds the SlothLobster, SlothLlama's sister app (lobster-app/), on GitHub's servers.
 # Signed with the same private key as SlothLlama when the SLOTH_KEYSTORE_* secrets are set;
 # otherwise it's the debug build. Its unit tests run first, in the same job.
-name: Build Sloth Lobster APK
+name: Build SlothLobster APK
 
 on:
   push:
@@ -55,9 +55,9 @@ jobs:
         working-directory: lobster-app
         run: |
           if gradle :app:testDebugUnitTest --console=plain; then
-            echo "### ✅ Sloth Lobster unit tests passed" >> "$GITHUB_STEP_SUMMARY"
+            echo "### ✅ SlothLobster unit tests passed" >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "### ⚠️ Sloth Lobster unit tests failed: open the \"Run unit tests\" step's log" >> "$GITHUB_STEP_SUMMARY"
+            echo "### ⚠️ SlothLobster unit tests failed: open the \"Run unit tests\" step's log" >> "$GITHUB_STEP_SUMMARY"
             echo "::warning::Unit tests failed"
             exit 1
           fi

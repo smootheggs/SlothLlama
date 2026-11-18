@@ -262,7 +262,7 @@ fun SettingsScreen(
                     HorizontalDivider(color = P.Border)
                     LinkRow("Personas", "Built-in and custom personas", onOpenPersonas)
                     HorizontalDivider(color = P.Border)
-                    LinkRow("Sloth Lobster 🦞", "The separate app that goes online for you: mailbox and pairing", onOpenLobster)
+                    LinkRow("SlothLobster 🦞", "The separate app that goes online for you: mailbox and pairing", onOpenLobster)
                 }
 
             }

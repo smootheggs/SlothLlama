@@ -1,6 +1,6 @@
-# The Sloth Lobster mailbox (version 1)
+# The SlothLobster mailbox (version 1)
 
-SlothLlama never goes online. The **Sloth Lobster** is a separate app that does: it researches,
+SlothLlama never goes online. The **SlothLobster** is a separate app that does: it researches,
 fetches and watches things, and brings back what it finds. The two only share a **folder**: on
 the same tablet, or synced between the tablet and a phone with Syncthing. This file is the
 contract a Lobster app has to follow.
@@ -47,6 +47,13 @@ Because the type is authenticated, a catch can't be passed off as an order or th
   reading), `watch` (something to keep an eye on), `brief` (a regular round-up), `ask` (anything else)
 - `depth`: `quick`, or `deep` (may run overnight)
 - `deliver`: where the user wants the catch filed: `library`, `notes` or `chat` (a hint; the user decides)
+- `queries` (optional, since 1.1): for `research`, up to 5 searches to run instead of the question
+  itself, e.g. planned by SlothLlama. A Lobster that doesn't know the field ignores it.
+
+**Read from the text by the Lobster (1.1):** "every Monday at 7", "daily", "every morning" or
+"weekly" make a research or brief order repeat (it runs at once, then on that schedule; the
+Lobster lists it under Orders → Repeating). For a watch, words after the link such as "for Berlin,
+remote" become the words to watch for.
 
 ## Catch (Lobster → SlothLlama), JSON
 

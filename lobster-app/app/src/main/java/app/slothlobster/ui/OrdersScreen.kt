@@ -29,7 +29,13 @@ import app.slothlobster.core.From
 import app.slothlobster.core.Job
 import app.slothlobster.core.JobState
 import app.slothlobster.core.Saved
+import app.slothlobster.jobs.RepeatRule
 import app.slothlobster.mailbox.OrderKind
+import androidx.compose.foundation.clickable
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.semantics.Role
+import java.util.Calendar
 import app.slothlobster.web.Web
 
 private enum class Filter(val label: String) { ALL("All"), OPEN("Open"), DONE("Done") }
@@ -43,14 +49,22 @@ fun OrdersScreen(
     selectedJob: String?,
     shared: String?,
     onSharedUsed: () -> Unit,
-    onSend: (OrderKind, String, Boolean) -> Unit,
+    onSend: (OrderKind, String, Boolean, RepeatRule?) -> Unit,
     onOpenJob: (String) -> Unit,
+    onRepeatOn: (String, Boolean) -> Unit,
+    onRepeatRemove: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
     var text by rememberSaveable { mutableStateOf("") }
     var kindId by rememberSaveable { mutableStateOf(OrderKind.RESEARCH.id) }
     var deep by rememberSaveable { mutableStateOf(false) }
     var filter by rememberSaveable { mutableStateOf(Filter.ALL) }
+    // Repeat: 0 = once, 1 = every day, 7 = every week.
+    var every by rememberSaveable { mutableStateOf(0) }
+    var weekday by rememberSaveable { mutableStateOf(Calendar.MONDAY) }
+    var hour by rememberSaveable { mutableStateOf(7) }
+    var minute by rememberSaveable { mutableStateOf(0) }
+    var timing by rememberSaveable { mutableStateOf(false) }
 
     // Something shared from another app: a link becomes a Fetch, words a Research.
     LaunchedEffect(shared) {
@@ -102,6 +116,12 @@ fun OrdersScreen(
                         }
                         Chip("Ask · needs a model", selected = false, onClick = {}, enabled = false)
                     }
+                    if (kind == OrderKind.RESEARCH || kind == OrderKind.BRIEF) {
+                        RepeatControls(
+                            every = every, weekday = weekday, hour = hour, minute = minute,
+                            onEvery = { every = it }, onWeekday = { weekday = it }, onTime = { timing = true }
+                        )
+                    }
                     if (kind == OrderKind.RESEARCH) {
                         Row(verticalAlignment = Alignment.CenterVertically) {
                             Column(Modifier.weight(1f)) {
@@ -121,13 +141,36 @@ fun OrdersScreen(
                         PrimaryButton(
                             "Send",
                             onClick = {
-                                onSend(kind, text, deep && kind == OrderKind.RESEARCH)
+                                val repeats = every != 0 && (kind == OrderKind.RESEARCH || kind == OrderKind.BRIEF)
+                                onSend(kind, text, deep && kind == OrderKind.RESEARCH, if (repeats) RepeatRule(every, weekday, hour, minute) else null)
                                 text = ""
                                 deep = false
+                                every = 0
                             },
                             enabled = text.isNotBlank() && (kind != OrderKind.FETCH || Web.firstLink(text) != null),
                             icon = LobsterIcons.Send
                         )
+                    }
+                }
+            }
+        }
+        if (saved.repeats.isNotEmpty()) {
+            item {
+                Section("Repeating", Modifier.padding(horizontal = 16.dp)) {
+                    Panel {
+                        saved.repeats.forEachIndexed { i, r ->
+                            ListRow(
+                                "${OrderKind.of(r.kind).label} · ${r.text.lineSequence().firstOrNull().orEmpty().take(80)}",
+                                RepeatRule(r.everyDays, r.weekday, r.hour, r.minute).describe() +
+                                    (if (r.from == From.TABLET) " · from SlothLlama" else ""),
+                                divider = i < saved.repeats.size - 1
+                            ) {
+                                IconButton(onClick = { onRepeatRemove(r.id) }) {
+                                    Icon(LobsterIcons.Trash, contentDescription = "Stop repeating", tint = Sea.Muted)
+                                }
+                                CoralSwitch(r.enabled, { onRepeatOn(r.id, it) }, "Repeat ${r.text.take(40)}")
+                            }
+                        }
                     }
                 }
             }
@@ -158,10 +201,57 @@ fun OrdersScreen(
             }
         }
     }
+
+    if (timing) TimeDialog(hour, minute, onDismiss = { timing = false }) { h, m ->
+        hour = h
+        minute = m
+        timing = false
+    }
+}
+
+private val WEEK = listOf(
+    Calendar.MONDAY to "Mon", Calendar.TUESDAY to "Tue", Calendar.WEDNESDAY to "Wed", Calendar.THURSDAY to "Thu",
+    Calendar.FRIDAY to "Fri", Calendar.SATURDAY to "Sat", Calendar.SUNDAY to "Sun"
+)
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun RepeatControls(
+    every: Int,
+    weekday: Int,
+    hour: Int,
+    minute: Int,
+    onEvery: (Int) -> Unit,
+    onWeekday: (Int) -> Unit,
+    onTime: () -> Unit
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        FlowRow(
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Chip("Once", selected = every == 0, onClick = { onEvery(0) })
+            Chip("Every day", selected = every == 1, onClick = { onEvery(1) })
+            Chip("Every week", selected = every == 7, onClick = { onEvery(7) })
+        }
+        if (every == 7) {
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                WEEK.forEach { (d, label) -> Chip(label, selected = weekday == d, onClick = { onWeekday(d) }) }
+            }
+        }
+        if (every != 0) {
+            Text(
+                "Runs now, then ${RepeatRule(every, weekday, hour, minute).describe().replaceFirstChar { it.lowercase() }}. Change the time",
+                modifier = Modifier.clickable(role = Role.Button, onClick = onTime),
+                color = Sea.Coral,
+                fontSize = 13.sp
+            )
+        }
+    }
 }
 
 private fun placeholder(kind: OrderKind) = when (kind) {
-    OrderKind.RESEARCH -> "What changed in the EU AI Act this year?"
+    OrderKind.RESEARCH -> "What changed in the EU AI Act this year?\n(extra searches on new lines)"
     OrderKind.FETCH -> "A link to bring back for offline reading"
     OrderKind.WATCH -> "A page's link, or a topic for the news"
     OrderKind.BRIEF -> "A topic, or feed links, for a round-up"

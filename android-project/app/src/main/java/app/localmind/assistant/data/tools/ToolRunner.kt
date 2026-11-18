@@ -103,7 +103,7 @@ class ToolRunner @Inject constructor(
         if (!mailbox.isReady) {
             return ToolResult(
                 ToolNames.LOBSTER, "The Lobster isn't set up",
-                "The user asked the Sloth Lobster to do something, but it isn't set up yet (Lobster page). Say so briefly."
+                "The user asked the SlothLobster to do something, but it isn't set up yet (Lobster page). Say so briefly."
             )
         }
         val lower = text.lowercase()
@@ -121,13 +121,13 @@ class ToolRunner @Inject constructor(
         } catch (e: Throwable) {
             return ToolResult(
                 ToolNames.LOBSTER, "Couldn't reach the Lobster's mailbox",
-                "The order couldn't be put in the Sloth Lobster's mailbox (${e.message ?: "folder not writable"}). Say so briefly."
+                "The order couldn't be put in the SlothLobster's mailbox (${e.message ?: "folder not writable"}). Say so briefly."
             )
         }
         val what = kind.label.lowercase() + if (deep && kind == OrderKind.RESEARCH) " (deep, overnight)" else ""
         return ToolResult(
             ToolNames.LOBSTER, "Sent to the Lobster 🦞",
-            "The request went to the Sloth Lobster's mailbox as a $what order; what it finds will appear on the " +
+            "The request went to the SlothLobster's mailbox as a $what order; what it finds will appear on the " +
                 "Lobster page. Tell the user it's on its way in one short sentence, and don't answer the request yourself."
         )
     }

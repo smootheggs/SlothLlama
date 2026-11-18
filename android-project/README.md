@@ -2,7 +2,7 @@
 
 A private room on the tablet that teaches, keeps and works things out, without going online.
 Open models run on the device (llama.cpp, Adreno GPU); nothing you say, read or keep leaves it.
-The only door to the internet is the **Sloth Lobster**, a separate app that shares an encrypted
+The only door to the internet is the **SlothLobster**, a separate app that shares an encrypted
 mailbox folder with SlothLlama and never anything more.
 
 **Three pillars.** Everything in the app belongs to one of them.
@@ -126,9 +126,9 @@ model too big for the GPU falls back to the CPU on its own.
   sheet offers what fits (explain, summarize, translate, read a photo's text, save to Notes,
   add to the Library, or send a link to the Lobster). Chats open with it attached and the
   request in the box; nothing is sent until you tap send.
-- **Sloth Lobster mailbox.** SlothLlama stays offline; the Sloth Lobster, a separate app, goes
+- **SlothLobster mailbox.** SlothLlama stays offline; the SlothLobster, a separate app, goes
   online for you. They share only an encrypted mailbox folder (same tablet, or synced to a phone
-  with Syncthing). The Lobster page (Settings → Sloth Lobster) sets it up, sends orders
+  with Syncthing). The Lobster page (Settings → SlothLobster) sets it up, sends orders
   (research, fetch, watch, brief), shows whether the Lobster is awake, and lists what it brought
   back for you to file in the Library, Notes or a chat. In a chat, "ask the lobster to …" sends
   an order too. The format is in [docs/LOBSTER_MAILBOX.md](docs/LOBSTER_MAILBOX.md).

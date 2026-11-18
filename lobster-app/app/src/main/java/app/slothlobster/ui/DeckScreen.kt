@@ -44,7 +44,7 @@ fun mood(live: Live): Pair<String, Boolean> = when {
     else -> "Napping" to false
 }
 
-/** "Research · Hong Kong rate cut" */
+/** "Research · ECB rate decision" */
 fun jobTitle(job: Job): String = "${OrderKind.of(job.kind).label} · ${job.text.lineSequence().firstOrNull().orEmpty().take(90)}"
 
 @Composable
@@ -56,6 +56,8 @@ fun DeckScreen(
     selectedJob: String?,
     onSettings: () -> Unit,
     onOpenJob: (String) -> Unit,
+    onOpenCatch: (String) -> Unit,
+    onSeeAll: () -> Unit,
     onPause: (Boolean) -> Unit,
     onPair: () -> Unit,
     modifier: Modifier = Modifier
@@ -114,9 +116,14 @@ fun DeckScreen(
                         ListRow(
                             d.title,
                             listOf(d.subtitle, clockTime(d.at)).filter { it.isNotBlank() }.joinToString(" · "),
-                            onClick = d.jobId?.let { id -> { onOpenJob(id) } },
-                            divider = i < minOf(today.size, 8) - 1
+                            onClick = { onOpenCatch(d.id) },
+                            divider = true
                         ) { DeliveredPill(d, live) }
+                    }
+                    if (saved.delivered.isNotEmpty()) {
+                        ListRow("Everything brought back", "${saved.delivered.size} kept here to read", onClick = onSeeAll, divider = false) {
+                            Text("Open", color = Sea.Coral, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        }
                     }
                 }
             }
@@ -151,7 +158,7 @@ private fun DeckHeader(showMark: Boolean, onSettings: (() -> Unit)?) {
         }
         Column(Modifier.weight(1f).padding(start = if (showMark) 0.dp else 8.dp)) {
             Text(
-                if (showMark) "Sloth Lobster" else "Deck",
+                if (showMark) "SlothLobster" else "Deck",
                 modifier = Modifier.semantics { heading() },
                 color = Sea.Text,
                 fontSize = if (showMark) 20.sp else 24.sp,

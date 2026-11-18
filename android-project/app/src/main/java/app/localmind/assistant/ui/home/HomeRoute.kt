@@ -63,7 +63,7 @@ fun HomeRoute(
             onNotes = onNotes
         ) + listOfNotNull(onLobster?.let { go ->
             HomeTile(
-                Icons.Outlined.Sailing, "Sloth Lobster",
+                Icons.Outlined.Sailing, "SlothLobster",
                 if (lobsterCatch > 0) "$lobsterCatch new 🦞" else "Orders and catch", go
             )
         }),
