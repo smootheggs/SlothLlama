@@ -49,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -196,15 +197,17 @@ private fun NavRow(
     ) {
         Icon(icon, contentDescription = null, tint = if (highlighted) P.Accent else P.Muted, modifier = Modifier.size(20.dp))
         Spacer(Modifier.width(14.dp))
+        // The label keeps its full width; a long status (e.g. "Loading …") is cut with "…" instead.
         Text(
             label, color = if (highlighted) P.Accent else P.Text, fontSize = 15.sp,
             fontWeight = if (highlighted) FontWeight.SemiBold else FontWeight.Normal,
-            modifier = Modifier.weight(1f)
+            maxLines = 1, softWrap = false
         )
-        if (trailing.isNotBlank()) {
-            Text(trailing, color = P.Faint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                modifier = Modifier.padding(start = 8.dp))
-        }
+        Text(
+            trailing, color = P.Faint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+            textAlign = TextAlign.End,
+            modifier = Modifier.weight(1f).padding(start = 12.dp)
+        )
     }
 }
 

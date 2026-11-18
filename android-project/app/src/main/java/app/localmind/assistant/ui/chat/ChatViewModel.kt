@@ -410,7 +410,7 @@ class ChatViewModel @Inject constructor(
         )
         is EngineRuntimeState.Loading -> copy(
             modelStatus = ModelRuntimeStatus.NO_MODEL_LOADED,
-            activeModelName = "Loading ${engine.modelName}…"
+            activeModelName = "Loading ${prettyModelName(engine.modelName)}…"
         )
         is EngineRuntimeState.Ready -> copy(
             modelStatus = if (isGenerating) ModelRuntimeStatus.GENERATING else ModelRuntimeStatus.READY,
@@ -422,7 +422,7 @@ class ChatViewModel @Inject constructor(
         )
         is EngineRuntimeState.Failed -> copy(
             modelStatus = ModelRuntimeStatus.ERROR,
-            activeModelName = "Couldn't load ${engine.modelName}"
+            activeModelName = "Couldn't load ${prettyModelName(engine.modelName)}"
         )
     }
 
@@ -431,7 +431,15 @@ class ChatViewModel @Inject constructor(
         const val DRAFT_ID = "__draft__"
 
         /** "Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.task" -> "Qwen2.5-1.5B-Instruct" */
-        fun prettyModelName(fileName: String): String =
-            fileName.substringBeforeLast('.').substringBefore("_multi-prefill").substringBefore("_q8").ifBlank { fileName }
+        private val QUANT_SUFFIX = Regex("[-._](?i:i?q\\d\\w*|f16|bf16|f32)$")
+        private val ORG_PREFIX = Regex("^([A-Za-z0-9]+)_(\\1.*)$")
+
+        /** "Qwen_Qwen3.5-4B-Q4_K_M.gguf" → "Qwen3.5-4B": no extension, quantization tag or uploader prefix. */
+        fun prettyModelName(fileName: String): String {
+            var name = fileName.substringBeforeLast('.').substringBefore("_multi-prefill").substringBefore("_q8")
+            name = name.replace(QUANT_SUFFIX, "")
+            name = ORG_PREFIX.find(name)?.groupValues?.get(2) ?: name
+            return name.ifBlank { fileName }
+        }
     }
 }
