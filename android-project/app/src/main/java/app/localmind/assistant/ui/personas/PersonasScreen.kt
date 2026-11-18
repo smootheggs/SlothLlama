@@ -4,6 +4,8 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -241,6 +243,7 @@ private fun ModelPicker(assignedModel: String?, models: List<LocalModel>, onPick
     }
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun PersonaEditor(
     draft: PersonaDraft,
@@ -311,7 +314,7 @@ private fun PersonaEditor(
                 Column {
                     Text("Read replies aloud", color = P.Muted, fontSize = 12.sp)
                     Spacer(Modifier.height(6.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         val options = listOf<SpeechLanguage?>(null) + SpeechLanguage.entries
                         options.forEach { option ->
                             FilterChip(

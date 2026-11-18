@@ -50,7 +50,8 @@ class SpeakingPracticeViewModel @Inject constructor(
 
     fun open(target: String, language: SpeechLanguage) {
         close()
-        _state.value = PracticeUiState(target = target, language = language, canListen = transcriber.isReady)
+        _state.value = PracticeUiState(target = target, language = language, canListen = transcriber.isReadyFor(language.speechCode))
+        if (!language.isChinese) return
         viewModelScope.launch {
             val reading = runCatching { dictionary.romanize(target, language) }.getOrDefault("")
             _state.update { if (it.target == target) it.copy(reading = reading) else it }
@@ -70,23 +71,31 @@ class SpeakingPracticeViewModel @Inject constructor(
                     return@launch
                 }
                 _state.update { it.copy(phase = PracticePhase.CHECKING) }
-                val code = if (current.language == SpeechLanguage.CANTONESE) "yue" else "zh"
-                val heard = transcriber.transcribe(samples, code)
+                val heard = transcriber.transcribe(samples, current.language.speechCode)
                 val target = current.target
-                val chars = SpeakingCheck.hanOnly(target + heard).toSet()
-                val simplified = dictionary.toSimplified(chars.joinToString(""))
-                val toSimple = chars.zip(simplified.toList()).toMap()
-                val readings = dictionary.readingsOf(simplified.toSet() + chars, current.language)
-                val score = SpeakingCheck.score(
-                    expected = target,
-                    heard = heard,
-                    normalize = { s -> s.map { toSimple[it] ?: it }.joinToString("") },
-                    sameSound = { x, y ->
-                        val rx = readings[x].orEmpty()
-                        val ry = readings[y].orEmpty()
-                        rx.isNotEmpty() && rx.any { it in ry }
+                val score = when {
+                    current.language.isChinese -> {
+                        // Either script counts, and a homophone the recogniser picked is the right sound.
+                        val chars = SpeakingCheck.hanOnly(target + heard).toSet()
+                        val simplified = dictionary.toSimplified(chars.joinToString(""))
+                        val toSimple = chars.zip(simplified.toList()).toMap()
+                        val readings = dictionary.readingsOf(simplified.toSet() + chars, current.language)
+                        SpeakingCheck.score(
+                            expected = target,
+                            heard = heard,
+                            kind = SpeakingCheck.Units.HAN,
+                            key = { u -> (toSimple[u[0]] ?: u[0]).toString() },
+                            sameSound = { x, y ->
+                                val rx = readings[x[0]].orEmpty()
+                                val ry = readings[y[0]].orEmpty()
+                                rx.isNotEmpty() && rx.any { it in ry }
+                            }
+                        )
                     }
-                )
+                    current.language == SpeechLanguage.JAPANESE ->
+                        SpeakingCheck.score(target, heard, SpeakingCheck.Units.JAPANESE)
+                    else -> SpeakingCheck.score(target, heard, SpeakingCheck.Units.WORDS)
+                }
                 _state.update { it.copy(phase = PracticePhase.RESULT, heard = heard, score = score) }
             } catch (e: CancellationException) {
                 throw e

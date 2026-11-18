@@ -31,14 +31,16 @@ object ChineseRules {
     fun systemInstructionFor(persona: Persona, style: ChineseStyle): String {
         val language = persona.speech
         val base = persona.systemInstruction
-        if (language == null) return base.replace(PLACEHOLDER, "").trimEnd()
+        if (language == null || !language.isChinese) return base.replace(PLACEHOLDER, "").trimEnd()
         val rules = render(style, language)
         return if (PLACEHOLDER in base) base.replace(PLACEHOLDER, rules) else "$base\n\n$rules"
     }
 
     fun render(style: ChineseStyle, language: SpeechLanguage): String {
         val ex = when (language) {
-            SpeechLanguage.MANDARIN -> Example(
+            // Only the Chinese tutors get these rules (see TutorRules); the rest use Mandarin's.
+            SpeechLanguage.MANDARIN, SpeechLanguage.JAPANESE, SpeechLanguage.FRENCH, SpeechLanguage.GERMAN,
+            SpeechLanguage.SPANISH, SpeechLanguage.ITALIAN -> Example(
                 simplified = "你今天想吃什么？",
                 traditional = "你今天想吃什麼？",
                 romanized = "nǐ jīntiān xiǎng chī shénme?",

@@ -101,12 +101,12 @@ fun SpeakingPracticeSheet(
             // The sentence; after a try, coloured by what was heard.
             val score = state.score
             if (score != null && state.phase == PracticePhase.RESULT) {
-                FlowRow {
-                    score.chars.forEach { c ->
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(if (score.spaced) 8.dp else 0.dp)) {
+                    score.units.forEach { u ->
                         Text(
-                            c.char.toString(),
-                            color = if (c.heard) P.Success else P.Danger,
-                            fontSize = 30.sp,
+                            u.text,
+                            color = if (u.heard) P.Success else P.Danger,
+                            fontSize = if (score.spaced) 26.sp else 30.sp,
                             fontWeight = FontWeight.Medium
                         )
                     }
@@ -161,13 +161,13 @@ fun SpeakingPracticeSheet(
                 )
                 score != null && state.phase == PracticePhase.RESULT -> {
                     Text(
-                        "${score.percent}% · ${score.heardCount} of ${score.chars.size} characters heard",
+                        "${score.percent}% · ${score.heardCount} of ${score.units.size} ${if (score.spaced) "words" else "characters"} heard",
                         color = P.Text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold
                     )
                     Text(
                         when {
                             score.percent >= 90 -> "Excellent. That came through clearly."
-                            score.percent >= 70 -> "Nearly there. Listen again and try the red characters."
+                            score.percent >= 70 -> "Nearly there. Listen again and try the red ones."
                             else -> "Keep going. Listen once more, then say it slowly."
                         },
                         color = P.Muted, fontSize = 13.sp, lineHeight = 19.sp

@@ -4,6 +4,8 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -41,6 +43,7 @@ val LocalSaveWordAction = compositionLocalOf<((String) -> Unit)?> { null }
  * Lets the learner save words from a tutor reply. The ⭐ words and word-list entries are offered
  * as chips that fill in the fields; everything stays editable, and several can be saved in turn.
  */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun AddFlashcardDialog(
     replyText: String,
@@ -48,7 +51,7 @@ fun AddFlashcardDialog(
     onSave: (language: StudyLanguage, term: String, pronunciation: String, meaning: String, example: String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val candidates = remember(replyText) { WordCandidates.from(replyText) }
+    val candidates = remember(replyText) { WordCandidates.from(replyText, chinese = defaultLanguage.speech.isChinese) }
     val saved = remember { mutableStateListOf<String>() }
     var language by remember { mutableStateOf(defaultLanguage) }
     // Start with the first word the tutor introduced.
@@ -85,14 +88,14 @@ fun AddFlashcardDialog(
                     }
                     Spacer(Modifier.height(10.dp))
                 }
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     StudyLanguage.entries.forEach { lang ->
                         Chip(lang.label, selected = language == lang, onClick = { language = lang })
                     }
                 }
                 Spacer(Modifier.height(8.dp))
                 Field("Word", term) { term = it }
-                Field(language.romanization, pronunciation) { pronunciation = it }
+                Field(language.romanization.ifEmpty { "Pronunciation (optional)" }, pronunciation) { pronunciation = it }
                 Field("Meaning", meaning) { meaning = it }
                 Field("Example (optional)", example, singleLine = false) { example = it }
             }

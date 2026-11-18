@@ -11,13 +11,19 @@ import javax.inject.Singleton
 import kotlin.math.max
 import kotlin.math.roundToInt
 
+/** [romanization]: the label for the pronunciation field ("" = the language needs none). */
 enum class StudyLanguage(val code: String, val label: String, val speech: SpeechLanguage, val romanization: String) {
     MANDARIN("zh", "Mandarin", SpeechLanguage.MANDARIN, "Pinyin"),
-    CANTONESE("yue", "Cantonese", SpeechLanguage.CANTONESE, "Jyutping");
+    CANTONESE("yue", "Cantonese", SpeechLanguage.CANTONESE, "Jyutping"),
+    JAPANESE("ja", "Japanese", SpeechLanguage.JAPANESE, "Romaji"),
+    FRENCH("fr", "French", SpeechLanguage.FRENCH, ""),
+    GERMAN("de", "German", SpeechLanguage.GERMAN, ""),
+    SPANISH("es", "Spanish", SpeechLanguage.SPANISH, ""),
+    ITALIAN("it", "Italian", SpeechLanguage.ITALIAN, "");
 
     companion object {
         fun fromCode(code: String) = entries.firstOrNull { it.code == code } ?: MANDARIN
-        fun from(speech: SpeechLanguage?) = if (speech == SpeechLanguage.CANTONESE) CANTONESE else MANDARIN
+        fun from(speech: SpeechLanguage?) = entries.firstOrNull { it.speech == speech } ?: MANDARIN
     }
 }
 
@@ -144,15 +150,25 @@ object WordCandidates {
     private val DASH = Regex("\\s+[–—-]\\s+")
     private val STAR = Regex("⭐\\s*([\\u3400-\\u4DBF\\u4E00-\\u9FFF\\uF900-\\uFAFF][\\u3400-\\u4DBF\\u4E00-\\u9FFF\\uF900-\\uFAFF /／]*)\\s*(?:[（(]([^)）]{1,60})[)）])?")
     private val SCRIPT_LABEL = Regex("^\\s*[简繁簡]\\s*[:：]\\s*")
+    /** "⭐ la gare (ga-ʁ) – train station": word, optional reading, optional meaning. */
+    private val STAR_WORD = Regex("⭐\\s*([^–—\\-(（\\n:]{1,40}?)\\s*(?:[（(]([^)）]{1,60})[)）])?\\s*(?:[–—-]\\s*([^\\n]{1,80}))?\\s*(?:\\n|$)")
+    /** Lines that are labels or sentences rather than a word: "EN: …", "✏️ …", questions. */
+    private val NOT_A_TERM = Regex("^(?:EN|Romaji)\\s*[:：]|[✏?¿!¡.]", RegexOption.IGNORE_CASE)
 
-    fun from(text: String): List<WordCandidate> {
+    /**
+     * [chinese] = false for the other tutors: then any short "word – meaning" item counts, and
+     * ⭐ words are written in letters ("⭐ la gare – train station").
+     */
+    fun from(text: String, chinese: Boolean = true): List<WordCandidate> {
         val lines = text.lines()
         val found = LinkedHashMap<String, WordCandidate>()
 
         for (raw in lines) {
             val line = raw.replace(LIST_MARKER, "").replace("**", "").replace("⭐", "").trim()
             val parts = line.split(DASH).map { it.trim() }.filter { it.isNotEmpty() }
-            if (parts.size < 2 || !HAN.containsMatchIn(parts[0]) || parts[0].length > 30) continue
+            if (parts.size < 2 || parts[0].length > 30) continue
+            if (chinese && !HAN.containsMatchIn(parts[0])) continue
+            if (!chinese && (NOT_A_TERM.containsMatchIn(parts[0]) || parts[0].split(' ').size > 5)) continue
             val (pronunciation, meaning) = when {
                 parts.size >= 3 -> parts[1] to parts.drop(2).joinToString(" – ")
                 else -> "" to parts[1]
@@ -161,10 +177,21 @@ object WordCandidates {
             found.putIfAbsent(parts[0], WordCandidate(parts[0], pronunciation, meaning, exampleFor(parts[0], lines)))
         }
 
-        for (match in STAR.findAll(text)) {
-            val term = match.groupValues[1].trim()
-            if (term.isEmpty()) continue
-            found.putIfAbsent(term, WordCandidate(term, match.groupValues[2].trim(), "", exampleFor(term, lines)))
+        if (chinese) {
+            for (match in STAR.findAll(text)) {
+                val term = match.groupValues[1].trim()
+                if (term.isEmpty()) continue
+                found.putIfAbsent(term, WordCandidate(term, match.groupValues[2].trim(), "", exampleFor(term, lines)))
+            }
+        } else {
+            for (match in STAR_WORD.findAll(text)) {
+                val term = match.groupValues[1].trim()
+                if (term.isEmpty() || term.split(' ').size > 5) continue
+                found.putIfAbsent(
+                    term,
+                    WordCandidate(term, match.groupValues[2].trim(), match.groupValues[3].trim(), exampleFor(term, lines))
+                )
+            }
         }
         return found.values.toList()
     }

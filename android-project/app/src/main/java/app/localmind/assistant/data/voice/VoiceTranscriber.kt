@@ -8,6 +8,7 @@ import com.k2fsa.sherpa.onnx.OfflineModelConfig
 import com.k2fsa.sherpa.onnx.OfflineRecognizer
 import com.k2fsa.sherpa.onnx.OfflineRecognizerConfig
 import com.k2fsa.sherpa.onnx.OfflineSenseVoiceModelConfig
+import com.k2fsa.sherpa.onnx.OfflineWhisperModelConfig
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -27,11 +28,12 @@ sealed interface VoiceModelState {
 }
 
 /**
- * Offline speech-to-text with SenseVoice (Mandarin, Cantonese, English, Japanese, Korean) through
- * sherpa-onnx. Audio never leaves the device: the app has no network access at all.
- *
- * The model is imported once from the sherpa-onnx package (model.int8.onnx + tokens.txt) and
- * copied into private storage.
+ * Offline speech-to-text through sherpa-onnx, with two models the learner imports once:
+ *  - SenseVoice (model.int8.onnx + tokens.txt): Mandarin, Cantonese, English, Japanese, Korean.
+ *    Fast, and the better choice for those languages.
+ *  - Whisper Small (small-encoder.int8.onnx + small-decoder.int8.onnx + small-tokens.txt):
+ *    about 100 languages, used for French, German, Spanish and Italian (and as a fallback).
+ * Audio never leaves the device: the app has no network access at all.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
@@ -41,8 +43,18 @@ class VoiceTranscriber @Inject constructor(@ApplicationContext private val conte
     private val modelFile = File(dir, MODEL_FILE)
     private val tokensFile = File(dir, TOKENS_FILE)
 
+    private val whisperDir = File(dir, "whisper")
+    private val whisperEncoder = File(whisperDir, "encoder.int8.onnx")
+    private val whisperDecoder = File(whisperDir, "decoder.int8.onnx")
+    private val whisperTokens = File(whisperDir, "tokens.txt")
+
     private val _state = MutableStateFlow(currentState())
+    /** SenseVoice. */
     val state: StateFlow<VoiceModelState> = _state.asStateFlow()
+
+    private val _whisperState = MutableStateFlow(currentWhisperState())
+    /** Whisper (for French, German, Spanish, Italian and anything SenseVoice doesn't cover). */
+    val whisperState: StateFlow<VoiceModelState> = _whisperState.asStateFlow()
 
     /** The recognizer isn't thread-safe; one thread owns it. */
     private val voiceThread = Dispatchers.IO.limitedParallelism(1)
@@ -50,6 +62,79 @@ class VoiceTranscriber @Inject constructor(@ApplicationContext private val conte
     private var recognizerLanguage: String? = null
 
     val isReady: Boolean get() = _state.value is VoiceModelState.Ready
+    private val whisperReady: Boolean get() = _whisperState.value is VoiceModelState.Ready
+
+    /** Whether speech in [language] ("zh", "yue", "ja", "fr", "auto"…) can be transcribed now. */
+    fun isReadyFor(language: String): Boolean = when {
+        language in SENSE_VOICE_LANGUAGES && isReady -> true
+        language == "yue" -> false // Whisper's Cantonese is poor; SenseVoice is needed
+        else -> whisperReady
+    }
+
+    /** Which model to import for [language], for messages: "the voice model" or "Whisper". */
+    fun modelNeededFor(language: String): String =
+        if (language in SENSE_VOICE_LANGUAGES) "the SenseVoice voice model" else "the Whisper voice model"
+
+    /**
+     * Imports Whisper from the files the user picked (any order): the encoder and decoder .onnx
+     * (names contain "encoder" / "decoder") and the tokens .txt.
+     */
+    suspend fun importWhisper(uris: List<Uri>): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            var encoder: Uri? = null
+            var decoder: Uri? = null
+            var tokens: Uri? = null
+            for (uri in uris) {
+                val name = displayName(uri)?.lowercase() ?: continue
+                when {
+                    name.endsWith(".onnx") && "encoder" in name -> encoder = uri
+                    name.endsWith(".onnx") && "decoder" in name -> decoder = uri
+                    name.endsWith(".txt") -> tokens = uri
+                }
+            }
+            val enc = requireNotNull(encoder) { "Select all three Whisper files: …-encoder.int8.onnx, …-decoder.int8.onnx and …-tokens.txt." }
+            val dec = requireNotNull(decoder) { "The decoder file is missing: pick …-decoder.int8.onnx too." }
+            val tok = requireNotNull(tokens) { "The tokens file is missing: pick …-tokens.txt too." }
+
+            withContext(voiceThread) { releaseRecognizer() }
+            whisperDir.mkdirs()
+            _whisperState.value = VoiceModelState.Importing(0f)
+            val parts = listOf(enc to whisperEncoder, dec to whisperDecoder, tok to whisperTokens)
+            val total = parts.sumOf { fileSize(it.first).coerceAtLeast(0) }
+            var done = 0L
+            for ((uri, target) in parts) {
+                val tmp = File(whisperDir, "${target.name}.part")
+                val before = done
+                copy(uri, tmp) { copied ->
+                    if (total > 0) _whisperState.value = VoiceModelState.Importing(((before + copied).toFloat() / total).coerceIn(0f, 1f))
+                }
+                done += tmp.length()
+            }
+            val encTmp = File(whisperDir, "${whisperEncoder.name}.part")
+            val decTmp = File(whisperDir, "${whisperDecoder.name}.part")
+            val tokTmp = File(whisperDir, "${whisperTokens.name}.part")
+            for (f in listOf(encTmp, decTmp)) {
+                check(f.length() > MIN_WHISPER_PART_BYTES) { "A Whisper .onnx file looks too small; download it again." }
+                check(f.inputStream().use { it.read() } == 0x08) { "${f.name.removeSuffix(".part")} isn't an ONNX model." }
+            }
+            val tokenLines = tokTmp.useLines { lines -> lines.count { it.isNotBlank() } }
+            check(tokenLines > 40_000) { "That tokens file doesn't look like Whisper's ($tokenLines entries)." }
+            for ((tmp, target) in listOf(encTmp to whisperEncoder, decTmp to whisperDecoder, tokTmp to whisperTokens)) {
+                target.delete()
+                check(tmp.renameTo(target)) { "Couldn't save the Whisper model." }
+            }
+            Unit
+        }.also {
+            whisperDir.listFiles { f -> f.name.endsWith(".part") }?.forEach { it.delete() }
+            _whisperState.value = currentWhisperState()
+        }
+    }
+
+    suspend fun removeWhisper() {
+        withContext(voiceThread) { releaseRecognizer() }
+        withContext(Dispatchers.IO) { whisperDir.deleteRecursively() }
+        _whisperState.value = currentWhisperState()
+    }
 
     /** Imports the two files the user picked (in either order). */
     suspend fun import(uris: List<Uri>): Result<Unit> = withContext(Dispatchers.IO) {
@@ -104,12 +189,14 @@ class VoiceTranscriber @Inject constructor(@ApplicationContext private val conte
     }
 
     /**
-     * Transcribes 16 kHz mono [samples]. [language]: "zh", "yue", "en", "ja", "ko" or "auto".
-     * A language hint helps learners: an accent is less likely to be heard as another language.
+     * Transcribes 16 kHz mono [samples]. [language]: "zh", "yue", "en", "ja", "ko", "fr", "de",
+     * "es", "it" or "auto". A language hint helps learners: an accent is less likely to be heard
+     * as another language. SenseVoice is used when it covers the language, otherwise Whisper.
      */
     suspend fun transcribe(samples: FloatArray, language: String): String = withContext(voiceThread) {
-        check(isReady) { "Import the voice model on the Models screen first." }
-        val rec = recognizerFor(language)
+        check(isReadyFor(language)) { "Import ${modelNeededFor(language)} on the Models screen first." }
+        val useSenseVoice = language in SENSE_VOICE_LANGUAGES && isReady
+        val rec = recognizerFor(if (useSenseVoice) "sv:$language" else "wh:$language")
         val stream = rec.createStream()
         try {
             stream.acceptWaveform(samples, SAMPLE_RATE)
@@ -121,14 +208,15 @@ class VoiceTranscriber @Inject constructor(@ApplicationContext private val conte
         }
     }
 
-    private fun recognizerFor(language: String): OfflineRecognizer {
+    /** [key] is "sv:<language>" for SenseVoice or "wh:<language>" for Whisper. */
+    private fun recognizerFor(key: String): OfflineRecognizer {
         recognizer?.let { existing ->
-            if (recognizerLanguage == language) return existing
+            if (recognizerLanguage == key) return existing
             releaseRecognizer()
         }
-        val config = OfflineRecognizerConfig(
-            featConfig = FeatureConfig(sampleRate = SAMPLE_RATE, featureDim = 80),
-            modelConfig = OfflineModelConfig(
+        val language = key.substringAfter(':')
+        val modelConfig = if (key.startsWith("sv:")) {
+            OfflineModelConfig(
                 senseVoice = OfflineSenseVoiceModelConfig(
                     model = modelFile.absolutePath,
                     language = language,
@@ -138,10 +226,31 @@ class VoiceTranscriber @Inject constructor(@ApplicationContext private val conte
                 numThreads = 4,
                 provider = "cpu"
             )
+        } else {
+            OfflineModelConfig(
+                whisper = OfflineWhisperModelConfig(
+                    encoder = whisperEncoder.absolutePath,
+                    decoder = whisperDecoder.absolutePath,
+                    // "" lets Whisper detect the language; Cantonese is closest to "zh" for it.
+                    language = when (language) {
+                        "auto" -> ""
+                        "yue" -> "zh"
+                        else -> language
+                    },
+                    task = "transcribe"
+                ),
+                tokens = whisperTokens.absolutePath,
+                numThreads = 4,
+                provider = "cpu"
+            )
+        }
+        val config = OfflineRecognizerConfig(
+            featConfig = FeatureConfig(sampleRate = SAMPLE_RATE, featureDim = 80),
+            modelConfig = modelConfig
         )
         return OfflineRecognizer(assetManager = null, config = config).also {
             recognizer = it
-            recognizerLanguage = language
+            recognizerLanguage = key
         }
     }
 
@@ -150,6 +259,11 @@ class VoiceTranscriber @Inject constructor(@ApplicationContext private val conte
         recognizer = null
         recognizerLanguage = null
     }
+
+    private fun currentWhisperState(): VoiceModelState =
+        if (whisperEncoder.isFile && whisperDecoder.isFile && whisperTokens.isFile) {
+            VoiceModelState.Ready(whisperEncoder.length() + whisperDecoder.length() + whisperTokens.length())
+        } else VoiceModelState.Missing
 
     private fun currentState(): VoiceModelState =
         if (modelFile.isFile && tokensFile.isFile) VoiceModelState.Ready(modelFile.length() + tokensFile.length())
@@ -187,5 +301,8 @@ class VoiceTranscriber @Inject constructor(@ApplicationContext private val conte
         private const val MODEL_FILE = "model.int8.onnx"
         private const val TOKENS_FILE = "tokens.txt"
         private const val MIN_MODEL_BYTES = 20L * 1024 * 1024
+        private const val MIN_WHISPER_PART_BYTES = 10L * 1024 * 1024
+        /** Languages SenseVoice handles (and handles better than Whisper Small). */
+        val SENSE_VOICE_LANGUAGES = setOf("zh", "yue", "en", "ja", "ko", "auto")
     }
 }

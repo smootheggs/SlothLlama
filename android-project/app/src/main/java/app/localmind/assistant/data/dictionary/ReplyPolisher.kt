@@ -20,7 +20,7 @@ import javax.inject.Singleton
 class ReplyPolisher @Inject constructor(private val dictionary: ChineseDictionary) {
 
     suspend fun polish(reply: String, language: SpeechLanguage?): String {
-        if (language == null || !dictionary.isAvailable || reply.none(ChineseDictionary::isHan)) return reply
+        if (language == null || !language.isChinese || !dictionary.isAvailable || reply.none(ChineseDictionary::isHan)) return reply
         return runCatching { polishLines(reply, language) }.getOrDefault(reply)
     }
 

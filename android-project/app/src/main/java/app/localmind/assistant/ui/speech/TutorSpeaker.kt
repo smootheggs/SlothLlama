@@ -101,7 +101,7 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
     }
 
     private fun prepare(text: String, language: SpeechLanguage, rate: Float = LEARNER_RATE): Prepared {
-        val spoken = chineseOnly(text)
+        val spoken = spokenText(text, language)
         if (spoken.isBlank()) return Prepared.NothingToSay
         val locale = language.localeTags
             .map { Locale.forLanguageTag(it) }
@@ -159,6 +159,56 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
 
         /** "简:" / "繁:" line labels used when the tutors write both scripts. */
         private val SCRIPT_LABEL = Regex("^\\s*(?:[简繁簡]|繁/简)\\s*[:：]\\s*")
+
+        private val JAPANESE = Regex("[\\u3040-\\u30FF\\u3400-\\u4DBF\\u4E00-\\u9FFF]")
+        private val NOT_JAPANESE = Regex("[^\\u3000-\\u303F\\u3040-\\u30FF\\u3400-\\u4DBF\\u4E00-\\u9FFF\\uF900-\\uFAFF\\uFF00-\\uFFEF]+")
+        /** Lines that are notes about the reply, not the language being practised. */
+        private val NOTE_LINE = Regex("^\\s*(?:EN|Romaji|Rōmaji|English)\\s*[:：]|^\\s*[✏⭐💡📝]", RegexOption.IGNORE_CASE)
+        private val MARKDOWN = Regex("[*_`#>|]+")
+
+        /** What to read aloud from a tutor reply in [language] (see [chineseOnly] and [targetLines]). */
+        fun spokenText(text: String, language: SpeechLanguage): String = when {
+            language.isChinese -> chineseOnly(text)
+            language == SpeechLanguage.JAPANESE -> japaneseOnly(text)
+            else -> targetLines(text)
+        }
+
+        /** Japanese lines (kana and kanji), minus romaji, English and notes. */
+        fun japaneseOnly(text: String): String =
+            text.lines()
+                .filter { JAPANESE.containsMatchIn(it) && !NOTE_LINE.containsMatchIn(it) }
+                .map { it.replace(NOT_JAPANESE, " ").trim() }
+                .filter { it.isNotEmpty() }
+                .joinToString("。")
+
+        /**
+         * For French, German, Spanish and Italian the tutors write each sentence on its own line
+         * followed by an "EN:" translation, so the lines just above each "EN:" line are the ones
+         * in the language being practised. Explanations (✏️, ⭐, English) are skipped. If the
+         * model ignored the format, the whole reply (without Markdown) is read.
+         */
+        fun targetLines(text: String): String {
+            val lines = text.lines()
+            val spoken = mutableListOf<String>()
+            var block = mutableListOf<String>()
+            var sawEnglish = false
+            for (raw in lines) {
+                val line = raw.replace(MARKDOWN, "").trim()
+                when {
+                    line.startsWith("EN:", ignoreCase = true) || line.startsWith("EN：") -> {
+                        spoken += block
+                        block = mutableListOf()
+                        sawEnglish = true
+                    }
+                    line.isEmpty() || NOTE_LINE.containsMatchIn(line) -> block = mutableListOf()
+                    else -> block += line
+                }
+            }
+            return if (sawEnglish) spoken.joinToString(" ")
+            else lines.map { it.replace(MARKDOWN, "").trim() }
+                .filter { it.isNotEmpty() && !NOTE_LINE.containsMatchIn(it) }
+                .joinToString(" ")
+        }
 
         /**
          * Keeps the lines that contain Chinese characters, minus any Latin text on them.

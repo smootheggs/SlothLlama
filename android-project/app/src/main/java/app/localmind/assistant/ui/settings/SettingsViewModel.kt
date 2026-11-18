@@ -29,12 +29,17 @@ sealed interface BackupDialog {
 class SettingsViewModel @Inject constructor(
     private val app: Application,
     private val backups: BackupManager,
-    private val assistant: AssistantSettingsStore
+    private val assistant: AssistantSettingsStore,
+    private val tutorLevels: app.localmind.assistant.data.persona.TutorLevelStore
 ) : AndroidViewModel(app) {
 
     val reviewReminder: StateFlow<Boolean> = assistant.reviewReminder
     val reminderHour: StateFlow<Int> = assistant.reminderHour
     val openToHome: StateFlow<Boolean> = assistant.openToHome
+    val levels = tutorLevels.levels
+
+    fun setLevel(language: app.localmind.assistant.domain.persona.SpeechLanguage, level: app.localmind.assistant.domain.persona.TutorLevel) =
+        tutorLevels.set(language, level)
 
     fun setOpenToHome(home: Boolean) = assistant.setOpenToHome(home)
 

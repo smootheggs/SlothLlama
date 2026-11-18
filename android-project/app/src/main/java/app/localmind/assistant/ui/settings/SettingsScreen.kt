@@ -26,6 +26,10 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.BoxWithConstraints
 import app.localmind.assistant.ui.home.WIDE
+import app.localmind.assistant.domain.persona.SpeechLanguage
+import app.localmind.assistant.domain.persona.TutorLevel
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.mutableStateOf
@@ -97,6 +101,7 @@ fun SettingsScreen(
     val reminderOn by vm.reviewReminder.collectAsStateWithLifecycle()
     val reminderHour by vm.reminderHour.collectAsStateWithLifecycle()
     val openToHome by vm.openToHome.collectAsStateWithLifecycle()
+    val levels by vm.levels.collectAsStateWithLifecycle()
     val backupDialog by vm.dialog.collectAsStateWithLifecycle()
     val busy by vm.busy.collectAsStateWithLifecycle()
     val message by vm.message.collectAsStateWithLifecycle()
@@ -171,6 +176,18 @@ fun SettingsScreen(
                         checked = chineseStyle.romanization,
                         onCheckedChange = onRomanizationChange
                     )
+                }
+
+                Section("Tutors") {
+                    Text(
+                        "Your level in each language. Tutors pitch their replies to it; from C1 up they " +
+                            "drop the English and romaji lines.",
+                        color = P.Muted, fontSize = 13.sp, lineHeight = 19.sp,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 6.dp)
+                    )
+                    SpeechLanguage.entries.forEach { language ->
+                        LevelRow(language, levels[language] ?: TutorLevel.defaultFor(language)) { vm.setLevel(language, it) }
+                    }
                 }
 
                 Section("Privacy") {
@@ -463,6 +480,30 @@ private fun StatusRow(ok: Boolean, title: String, detail: String) {
         Column(Modifier.weight(1f)) {
             Text(title, color = P.Text, fontSize = 15.sp)
             Text(detail, color = P.Muted, fontSize = 12.sp, lineHeight = 17.sp)
+        }
+    }
+}
+
+/** A language and its level chips. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun LevelRow(language: SpeechLanguage, level: TutorLevel, onChange: (TutorLevel) -> Unit) {
+    Column(Modifier.fillMaxWidth().padding(horizontal = 4.dp, vertical = 6.dp)) {
+        Text(language.label, color = P.Text, fontSize = 15.sp)
+        Spacer(Modifier.height(6.dp))
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            TutorLevel.entries.forEach { option ->
+                val selected = option == level
+                Text(
+                    option.label,
+                    color = if (selected) P.Accent else P.Muted, fontSize = 13.sp,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(10.dp))
+                        .border(1.dp, if (selected) P.Accent else P.Border, RoundedCornerShape(10.dp))
+                        .clickable { onChange(option) }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+            }
         }
     }
 }

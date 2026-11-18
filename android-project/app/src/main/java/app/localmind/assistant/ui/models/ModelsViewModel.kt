@@ -100,6 +100,22 @@ class ModelsViewModel @Inject constructor(
         viewModelScope.launch { voice.remove() }
     }
 
+    /** Whisper Small, for the French, German, Spanish and Italian tutors. */
+    val whisperModel: StateFlow<VoiceModelState> = voice.whisperState
+
+    fun importWhisper(uris: List<Uri>) {
+        if (uris.isEmpty()) return
+        viewModelScope.launch {
+            voice.importWhisper(uris)
+                .onSuccess { local.update { it.copy(message = "Whisper is ready: the European tutors can hear you now.") } }
+                .onFailure { e -> local.update { it.copy(message = e.message ?: "Couldn't import Whisper.") } }
+        }
+    }
+
+    fun removeWhisper() {
+        viewModelScope.launch { voice.removeWhisper() }
+    }
+
     private val local = MutableStateFlow(ModelsUiState(importFolder = library.importFolder.absolutePath))
     private var importJob: Job? = null
 

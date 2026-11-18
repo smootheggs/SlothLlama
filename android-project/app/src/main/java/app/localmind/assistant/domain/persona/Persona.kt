@@ -1,10 +1,21 @@
 package app.localmind.assistant.domain.persona
 
-/** Languages the app can read aloud with Android's built-in text-to-speech. */
-enum class SpeechLanguage(val label: String, val localeTags: List<String>) {
-    MANDARIN("Mandarin", listOf("zh-CN")),
+/**
+ * Languages the tutors speak: read aloud with Android's built-in text-to-speech ([localeTags],
+ * tried in order) and heard with the offline voice models ([speechCode]).
+ */
+enum class SpeechLanguage(val label: String, val localeTags: List<String>, val speechCode: String) {
+    MANDARIN("Mandarin", listOf("zh-CN"), "zh"),
     // Engines name Cantonese differently; try each in order.
-    CANTONESE("Cantonese", listOf("yue-HK", "zh-HK"))
+    CANTONESE("Cantonese", listOf("yue-HK", "zh-HK"), "yue"),
+    JAPANESE("Japanese", listOf("ja-JP"), "ja"),
+    FRENCH("French", listOf("fr-FR", "fr-CA"), "fr"),
+    GERMAN("German", listOf("de-DE", "de-AT"), "de"),
+    SPANISH("Spanish", listOf("es-ES", "es-US", "es-MX"), "es"),
+    ITALIAN("Italian", listOf("it-IT"), "it");
+
+    /** Written in Chinese characters, with the Chinese settings (简/繁, Pinyin/Jyutping) applying. */
+    val isChinese: Boolean get() = this == MANDARIN || this == CANTONESE
 }
 
 data class Persona(

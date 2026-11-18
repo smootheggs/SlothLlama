@@ -89,6 +89,10 @@ fun ModelsScreen(viewModel: ModelsViewModel, onBack: () -> Unit) {
         visionFor = null
         if (uri != null && model != null) viewModel.addVision(model, uri)
     }
+    val whisperModel by viewModel.whisperModel.collectAsStateWithLifecycle()
+    val whisperPicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        viewModel.importWhisper(uris)
+    }
     val voicePicker = rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
         viewModel.importVoiceModel(uris)
     }
@@ -145,6 +149,23 @@ fun ModelsScreen(viewModel: ModelsViewModel, onBack: () -> Unit) {
                         state = voiceModel,
                         onImport = { voicePicker.launch(arrayOf("*/*")) },
                         onRemove = viewModel::removeVoiceModel
+                    )
+                }
+
+                item(span = { GridItemSpan(maxLineSpan) }) {
+                    VoiceModelCard(
+                        state = whisperModel,
+                        onImport = { whisperPicker.launch(arrayOf("*/*")) },
+                        onRemove = viewModel::removeWhisper,
+                        title = "Voice input: European languages",
+                        missingText = "For speaking French, German, Spanish and Italian to the tutors: Whisper Small " +
+                            "(about 360 MB). From huggingface.co/csukuangfj/sherpa-onnx-whisper-small download " +
+                            "small-encoder.int8.onnx, small-decoder.int8.onnx and small-tokens.txt, then select " +
+                            "all three here.",
+                        importLabel = "Import Whisper",
+                        readyText = "French, German, Spanish and Italian tutors can hear you now. SenseVoice still " +
+                            "handles Chinese, Japanese and English (it's faster).",
+                        removeLabel = "Remove Whisper"
                     )
                 }
 
@@ -375,12 +396,23 @@ private fun ImportCard(progress: Float?, folder: String, onImport: () -> Unit, o
 }
 
 @Composable
-private fun VoiceModelCard(state: VoiceModelState, onImport: () -> Unit, onRemove: () -> Unit) {
+private fun VoiceModelCard(
+    state: VoiceModelState,
+    onImport: () -> Unit,
+    onRemove: () -> Unit,
+    title: String = "Voice input",
+    missingText: String = "Speak instead of typing, fully offline: SenseVoice understands Mandarin, Cantonese, " +
+        "English, Japanese and Korean. Import model.int8.onnx and tokens.txt together " +
+        "(select both in the picker).",
+    importLabel: String = "Import voice model",
+    readyText: String = "Tap the mic in any chat. Tutors listen for their own language; other personas detect it.",
+    removeLabel: String = "Remove voice model"
+) {
     SlothCard {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(Icons.Outlined.Mic, contentDescription = null, tint = P.Accent, modifier = Modifier.size(18.dp))
             Spacer(Modifier.width(8.dp))
-            Text("Voice input", color = P.Text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
+            Text(title, color = P.Text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.weight(1f))
             if (state is VoiceModelState.Ready) {
                 Text("Ready · ${ModelLibrary.formatBytes(state.sizeBytes)}", color = P.Success, fontSize = 12.sp)
             }
@@ -388,12 +420,7 @@ private fun VoiceModelCard(state: VoiceModelState, onImport: () -> Unit, onRemov
         Spacer(Modifier.height(6.dp))
         when (state) {
             is VoiceModelState.Missing -> {
-                Text(
-                    "Speak instead of typing, fully offline: SenseVoice understands Mandarin, Cantonese, " +
-                        "English, Japanese and Korean. Import model.int8.onnx and tokens.txt together " +
-                        "(select both in the picker).",
-                    color = P.Muted, fontSize = 12.sp, lineHeight = 17.sp
-                )
+                Text(missingText, color = P.Muted, fontSize = 12.sp, lineHeight = 17.sp)
                 Spacer(Modifier.height(10.dp))
                 Button(
                     onClick = onImport,
@@ -404,7 +431,7 @@ private fun VoiceModelCard(state: VoiceModelState, onImport: () -> Unit, onRemov
                 ) {
                     Icon(Icons.Default.FileUpload, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(Modifier.width(8.dp))
-                    Text("Import voice model")
+                    Text(importLabel)
                 }
             }
             is VoiceModelState.Importing -> {
@@ -418,11 +445,8 @@ private fun VoiceModelCard(state: VoiceModelState, onImport: () -> Unit, onRemov
                 )
             }
             is VoiceModelState.Ready -> {
-                Text(
-                    "Tap the mic in any chat. Tutors listen for their own language; other personas detect it.",
-                    color = P.Muted, fontSize = 12.sp, lineHeight = 17.sp
-                )
-                TextButton(onClick = onRemove) { Text("Remove voice model", color = P.Muted) }
+                Text(readyText, color = P.Muted, fontSize = 12.sp, lineHeight = 17.sp)
+                TextButton(onClick = onRemove) { Text(removeLabel, color = P.Muted) }
             }
         }
     }

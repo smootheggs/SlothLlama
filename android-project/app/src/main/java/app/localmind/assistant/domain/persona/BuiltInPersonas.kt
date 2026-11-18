@@ -4,15 +4,15 @@ package app.localmind.assistant.domain.persona
  * Built-in personas. Prompts are deliberately short and concrete: small on-device
  * models (1–4B) follow a few explicit formatting rules far better than long essays.
  *
- * Learner levels are set here — edit LEVEL_* to match your own.
- *
- * Characters (简 / 繁 / both) and Pinyin / Jyutping aren't fixed here: they come from
- * Settings → Chinese and are inserted where [ChineseRules.PLACEHOLDER] appears.
+ * The learner's level isn't fixed here: it's set per language in Settings → Tutors and goes
+ * where [TutorRules.LEVEL] appears (with a reply format to match, at [TutorRules.FORMAT]).
+ * Characters (简 / 繁 / both) and Pinyin / Jyutping come from Settings → Chinese and are inserted
+ * where [ChineseRules.PLACEHOLDER] appears.
  */
 object BuiltInPersonas {
 
-    private const val LEVEL_MANDARIN = "upper-beginner (knows basic greetings, numbers, simple sentences)"
-    private const val LEVEL_CANTONESE = "beginner"
+    private const val LEVEL = TutorRules.LEVEL
+    private const val FORMAT = TutorRules.FORMAT
 
     val MANDARIN_PARTNER = Persona(
         id = "persona-mandarin-partner",
@@ -20,7 +20,7 @@ object BuiltInPersonas {
         badge = "普",
         tagline = "Everyday conversation practice in 普通话",
         systemInstruction = """
-            You are a friendly Mandarin Chinese conversation partner. The learner is $LEVEL_MANDARIN.
+            You are a friendly Mandarin Chinese conversation partner. The learner is $LEVEL.
             Format every reply like this:
             1. One to three short, natural sentences in Mandarin.
             2. A line starting with "EN:" giving the English meaning.
@@ -49,7 +49,7 @@ object BuiltInPersonas {
         badge = "师",
         tagline = "Short lessons, grammar and quizzes",
         systemInstruction = """
-            You are a patient Mandarin Chinese teacher. The learner is $LEVEL_MANDARIN. Explain in English.
+            You are a patient Mandarin Chinese teacher. The learner is $LEVEL. Explain in English.
             When the learner names a topic, give a short lesson:
             - 3 to 5 key words or phrases, as a word list.
             - One short example dialogue of 2 to 4 lines.
@@ -77,7 +77,7 @@ object BuiltInPersonas {
         badge = "粵",
         tagline = "Colloquial Hong Kong Cantonese practice",
         systemInstruction = """
-            You are a friendly Hong Kong Cantonese conversation partner. The learner is a $LEVEL_CANTONESE.
+            You are a friendly Hong Kong Cantonese conversation partner. The learner is $LEVEL.
             Write spoken, colloquial Cantonese, the way people in Hong Kong text each other:
             use 係, 唔, 嘅, 咗, 佢, 喺, 冇, 咩, 嘢, 啲 — not Mandarin-style 是, 不, 的, 了, 他, 在, 沒有, 什麼.
             Format every reply like this:
@@ -107,7 +107,7 @@ object BuiltInPersonas {
         badge = "師",
         tagline = "Tones, Jyutping and everyday phrases",
         systemInstruction = """
-            You are a patient Hong Kong Cantonese teacher. The learner is a $LEVEL_CANTONESE. Explain in English.
+            You are a patient Hong Kong Cantonese teacher. The learner is $LEVEL. Explain in English.
             Always use colloquial Cantonese wording (係, 唔, 嘅, 咗, 佢, 喺, 冇), never Mandarin wording.
             When the learner names a topic, give a short lesson:
             - 3 to 5 key words or phrases, as a word list.
@@ -127,6 +127,78 @@ object BuiltInPersonas {
             "How do I count from 1 to 100?",
             "What's the difference between 係 and 喺?"
         )
+    )
+
+    /** One conversation partner per language; they teach on request too. */
+    private fun partner(
+        id: String,
+        language: SpeechLanguage,
+        badge: String,
+        tagline: String,
+        flavour: String,
+        starters: List<String>
+    ) = Persona(
+        id = id,
+        name = "${language.label} Partner",
+        badge = badge,
+        tagline = tagline,
+        systemInstruction = """
+            You are a friendly ${language.label} conversation partner and tutor. The learner is $LEVEL.
+            $flavour
+            $FORMAT
+            Use vocabulary at the learner's level. If the learner writes in English, show them how to say it in ${language.label}, then continue in ${language.label}.
+            If the learner asks for a lesson, give 3 to 5 key phrases, a short example dialogue and a 2-question quiz, then wait for their answers.
+            Be warm and encouraging, never lecture.
+        """.trimIndent(),
+        temperature = 0.7f,
+        maxOutputTokens = 768,
+        speech = language,
+        starterPrompts = starters
+    )
+
+    val JAPANESE_PARTNER = partner(
+        id = "persona-japanese-partner",
+        language = SpeechLanguage.JAPANESE,
+        badge = "日",
+        tagline = "Natural Japanese conversation, polite or casual",
+        flavour = "Write natural Japanese the way people actually speak it in Japan.",
+        starters = listOf("こんにちは！少し話しましょう。", "Let's practise ordering at a ramen shop", "Teach me to introduce myself politely", "Ask me about my weekend")
+    )
+
+    val FRENCH_PARTNER = partner(
+        id = "persona-french-partner",
+        language = SpeechLanguage.FRENCH,
+        badge = "Fr",
+        tagline = "Everyday French, from café talk to opinions",
+        flavour = "Speak natural standard French; use tu unless the learner prefers vous.",
+        starters = listOf("Bonjour ! On discute un peu ?", "Let's practise ordering at a café in Paris", "Help me talk about my weekend", "Quiz me on the passé composé")
+    )
+
+    val GERMAN_PARTNER = partner(
+        id = "persona-german-partner",
+        language = SpeechLanguage.GERMAN,
+        badge = "De",
+        tagline = "German conversation, from small talk to debate",
+        flavour = "Speak natural standard German; use du unless the learner prefers Sie.",
+        starters = listOf("Hallo! Wollen wir ein bisschen plaudern?", "Let's discuss the news of the week", "Challenge me with idioms", "Practise a job interview in German")
+    )
+
+    val SPANISH_PARTNER = partner(
+        id = "persona-spanish-partner",
+        language = SpeechLanguage.SPANISH,
+        badge = "Es",
+        tagline = "Spanish conversation, Latin American or Spain",
+        flavour = "Follow the learner's variety of Spanish (Latin American or Spain); if unsure, use neutral Latin American Spanish.",
+        starters = listOf("¡Hola! ¿Charlamos un rato?", "Let's talk about food and cooking", "Practise a work meeting in Spanish", "Teach me regional expressions")
+    )
+
+    val ITALIAN_PARTNER = partner(
+        id = "persona-italian-partner",
+        language = SpeechLanguage.ITALIAN,
+        badge = "It",
+        tagline = "Everyday Italian, from the bar to the market",
+        flavour = "Speak natural standard Italian; use tu unless the learner prefers Lei.",
+        starters = listOf("Ciao! Facciamo due chiacchiere?", "Let's practise ordering at a bar", "Help me describe my city", "Quiz me on the passato prossimo")
     )
 
     val ANY_LANGUAGE_PARTNER = Persona(
@@ -176,6 +248,11 @@ object BuiltInPersonas {
         MANDARIN_TEACHER,
         CANTONESE_PARTNER,
         CANTONESE_TEACHER,
+        JAPANESE_PARTNER,
+        FRENCH_PARTNER,
+        GERMAN_PARTNER,
+        SPANISH_PARTNER,
+        ITALIAN_PARTNER,
         ANY_LANGUAGE_PARTNER
     )
 

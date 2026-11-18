@@ -179,10 +179,10 @@ fun AssistantMessageBubble(
                 if (speak != null) {
                     ActionIcon(Icons.AutoMirrored.Filled.VolumeUp, "Read aloud") { speak(message.content) }
                 }
-                if (saveWord != null && HAN_CHARS.containsMatchIn(message.content)) {
+                if (saveWord != null) {
                     ActionIcon(Icons.Outlined.StarOutline, "Save words to flashcards") { saveWord(message.content) }
                 }
-                if (practise != null && HAN_CHARS.containsMatchIn(message.content)) {
+                if (practise != null) {
                     ActionIcon(Icons.Outlined.RecordVoiceOver, "Practise saying it") { practise(message.content) }
                 }
                 ActionIcon(Icons.Outlined.Share, "Share") {
@@ -239,7 +239,6 @@ private fun ReplyFooter(message: ChatMessage, isLatest: Boolean) {
     }
 }
 
-private val HAN_CHARS = Regex("[\\u3400-\\u4DBF\\u4E00-\\u9FFF\\uF900-\\uFAFF]")
 
 @Composable
 private fun ActionIcon(icon: ImageVector, description: String, modifier: Modifier = Modifier, onClick: () -> Unit) {

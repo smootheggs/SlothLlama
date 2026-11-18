@@ -470,11 +470,11 @@ class ChatViewModel @Inject constructor(
      */
     fun startVoiceInput() {
         if (_voiceState.value != VoiceInputState.IDLE) return
-        if (!transcriber.isReady) {
-            _errorMessage.value = "Voice input needs the speech model: Models → Voice input → Import."
+        val language = speechLanguageCode()
+        if (!transcriber.isReadyFor(language)) {
+            _errorMessage.value = "Voice input needs ${transcriber.modelNeededFor(language)}: Models → Voice input → Import."
             return
         }
-        val language = speechLanguageCode()
         voiceJob = viewModelScope.launch {
             try {
                 _voiceState.value = VoiceInputState.LISTENING
@@ -515,8 +515,8 @@ class ChatViewModel @Inject constructor(
      */
     fun startHandsFree(speak: suspend (text: String) -> Boolean) {
         if (handsFreeJob?.isActive == true || _isGenerating.value) return
-        if (!transcriber.isReady) {
-            _errorMessage.value = "Hands-free needs the speech model: Models → Voice input → Import."
+        if (!transcriber.isReadyFor(speechLanguageCode())) {
+            _errorMessage.value = "Hands-free needs ${transcriber.modelNeededFor(speechLanguageCode())}: Models → Voice input → Import."
             return
         }
         cancelVoiceInput()
@@ -579,11 +579,7 @@ class ChatViewModel @Inject constructor(
     }
 
     /** A language hint helps a learner's accent be heard as the language being practised. */
-    private fun speechLanguageCode() = when (uiState.value.activePersona.speech) {
-        SpeechLanguage.MANDARIN -> "zh"
-        SpeechLanguage.CANTONESE -> "yue"
-        null -> "auto"
-    }
+    private fun speechLanguageCode(): String = uiState.value.activePersona.speech?.speechCode ?: "auto"
 
     /** Stops listening and transcribes what was said. */
     fun finishVoiceInput() = recorder.stop()

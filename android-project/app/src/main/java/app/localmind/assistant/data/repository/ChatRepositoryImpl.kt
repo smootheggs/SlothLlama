@@ -6,6 +6,8 @@ import app.localmind.assistant.data.local.MessageEntity
 import app.localmind.assistant.data.persona.ChineseStyleStore
 import app.localmind.assistant.data.persona.PersonaModelStore
 import app.localmind.assistant.data.persona.PersonaRepository
+import app.localmind.assistant.data.persona.TutorLevelStore
+import app.localmind.assistant.domain.persona.TutorRules
 import app.localmind.assistant.data.settings.AssistantSettingsStore
 import app.localmind.assistant.domain.inference.EngineRuntimeState
 import app.localmind.assistant.domain.inference.GenerationEvent
@@ -38,7 +40,8 @@ class ChatRepositoryImpl @Inject constructor(
     private val personaRepository: PersonaRepository,
     private val chineseStyle: ChineseStyleStore,
     private val assistantSettings: AssistantSettingsStore,
-    private val personaModels: PersonaModelStore
+    private val personaModels: PersonaModelStore,
+    private val tutorLevels: TutorLevelStore
 ) : ChatRepository {
 
     override val engineState: StateFlow<EngineRuntimeState>
@@ -201,7 +204,8 @@ class ChatRepositoryImpl @Inject constructor(
             // The persona's own model if it has one, otherwise the default model.
             modelId = personaModels.fileFor(persona.id) ?: conversation.modelId,
             // Chinese tutors get their character / romanization rules from Settings → Chinese.
-            personaSystemInstruction = ChineseRules.systemInstructionFor(persona, chineseStyle.style.value),
+            // Tutors get the learner's level, a reply format for it, and (Chinese) the character rules.
+            personaSystemInstruction = TutorRules.systemInstructionFor(persona, chineseStyle.style.value, tutorLevels.levels.value),
             conversationSummary = conversation.rollingSummary,
             recentMessages = existingMessages,
             retrievedPassages = emptyList(),

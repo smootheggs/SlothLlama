@@ -121,6 +121,7 @@ fun ChatScreen(
     val flashcardState by flashcards.uiState.collectAsStateWithLifecycle()
     val flashcardMessage by flashcards.message.collectAsStateWithLifecycle()
     var saveWordsFrom by remember { mutableStateOf<String?>(null) }
+    val saveWords: ((String) -> Unit)? = if (persona.speech != null) ({ text: String -> saveWordsFrom = text }) else null
 
     // Dictionary: tap a character in a reply. Practice: repeat a sentence after the tutor.
     val dictionary: DictionaryViewModel = hiltViewModel()
@@ -151,10 +152,18 @@ fun ChatScreen(
             dictionary.dismiss()
         }
     }
-    val wordTap: ((String, Int) -> Unit)? = dictionary::lookUpAt.takeIf { dictionary.isAvailable }
+    // Chinese dictionary: for the Chinese tutors and the general assistant (not Japanese kanji).
+    val wordTap: ((String, Int) -> Unit)? =
+        dictionary::lookUpAt.takeIf { dictionary.isAvailable && persona.speech?.isChinese != false }
     val openPractice: (String) -> Unit = { reply ->
         viewModel.stopHandsFree()
-        val sentences = SpeakingCheck.sentencesFrom(TutorSpeaker.chineseOnly(reply))
+        val language = persona.speech ?: SpeechLanguage.MANDARIN
+        val kind = when {
+            language.isChinese -> SpeakingCheck.Units.HAN
+            language == SpeechLanguage.JAPANESE -> SpeakingCheck.Units.JAPANESE
+            else -> SpeakingCheck.Units.WORDS
+        }
+        val sentences = SpeakingCheck.sentencesFrom(TutorSpeaker.spokenText(reply, language), kind)
         when (sentences.size) {
             0 -> Unit
             1 -> practiseTarget = sentences.first()
@@ -220,7 +229,8 @@ fun ChatScreen(
     val chatContent: @Composable () -> Unit = {
         CompositionLocalProvider(
             LocalSpeakAction provides speakAction,
-            LocalSaveWordAction provides { text: String -> saveWordsFrom = text },
+            // Tutors only: "save words" makes no sense for the general assistant.
+            LocalSaveWordAction provides saveWords,
             LocalChatActions provides ChatActions(
                 contextSize = uiState.contextSize,
                 onContinue = viewModel::continueReply,

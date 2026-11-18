@@ -88,6 +88,12 @@ model too big for the GPU falls back to the CPU on its own.
   goes into the message as reference material (instructions inside it are not followed).
   About 2,600 tokens fit, roughly 10,000 English characters or 2,600 Chinese characters;
   longer documents are cut and the chip says "first part only". Scanned PDFs have no text.
+- **Japanese, French, German, Spanish and Italian tutors.** One conversation partner per language
+  (they teach on request too). Settings → Tutors sets your level per language (Beginner → Fluent);
+  replies follow it, and from C1 up they drop the English / romaji lines. Read-aloud, hands-free,
+  repeat-after-me (scored word by word, accents optional) and flashcards work in every language.
+  Listening: SenseVoice covers Japanese; French, German, Spanish and Italian need Whisper Small
+  (Models → Voice input: European languages; three files, about 375 MB).
 - **Home page.** Opens by default: the time, today in Chinese, a hello, Continue, New chat,
   every tutor, shortcuts and recent chats (Settings → Appearance → Open on the Home page).
   Back returns to where you came from; Home is in the menu.
