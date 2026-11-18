@@ -102,50 +102,70 @@ class AttachmentStore @Inject constructor(
      * .csv, subtitles…). Long documents are cut to what fits in the model's memory.
      */
     suspend fun readDocument(uri: Uri): DocumentText = withContext(Dispatchers.IO) {
+        val doc = extractText(uri, MAX_PDF_PAGES)
+        val fitted = fit(doc.text, MAX_DOCUMENT_TOKENS)
+        DocumentText(
+            name = doc.name,
+            text = fitted,
+            pages = doc.pages,
+            truncated = fitted.length < doc.text.length || doc.pages > MAX_PDF_PAGES
+        )
+    }
+
+    /** A document's full text, for the library (and, cut to size, for chat attachments). */
+    class Extracted(val name: String, val text: String, val pages: Int)
+
+    /**
+     * Reads the whole text of a PDF (up to [maxPdfPages] pages), an EPUB book, an HTML page or
+     * any text file (.txt, .md, .csv, subtitles…).
+     */
+    suspend fun extractText(uri: Uri, maxPdfPages: Int = MAX_LIBRARY_PDF_PAGES): Extracted = withContext(Dispatchers.IO) {
         val name = displayName(uri)
         val mime = context.contentResolver.getType(uri).orEmpty()
-        val isPdf = mime == "application/pdf" || name.endsWith(".pdf", ignoreCase = true)
+        val lower = name.lowercase()
+        val isPdf = mime == "application/pdf" || lower.endsWith(".pdf")
+        val isEpub = mime == "application/epub+zip" || lower.endsWith(".epub")
+        val isHtml = mime == "text/html" || lower.endsWith(".html") || lower.endsWith(".htm") || lower.endsWith(".xhtml")
         var pages = 0
-        val raw = if (isPdf) {
-            if (!pdfReady) {
-                PDFBoxResourceLoader.init(context)
-                pdfReady = true
-            }
-            val input = context.contentResolver.openInputStream(uri) ?: error("Can't open $name")
-            try {
-                input.use { stream ->
-                    PDDocument.load(stream).use { doc ->
-                        pages = doc.numberOfPages
-                        PDFTextStripper().apply {
-                            startPage = 1
-                            endPage = minOf(pages, MAX_PDF_PAGES)
-                        }.getText(doc)
-                    }
+        val raw = when {
+            isPdf -> {
+                if (!pdfReady) {
+                    PDFBoxResourceLoader.init(context)
+                    pdfReady = true
                 }
-            } catch (e: Throwable) {
-                Log.w(TAG, "PDF read failed", e)
-                val locked = e.javaClass.simpleName.contains("Password") || e is NoClassDefFoundError
-                error(if (locked) "$name is password-protected, so it can't be read." else "Couldn't read $name as a PDF.")
+                val input = context.contentResolver.openInputStream(uri) ?: error("Can't open $name")
+                try {
+                    input.use { stream ->
+                        PDDocument.load(stream).use { doc ->
+                            pages = doc.numberOfPages
+                            PDFTextStripper().apply {
+                                startPage = 1
+                                endPage = minOf(pages, maxPdfPages)
+                            }.getText(doc)
+                        }
+                    }
+                } catch (e: Throwable) {
+                    Log.w(TAG, "PDF read failed", e)
+                    val locked = e.javaClass.simpleName.contains("Password") || e is NoClassDefFoundError
+                    error(if (locked) "$name is password-protected, so it can't be read." else "Couldn't read $name as a PDF.")
+                }
             }
-        } else {
-            val bytes = context.contentResolver.openInputStream(uri)?.use { it.readUpTo(MAX_TEXT_BYTES) }
-                ?: error("Can't open $name")
-            if (bytes.take(512).count { it == 0.toByte() } > 0 && !looksUtf16(bytes)) {
-                error("$name doesn't look like a text file. Photos go in with the photo button; documents can be PDF or text.")
+            isEpub -> context.contentResolver.openInputStream(uri)?.use { EpubText.read(it) } ?: error("Can't open $name")
+            else -> {
+                val bytes = context.contentResolver.openInputStream(uri)?.use { it.readUpTo(MAX_TEXT_BYTES) }
+                    ?: error("Can't open $name")
+                if (bytes.take(512).count { it == 0.toByte() } > 0 && !looksUtf16(bytes)) {
+                    error("$name doesn't look like a text file. Documents can be PDF, EPUB, HTML or text.")
+                }
+                val text = decodeText(bytes)
+                if (isHtml) EpubText.htmlToText(text) else text
             }
-            decodeText(bytes)
         }
         val text = raw.replace("\r\n", "\n").replace(Regex("[ \\t]+\\n"), "\n").replace(Regex("\\n{3,}"), "\n\n").trim()
         if (text.isBlank()) {
             error(if (isPdf) "$name has no text to read (it may be scanned images)." else "$name is empty.")
         }
-        val fitted = fit(text, MAX_DOCUMENT_TOKENS)
-        DocumentText(
-            name = name,
-            text = fitted,
-            pages = pages,
-            truncated = fitted.length < text.length || (isPdf && pages > MAX_PDF_PAGES)
-        )
+        Extracted(name, text, pages)
     }
 
     /** Deletes photos no message mentions any more (chats deleted, photos removed in an edit). */
@@ -221,7 +241,9 @@ class AttachmentStore @Inject constructor(
         /** Leaves room in a 6k-token context for the chat and the reply. */
         const val MAX_DOCUMENT_TOKENS = 2_600
         const val MAX_PDF_PAGES = 40
-        private const val MAX_TEXT_BYTES = 2 * 1024 * 1024
+        /** The library indexes long documents in full (a 500-page PDF is fine). */
+        const val MAX_LIBRARY_PDF_PAGES = 1_000
+        private const val MAX_TEXT_BYTES = 16 * 1024 * 1024
         /** A photo just attached but not sent yet isn't cleaned up. */
         private const val GRACE_MS = 24 * 60 * 60 * 1000L
     }

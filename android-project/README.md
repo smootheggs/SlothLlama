@@ -101,6 +101,14 @@ model too big for the GPU falls back to the CPU on its own.
   page and Settings use two columns, and Models and Personas show cards side by side.
 - **Start page.** The time, today in Chinese (weekday, lunar date, zodiac year — computed on the
   tablet, no weather because the app stays offline), a hello, and quick ways in.
+- **Private library.** Library (Home or the chat list): add books and documents (PDF, EPUB,
+  HTML, text) and they are cut into passages and indexed on the tablet; add Kiwix `.zim` files
+  (offline Wikipedia from library.kiwix.org; the "mini" and "nopic" editions are small) and they
+  are read where they are. In a chat, the book button next to **+** sends each question with the
+  passages that best answer it, and the reply cites them as [1], [2]. Search is by key words
+  (BM25), and handles Chinese and Japanese without spaces. Each item can be switched off or
+  removed; the library has its own database and isn't in backups. Kiwix files are read with
+  [libkiwix](https://github.com/kiwix/java-libkiwix) (GPLv3).
 - **Backups.** Settings → Backup: one file with chats, custom personas, flashcards and settings,
   optionally AES-256 encrypted with a password. Restore adds it back. Models aren't included.
 - **Small things.** Continue for cut-off replies, chat search, one-tap follow-ups (Correct me,

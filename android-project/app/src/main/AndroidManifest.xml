@@ -36,7 +36,8 @@
         android:label="${appLabel}"
         android:supportsRtl="true"
         android:largeHeap="true"
-        android:theme="@android:style/Theme.DeviceDefault.NoActionBar">
+        android:theme="@android:style/Theme.DeviceDefault.NoActionBar"
+        tools:replace="android:allowBackup,android:label">
 
         <!-- Lets the GPU backend reach the vendor OpenCL driver on Android 12+ (ignored if absent) -->
         <uses-native-library android:name="libOpenCL.so" android:required="false" />

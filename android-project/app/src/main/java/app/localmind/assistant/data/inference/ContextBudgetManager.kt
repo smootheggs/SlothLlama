@@ -1,5 +1,6 @@
 package app.localmind.assistant.data.inference
 
+import app.localmind.assistant.domain.attachments.Attachments
 import app.localmind.assistant.domain.inference.PromptTurn
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -47,7 +48,8 @@ class ContextBudgetManager @Inject constructor() {
 
         for (i in historyTurns.indices.reversed()) {
             val turn = historyTurns[i]
-            val turnTokens = estimateTokens("${turn.role}: ${turn.content}")
+            // Earlier library lookups only appear as their titles (see Attachments.libraryNote).
+            val turnTokens = estimateTokens("${turn.role}: ${Attachments.libraryNote(turn.content)}")
             if (usedTokens + turnTokens <= maxInputBudget) {
                 includedReversed.add(turn)
                 usedTokens += turnTokens

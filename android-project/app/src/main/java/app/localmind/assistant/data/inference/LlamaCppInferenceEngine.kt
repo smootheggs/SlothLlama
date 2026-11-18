@@ -198,9 +198,9 @@ class LlamaCppInferenceEngine @Inject constructor(
         // the chat stays loaded, still remembers them); documents are marked as reference data.
         val desiredChat = buildList {
             add("system" to plan.systemText)
-            plan.history.forEach { add(it.role.lowercase() to forModel(it.content, EARLIER_PHOTO)) }
+            plan.history.forEach { add(it.role.lowercase() to forModel(it.content, earlier = true)) }
         }
-        val userText = forModel(plan.userPrompt, "")
+        val userText = forModel(plan.userPrompt, earlier = false)
         emit(GenerationEvent.Started(request.modelId, plan.estimatedTokenCount))
 
         val projector = if (photo != null) library.projectorFor(file) else null
@@ -367,7 +367,7 @@ class LlamaCppInferenceEngine @Inject constructor(
             if (endedCleanly) {
                 // Recorded as the next turn's history will describe it, so no replay is needed
                 // (and the model keeps the photo it actually saw).
-                nativeChat = desiredChat + listOf("user" to forModel(plan.userPrompt, EARLIER_PHOTO), "assistant" to visibleReply)
+                nativeChat = desiredChat + listOf("user" to forModel(plan.userPrompt, earlier = true), "assistant" to visibleReply)
             }
             // Generation speed only (from the first token), not the wait while the prompt is read.
             val decodeStart = if (firstTokenAt > 0) firstTokenAt else startTime
@@ -396,9 +396,14 @@ class LlamaCppInferenceEngine @Inject constructor(
     private fun usedMemoryMb(): Int =
         (android.os.Debug.getNativeHeapAllocatedSize() / (1024 * 1024)).toInt()
 
-    /** Message text as the model reads it (see [Attachments.forModel]). */
-    private fun forModel(content: String, photoNote: String): String =
-        Attachments.forModel(content, photoNote) { text -> promptAssembler.sanitizeUntrustedPassage(text) {} }
+    /**
+     * Message text as the model reads it (see [Attachments.forModel]). The message being sent
+     * has its photo as pixels and its library passages in full; [earlier] ones only mention them.
+     */
+    private fun forModel(content: String, earlier: Boolean): String =
+        Attachments.forModel(content, if (earlier) EARLIER_PHOTO else "", earlier) { text ->
+            promptAssembler.sanitizeUntrustedPassage(text) {}
+        }
 
     /** "QUALCOMM Adreno(TM) 750" → "Adreno 750". */
     private fun shortGpuName(raw: String): String =

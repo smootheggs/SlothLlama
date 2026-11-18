@@ -97,6 +97,9 @@ fun UserMessageBubble(message: ChatMessage, onEdit: () -> Unit, modifier: Modifi
         parsed.documents.forEach { doc ->
             DocumentChip(doc, modifier = Modifier.padding(bottom = 6.dp))
         }
+        if (parsed.library.isNotEmpty()) {
+            LibraryChip(parsed.library, modifier = Modifier.padding(bottom = 6.dp))
+        }
         if (parsed.text.isNotBlank()) {
             SelectionContainer {
                 Text(

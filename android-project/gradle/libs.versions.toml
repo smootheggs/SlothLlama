@@ -20,6 +20,7 @@ securityCrypto = "1.1.0-alpha06"
 mediapipeTasksGenai = "0.10.27"
 jsoup = "1.18.1"
 pdfboxAndroid = "2.0.27.0"
+libkiwix = "2.7.0"
 listenableFuture = "1.0"
 junit = "4.13.2"
 junitVersion = "1.2.1"
@@ -70,6 +71,8 @@ okhttp-mockwebserver = { group = "com.squareup.okhttp3", name = "mockwebserver",
 jsoup = { group = "org.jsoup", name = "jsoup", version.ref = "jsoup" }
 # Reads the text of PDFs attached to a chat (Apache 2.0)
 pdfbox-android = { group = "com.tom-roush", name = "pdfbox-android", version.ref = "pdfboxAndroid" }
+# Reads Kiwix .zim files (offline Wikipedia) for the library (GPLv3)
+libkiwix = { group = "org.kiwix", name = "libkiwix", version.ref = "libkiwix" }
 kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-serialization-json", version.ref = "kotlinxSerializationJson" }
 kotlinx-coroutines-android = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-android", version.ref = "coroutines" }
 kotlinx-coroutines-test = { group = "org.jetbrains.kotlinx", name = "kotlinx-coroutines-test", version.ref = "coroutines" }

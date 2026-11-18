@@ -99,6 +99,7 @@ fun ChatScreen(
     onOpenFlashcards: () -> Unit,
     onOpenDictionary: () -> Unit = {},
     onOpenHome: () -> Unit = {},
+    onOpenLibrary: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     // Landscape on a tablet: the chat list stays open on the left instead of sliding over.
@@ -132,6 +133,9 @@ fun ChatScreen(
     var practiseTarget by remember { mutableStateOf<String?>(null) }
     val handsFree by viewModel.handsFree.collectAsStateWithLifecycle()
     val attachments by viewModel.attachments.collectAsStateWithLifecycle()
+    val hasLibrary by viewModel.hasLibrary.collectAsStateWithLifecycle()
+    val libraryOn by viewModel.libraryOn.collectAsStateWithLifecycle()
+    val lookingUp by viewModel.lookingUp.collectAsStateWithLifecycle()
     // The system photo picker needs no permission and only shares the photo chosen.
     val photoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         uri?.let(viewModel::attachPhoto)
@@ -221,6 +225,7 @@ fun ChatScreen(
                     onOpenFlashcards = { closeDrawerThen(onOpenFlashcards) },
                     onOpenDictionary = { closeDrawerThen(onOpenDictionary) },
                     onOpenHome = { closeDrawerThen(onOpenHome) },
+                    onOpenLibrary = { closeDrawerThen(onOpenLibrary) },
                     flashcardsDue = flashcardState.dueCount,
                     modelStatus = uiState.activeModelName
                 )
@@ -321,10 +326,14 @@ fun ChatScreen(
                             photoPicker.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
                         },
                         onAttachDocument = {
-                            documentPicker.launch(arrayOf("application/pdf", "text/*", "application/json", "application/x-subrip"))
+                            documentPicker.launch(arrayOf("application/pdf", "application/epub+zip", "text/*", "application/json", "application/x-subrip"))
                         },
                         onRemovePhoto = viewModel::removePhoto,
-                        onRemoveDocument = viewModel::removeDocument
+                        onRemoveDocument = viewModel::removeDocument,
+                        hasLibrary = hasLibrary,
+                        libraryOn = libraryOn,
+                        lookingUp = lookingUp,
+                        onToggleLibrary = viewModel::toggleLibrary
                     )
                 },
                 snackbarHost = { SnackbarHost(snackbarHostState) },

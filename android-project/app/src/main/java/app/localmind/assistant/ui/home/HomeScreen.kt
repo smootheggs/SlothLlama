@@ -28,6 +28,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.EditNote
+import androidx.compose.material.icons.outlined.LocalLibrary
 import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material.icons.outlined.Settings
@@ -221,10 +222,13 @@ fun defaultHomeTiles(
     onPersonas: () -> Unit,
     onModels: () -> Unit,
     onSettings: () -> Unit,
-    onChats: () -> Unit
+    onChats: () -> Unit,
+    libraryDetail: String,
+    onLibrary: () -> Unit
 ): List<HomeTile> = listOf(
     HomeTile(Icons.Outlined.Style, "Flashcards", if (flashcardsDue > 0) "$flashcardsDue due" else "Review words", onFlashcards),
     HomeTile(Icons.Outlined.Translate, "Dictionary", "Chinese · offline", onDictionary),
+    HomeTile(Icons.Outlined.LocalLibrary, "Library", libraryDetail, onLibrary),
     HomeTile(Icons.Outlined.ChatBubbleOutline, "Chats", "All conversations", onChats),
     HomeTile(Icons.Outlined.PersonOutline, "Personas", "Tutors and assistants", onPersonas),
     HomeTile(Icons.Outlined.Memory, "Models", modelStatus.ifBlank { "Choose a model" }, onModels),

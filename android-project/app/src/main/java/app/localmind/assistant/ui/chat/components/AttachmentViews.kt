@@ -20,13 +20,19 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.ExpandLess
+import androidx.compose.material.icons.outlined.ExpandMore
 import androidx.compose.material.icons.outlined.ImageNotSupported
+import androidx.compose.material.icons.outlined.LocalLibrary
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.compositionLocalOf
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -34,11 +40,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.localmind.assistant.domain.attachments.DocumentText
+import app.localmind.assistant.domain.attachments.LibraryPassage
 import app.localmind.assistant.ui.chat.PendingAttachments
 import app.localmind.assistant.ui.theme.SlothPalette as P
 import kotlinx.coroutines.Dispatchers
@@ -109,6 +117,58 @@ fun DocumentChip(doc: DocumentText, onRemove: (() -> Unit)? = null, modifier: Mo
         if (onRemove != null) {
             Spacer(Modifier.width(4.dp))
             RemoveButton("Remove ${doc.name}", onRemove)
+        }
+    }
+}
+
+/** The library passages sent with a question: their titles, and the passages on a tap. */
+@Composable
+fun LibraryChip(passages: List<LibraryPassage>, modifier: Modifier = Modifier) {
+    var expanded by remember { mutableStateOf(false) }
+    val shape = RoundedCornerShape(12.dp)
+    Column(
+        modifier
+            .widthIn(max = 480.dp)
+            .clip(shape)
+            .background(P.Elevated)
+            .border(1.dp, P.Border, shape)
+            .clickable { expanded = !expanded }
+            .padding(horizontal = 12.dp, vertical = 8.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Outlined.LocalLibrary, contentDescription = null, tint = P.Accent, modifier = Modifier.size(18.dp))
+            Spacer(Modifier.width(8.dp))
+            Column(Modifier.weight(1f, fill = false)) {
+                Text(
+                    "From your library",
+                    color = P.Text, fontSize = 13.sp, maxLines = 1
+                )
+                Text(
+                    passages.map { it.title }.distinct().joinToString(" · "),
+                    color = P.Faint, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+            }
+            Spacer(Modifier.width(4.dp))
+            Icon(
+                if (expanded) Icons.Outlined.ExpandLess else Icons.Outlined.ExpandMore,
+                contentDescription = if (expanded) "Hide passages" else "Show passages",
+                tint = P.Muted, modifier = Modifier.size(18.dp)
+            )
+        }
+        if (expanded) {
+            passages.forEachIndexed { i, p ->
+                Column(Modifier.padding(top = 10.dp)) {
+                    Text(
+                        "[${i + 1}] ${p.title}" + if (p.where.isNotBlank()) " — ${p.where}" else "",
+                        color = P.Accent, fontSize = 12.sp, fontWeight = FontWeight.Medium,
+                        maxLines = 2, overflow = TextOverflow.Ellipsis
+                    )
+                    Text(
+                        p.text, color = P.Muted, fontSize = 12.sp, lineHeight = 17.sp,
+                        maxLines = 8, overflow = TextOverflow.Ellipsis
+                    )
+                }
+            }
         }
     }
 }

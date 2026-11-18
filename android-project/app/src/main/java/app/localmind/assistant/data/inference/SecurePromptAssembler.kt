@@ -1,5 +1,6 @@
 package app.localmind.assistant.data.inference
 
+import app.localmind.assistant.domain.attachments.Attachments
 import app.localmind.assistant.domain.inference.GenerationRequest
 import app.localmind.assistant.domain.inference.PromptTurn
 import app.localmind.assistant.domain.inference.RetrievedPassage
@@ -164,8 +165,12 @@ class SecurePromptAssembler @Inject constructor(
     /** [planChat] rendered in a model family's native chat format. */
     fun assembleChat(request: GenerationRequest, template: ChatTemplate): AssembledPrompt {
         val plan = planChat(request)
+        // Text only here: photos are mentioned, documents and library passages marked as data.
+        val clean = { text: String -> sanitizeUntrustedPassage(text) {} }
+        val history = plan.history.map { it.copy(content = Attachments.forModel(it.content, PHOTO_NOTE, earlier = true, sanitize = clean)) }
+        val prompt = Attachments.forModel(plan.userPrompt, PHOTO_NOTE, earlier = false, sanitize = clean)
         return AssembledPrompt(
-            fullPromptText = template.render(plan.systemText, plan.history, plan.userPrompt),
+            fullPromptText = template.render(plan.systemText, history, prompt),
             estimatedTokenCount = plan.estimatedTokenCount,
             includedPassages = plan.includedPassages,
             injectionAttemptsNeutralized = plan.injectionAttemptsNeutralized
@@ -187,5 +192,10 @@ class SecurePromptAssembler @Inject constructor(
         // Chinese / Japanese characters are roughly one token each; other text about four characters per token.
         val cjk = text.count { it.code in 0x3000..0x9FFF || it.code in 0xF900..0xFAFF || it.code in 0xFF00..0xFFEF }
         return (cjk + (text.length - cjk + 3) / 4).coerceAtLeast(1)
+    }
+
+    private companion object {
+        /** The LiteRT engine sends text only, so a photo is just mentioned. */
+        const val PHOTO_NOTE = "[The user shared a photo here, which this model can't see.]"
     }
 }

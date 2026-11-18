@@ -26,6 +26,7 @@ import androidx.compose.material.icons.outlined.DriveFileRenameOutline
 import androidx.compose.material.icons.outlined.EditNote
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.LocalLibrary
 import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material.icons.outlined.PersonOutline
@@ -83,6 +84,7 @@ fun ConversationDrawerContent(
     onOpenFlashcards: () -> Unit = {},
     onOpenDictionary: () -> Unit = {},
     onOpenHome: () -> Unit = {},
+    onOpenLibrary: () -> Unit = {},
     flashcardsDue: Int = 0,
     modelStatus: String = "",
     searchQuery: String = "",
@@ -109,6 +111,7 @@ fun ConversationDrawerContent(
         NavRow(Icons.Outlined.PersonOutline, "Personas", onOpenPersonas)
         NavRow(Icons.Outlined.Style, "Flashcards", onOpenFlashcards, trailing = if (flashcardsDue > 0) "$flashcardsDue due" else "")
         NavRow(Icons.Outlined.Translate, "Dictionary", onOpenDictionary)
+        NavRow(Icons.Outlined.LocalLibrary, "Library", onOpenLibrary)
         NavRow(Icons.Outlined.Memory, "Models", onOpenModels, trailing = modelStatus)
         NavRow(Icons.Outlined.Settings, "Settings", onOpenSettings)
 

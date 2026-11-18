@@ -6,6 +6,7 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.localmind.assistant.domain.persona.ChineseScript
 import app.localmind.assistant.ui.chat.ChatViewModel
+import app.localmind.assistant.ui.library.LibraryViewModel
 import app.localmind.assistant.ui.study.FlashcardsViewModel
 
 /** The Home page, fed from the chat's state (conversations, personas, model) and flashcards. */
@@ -19,11 +20,14 @@ fun HomeRoute(
     onDictionary: () -> Unit,
     onPersonas: () -> Unit,
     onModels: () -> Unit,
-    onSettings: () -> Unit
+    onSettings: () -> Unit,
+    onLibrary: () -> Unit
 ) {
     val ui by chatViewModel.uiState.collectAsStateWithLifecycle()
     val flashcards: FlashcardsViewModel = hiltViewModel()
     val cards by flashcards.uiState.collectAsStateWithLifecycle()
+    val library: LibraryViewModel = hiltViewModel()
+    val shelf by library.items.collectAsStateWithLifecycle()
     HomeScreen(
         script = script,
         conversations = ui.conversations,
@@ -36,7 +40,13 @@ fun HomeRoute(
             onPersonas = onPersonas,
             onModels = onModels,
             onSettings = onSettings,
-            onChats = onOpenChats
+            onChats = onOpenChats,
+            libraryDetail = when (val n = shelf?.size ?: 0) {
+                0 -> "Books, documents, Wikipedia"
+                1 -> "1 item"
+                else -> "$n items"
+            },
+            onLibrary = onLibrary
         ),
         onOpenConversation = { id ->
             chatViewModel.selectConversation(id)

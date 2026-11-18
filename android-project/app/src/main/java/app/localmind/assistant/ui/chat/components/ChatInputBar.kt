@@ -36,6 +36,7 @@ import androidx.compose.material.icons.filled.Stop
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.HeadsetMic
+import androidx.compose.material.icons.outlined.LocalLibrary
 import androidx.compose.material.icons.outlined.PhotoLibrary
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material3.CircularProgressIndicator
@@ -102,6 +103,11 @@ fun ChatInputBar(
     onAttachDocument: () -> Unit = {},
     onRemovePhoto: () -> Unit = {},
     onRemoveDocument: () -> Unit = {},
+    /** The library has something in it, so the "search my library" switch is shown. */
+    hasLibrary: Boolean = false,
+    libraryOn: Boolean = false,
+    lookingUp: Boolean = false,
+    onToggleLibrary: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
     val context = LocalContext.current
@@ -120,7 +126,7 @@ fun ChatInputBar(
         else handsFreePermission.launch(Manifest.permission.RECORD_AUDIO)
     }
     // A photo or document can go on its own (it gets a default question).
-    val canSubmit = (inputText.isNotBlank() || !attachments.isEmpty) && !attachments.busy
+    val canSubmit = (inputText.isNotBlank() || !attachments.isEmpty) && !attachments.busy && !lookingUp
     val submit = {
         if (canSubmit) {
             if (editingMessage != null) onSubmitEdit() else onSendMessage()
@@ -175,6 +181,13 @@ fun ChatInputBar(
                 if (!attachments.isEmpty || attachments.busy) {
                     PendingAttachmentRow(attachments, onRemovePhoto, onRemoveDocument)
                 }
+                if (lookingUp) {
+                    Row(Modifier.padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                        CircularProgressIndicator(Modifier.size(12.dp), color = P.Accent, strokeWidth = 1.5.dp)
+                        Spacer(Modifier.width(8.dp))
+                        Text("Looking in your library…", color = P.Accent, fontSize = 12.sp)
+                    }
+                }
                 BasicTextField(
                     value = inputText,
                     onValueChange = onInputTextChanged,
@@ -207,6 +220,23 @@ fun ChatInputBar(
                         onPhoto = onAttachPhoto,
                         onDocument = onAttachDocument
                     )
+                    if (hasLibrary) {
+                        IconButton(
+                            onClick = onToggleLibrary,
+                            enabled = !isGenerating,
+                            modifier = Modifier
+                                .size(36.dp)
+                                .clip(CircleShape)
+                                .background(if (libraryOn) P.AccentSoft else androidx.compose.ui.graphics.Color.Transparent)
+                        ) {
+                            Icon(
+                                Icons.Outlined.LocalLibrary,
+                                contentDescription = if (libraryOn) "Stop searching my library" else "Search my library with each message",
+                                tint = if (libraryOn) P.Accent else P.Muted,
+                                modifier = Modifier.size(19.dp)
+                            )
+                        }
+                    }
                     Spacer(Modifier.width(4.dp))
                     PersonaChip(
                         active = activePersona,
@@ -268,7 +298,7 @@ private fun AttachButton(enabled: Boolean, onPhoto: () -> Unit, onDocument: () -
                 text = {
                     Column {
                         Text("Document", color = P.Text)
-                        Text("PDF or text file", color = P.Faint, fontSize = 12.sp)
+                        Text("PDF, EPUB, HTML or text", color = P.Faint, fontSize = 12.sp)
                     }
                 },
                 leadingIcon = { Icon(Icons.Outlined.Description, contentDescription = null, tint = P.Muted) },

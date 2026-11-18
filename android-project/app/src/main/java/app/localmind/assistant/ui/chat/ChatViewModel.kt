@@ -7,6 +7,8 @@ import app.localmind.assistant.data.attachments.AttachmentStore
 import app.localmind.assistant.data.repository.DEFAULT_MODEL_ID
 import app.localmind.assistant.domain.attachments.Attachments
 import app.localmind.assistant.domain.attachments.DocumentText
+import app.localmind.assistant.domain.attachments.LibraryPassage
+import app.localmind.assistant.data.library.LibraryStore
 import app.localmind.assistant.domain.inference.EngineRuntimeState
 import app.localmind.assistant.domain.model.ChatMessage
 import app.localmind.assistant.domain.model.MessageRole
@@ -41,8 +43,48 @@ class ChatViewModel @Inject constructor(
     private val transcriber: VoiceTranscriber,
     private val recorder: VoiceRecorder,
     chineseStyleStore: ChineseStyleStore,
-    private val attachmentStore: AttachmentStore
+    private val attachmentStore: AttachmentStore,
+    private val library: LibraryStore
 ) : ViewModel() {
+
+    /** Something in the library is switched on to be searched. */
+    val hasLibrary: StateFlow<Boolean> = library.items
+        .map { items -> items.orEmpty().any { it.enabled } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, false)
+
+    private val _libraryOn = MutableStateFlow(false)
+    /** Each message is sent with the library passages that best match it. */
+    val libraryOn: StateFlow<Boolean> = _libraryOn.asStateFlow()
+
+    private val _lookingUp = MutableStateFlow(false)
+    val lookingUp: StateFlow<Boolean> = _lookingUp.asStateFlow()
+
+    init {
+        viewModelScope.launch { runCatching { library.refresh() } }
+    }
+
+    fun toggleLibrary() {
+        _libraryOn.update { !it }
+        _errorMessage.value = if (_libraryOn.value) "Your library will be searched with each message." else null
+    }
+
+    /** The library passages for [question] (none if the switch is off or nothing matched). */
+    private suspend fun lookUp(question: String): List<LibraryPassage> {
+        if (!_libraryOn.value || question.isBlank() || !hasLibrary.value) return emptyList()
+        _lookingUp.value = true
+        return try {
+            library.search(question).also {
+                if (it.isEmpty()) _errorMessage.value = "Nothing in your library matched, so the question went on its own."
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Throwable) {
+            _errorMessage.value = "The library search failed, so the question went on its own."
+            emptyList()
+        } finally {
+            _lookingUp.value = false
+        }
+    }
 
     private val _attachments = MutableStateFlow(PendingAttachments())
     /** The photo / document waiting to go with the next message. */
@@ -248,7 +290,7 @@ class ChatViewModel @Inject constructor(
 
     /** Sends what's in the box, with any attached photo or document. */
     fun sendMessage() {
-        if (_isGenerating.value) return
+        if (_isGenerating.value || _lookingUp.value) return
         val pending = _attachments.value
         if (pending.busy) return
         val typed = _inputText.value.trim()
@@ -257,7 +299,16 @@ class ChatViewModel @Inject constructor(
             if (pending.photo != null) DEFAULT_PHOTO_PROMPT else DEFAULT_DOCUMENT_PROMPT
         }
         _attachments.value = PendingAttachments()
-        send(Attachments.compose(text, pending.photo, pending.document), fromInputBox = true)
+        if (!_libraryOn.value || typed.isEmpty()) {
+            send(Attachments.compose(text, pending.photo, pending.document), fromInputBox = true)
+            return
+        }
+        // The box empties straight away; the question goes once the library has been searched.
+        _inputText.value = ""
+        viewModelScope.launch {
+            val passages = lookUp(typed)
+            send(Attachments.compose(text, pending.photo, pending.document, passages), fromInputBox = false)
+        }
     }
 
     /** "Continue" after a reply stopped at the length limit. Leaves the input box alone. */
@@ -363,11 +414,7 @@ class ChatViewModel @Inject constructor(
         val message = _editingMessage.value ?: return
         val pending = _attachments.value
         val typed = _inputText.value.trim()
-        if ((typed.isEmpty() && pending.isEmpty) || _isGenerating.value || pending.busy) return
-        val newText = Attachments.compose(
-            typed.ifEmpty { if (pending.photo != null) DEFAULT_PHOTO_PROMPT else DEFAULT_DOCUMENT_PROMPT },
-            pending.photo, pending.document
-        )
+        if ((typed.isEmpty() && pending.isEmpty) || _isGenerating.value || _lookingUp.value || pending.busy) return
         _attachments.value = PendingAttachments()
 
         val convId = _activeConversationId.value ?: message.conversationId
@@ -375,6 +422,11 @@ class ChatViewModel @Inject constructor(
         viewModelScope.launch {
             _editingMessage.value = null
             _inputText.value = ""
+            // An edited question is looked up again (the old passages may not fit it any more).
+            val newText = Attachments.compose(
+                typed.ifEmpty { if (pending.photo != null) DEFAULT_PHOTO_PROMPT else DEFAULT_DOCUMENT_PROMPT },
+                pending.photo, pending.document, lookUp(typed)
+            )
             _isGenerating.value = true
 
             activeGenerationJob = launch {
