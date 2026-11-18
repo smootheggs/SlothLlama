@@ -1,6 +1,7 @@
 package app.localmind.assistant
 
 import android.app.Application
+import android.content.Intent
 import android.os.Bundle
 import android.view.WindowManager
 import androidx.activity.ComponentActivity
@@ -15,6 +16,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -22,7 +24,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.localmind.assistant.data.ask.AskInbox
 import app.localmind.assistant.data.persona.ChineseStyleStore
+import app.localmind.assistant.ui.study.FlashcardsScreen
+import app.localmind.assistant.ui.study.FlashcardsViewModel
 import app.localmind.assistant.data.settings.AssistantSettingsStore
 import app.localmind.assistant.domain.persona.ChineseScript
 import app.localmind.assistant.domain.persona.ChineseStyle
@@ -51,9 +56,11 @@ class MainActivity : ComponentActivity() {
     @Inject lateinit var appearance: AppearanceStore
     @Inject lateinit var chineseStyleStore: ChineseStyleStore
     @Inject lateinit var assistantSettings: AssistantSettingsStore
+    @Inject lateinit var askInbox: AskInbox
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        if (savedInstanceState == null) handleAsk(intent)
         enableEdgeToEdge()
         setContent {
             val mode by appearance.mode.collectAsStateWithLifecycle()
@@ -88,14 +95,31 @@ class MainActivity : ComponentActivity() {
                     onChineseScriptChange = chineseStyleStore::setScript,
                     onRomanizationChange = chineseStyleStore::setRomanization,
                     thinking = thinking,
-                    onThinkingChange = assistantSettings::setThinking
+                    onThinkingChange = assistantSettings::setThinking,
+                    askInbox = askInbox
                 )
             }
         }
     }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        handleAsk(intent)
+    }
+
+    /** Text forwarded by [AskActivity] ("Ask SlothLlama" in other apps' selection menus). */
+    private fun handleAsk(intent: Intent?) {
+        if (intent?.action != ACTION_ASK) return
+        intent.getStringExtra(EXTRA_ASK_TEXT)?.takeIf { it.isNotBlank() }?.let(askInbox::post)
+    }
+
+    companion object {
+        const val ACTION_ASK = "app.localmind.assistant.ASK"
+        const val EXTRA_ASK_TEXT = "ask_text"
+    }
 }
 
-private enum class Destination { CHAT, PERSONAS, MODELS, SETTINGS }
+private enum class Destination { CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS }
 
 /**
  * Chat is home. Personas, Models and Settings open from the drawer as full screens;
@@ -111,11 +135,20 @@ private fun SlothRoot(
     onChineseScriptChange: (ChineseScript) -> Unit,
     onRomanizationChange: (Boolean) -> Unit,
     thinking: Boolean,
-    onThinkingChange: (Boolean) -> Unit
+    onThinkingChange: (Boolean) -> Unit,
+    askInbox: AskInbox
 ) {
     var destination by rememberSaveable { mutableStateOf(Destination.CHAT) }
     val chatViewModel: ChatViewModel = hiltViewModel()
     val goHome = { destination = Destination.CHAT }
+
+    // "Ask SlothLlama" from another app: open the chat with the question waiting in the box.
+    val pendingAsk by askInbox.pending.collectAsStateWithLifecycle()
+    LaunchedEffect(pendingAsk) {
+        val text = askInbox.take() ?: return@LaunchedEffect
+        destination = Destination.CHAT
+        chatViewModel.askAbout(text)
+    }
 
     BackHandler(enabled = destination != Destination.CHAT, onBack = goHome)
 
@@ -126,7 +159,8 @@ private fun SlothRoot(
                     viewModel = chatViewModel,
                     onOpenPersonas = { destination = Destination.PERSONAS },
                     onOpenModels = { destination = Destination.MODELS },
-                    onOpenSettings = { destination = Destination.SETTINGS }
+                    onOpenSettings = { destination = Destination.SETTINGS },
+                    onOpenFlashcards = { destination = Destination.FLASHCARDS }
                 )
                 Destination.PERSONAS -> PersonasScreen(
                     viewModel = hiltViewModel<PersonasViewModel>(),
@@ -137,6 +171,7 @@ private fun SlothRoot(
                     onBack = goHome
                 )
                 Destination.MODELS -> ModelsScreen(viewModel = hiltViewModel<ModelsViewModel>(), onBack = goHome)
+                Destination.FLASHCARDS -> FlashcardsScreen(viewModel = hiltViewModel<FlashcardsViewModel>(), onBack = goHome)
                 Destination.SETTINGS -> SettingsScreen(
                     themeMode = themeMode,
                     onThemeModeChange = onThemeModeChange,

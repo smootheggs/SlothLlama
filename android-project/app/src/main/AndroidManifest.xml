@@ -50,6 +50,22 @@
             </intent-filter>
         </activity>
 
+        <!-- "Ask SlothLlama" in other apps' text-selection menu. Only forwards the selected text to
+             the chat box; nothing is sent until you tap send. -->
+        <activity
+            android:name=".AskActivity"
+            android:exported="true"
+            android:label="@string/ask_slothllama"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar">
+            <intent-filter>
+                <action android:name="android.intent.action.PROCESS_TEXT" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
         <!-- Custom Hilt WorkerFactory initialization -->
         <provider
             android:name="androidx.startup.InitializationProvider"

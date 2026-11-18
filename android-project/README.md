@@ -47,6 +47,18 @@ through **personas** (built-in or your own). Language tutors are built-in person
    The first build compiles llama.cpp and takes several minutes; later builds are quick.
    The app needs Android 13+ (minSdk 33).
 
+## Study features
+- **Voice input (offline).** Download the SenseVoice package once
+  (`sherpa-onnx-sense-voice-zh-en-ja-ko-yue-int8-2025-09-09.tar.bz2` from the sherpa-onnx
+  `asr-models` release), extract it, then **Models → Voice input → Import** and select
+  `model.int8.onnx` and `tokens.txt` together. Tap the mic in any chat; Mandarin tutors listen
+  for Mandarin, Cantonese tutors for Cantonese. The transcript lands in the box to check first.
+- **Flashcards.** Tap ☆ under a tutor reply to save its ⭐ words and word-list entries; review
+  them under **Flashcards** (spaced repetition: Again / Hard / Good / Easy).
+- **Ask SlothLlama.** Select text in any app → **Ask SlothLlama** opens a new chat with the
+  question waiting in the box.
+- **A model per persona.** Personas → Model, e.g. a Cantonese model for the Cantonese tutors.
+
 ## Security model
 - **No network.** The app has no internet permission, so Android refuses any connection it
   tries to make. Models come in through **Models → Import**. Settings → Privacy shows the status.

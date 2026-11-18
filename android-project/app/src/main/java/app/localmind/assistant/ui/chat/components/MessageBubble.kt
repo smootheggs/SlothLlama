@@ -32,6 +32,7 @@ import androidx.compose.material.icons.outlined.ContentCopy
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Share
+import androidx.compose.material.icons.outlined.StarOutline
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -50,6 +51,7 @@ import app.localmind.assistant.domain.model.ChatMessage
 import app.localmind.assistant.domain.model.MessageRole
 import app.localmind.assistant.domain.model.MessageStatus
 import app.localmind.assistant.ui.speech.LocalSpeakAction
+import app.localmind.assistant.ui.study.LocalSaveWordAction
 import app.localmind.assistant.ui.theme.SlothPalette as P
 
 @Composable
@@ -110,6 +112,7 @@ fun AssistantMessageBubble(
 ) {
     val context = LocalContext.current
     val speak = LocalSpeakAction.current
+    val saveWord = LocalSaveWordAction.current
 
     Column(modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp)) {
         when (message.status) {
@@ -160,6 +163,9 @@ fun AssistantMessageBubble(
                 if (speak != null) {
                     ActionIcon(Icons.AutoMirrored.Filled.VolumeUp, "Read aloud") { speak(message.content) }
                 }
+                if (saveWord != null && HAN_CHARS.containsMatchIn(message.content)) {
+                    ActionIcon(Icons.Outlined.StarOutline, "Save words to flashcards") { saveWord(message.content) }
+                }
                 ActionIcon(Icons.Outlined.Share, "Share") {
                     val send = Intent(Intent.ACTION_SEND).apply {
                         putExtra(Intent.EXTRA_TEXT, message.content)
@@ -174,6 +180,8 @@ fun AssistantMessageBubble(
         }
     }
 }
+
+private val HAN_CHARS = Regex("[\\u3400-\\u4DBF\\u4E00-\\u9FFF\\uF900-\\uFAFF]")
 
 @Composable
 private fun ActionIcon(icon: ImageVector, description: String, modifier: Modifier = Modifier, onClick: () -> Unit) {

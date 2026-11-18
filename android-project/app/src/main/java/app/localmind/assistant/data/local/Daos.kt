@@ -161,6 +161,12 @@ interface LocalMindDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsertVocabularyItem(item: VocabularyItemEntity)
 
+    @Query("SELECT * FROM vocabulary_items WHERE term = :term AND targetLanguage = :language LIMIT 1")
+    suspend fun findVocabularyItem(term: String, language: String): VocabularyItemEntity?
+
+    @Query("DELETE FROM vocabulary_items WHERE id = :id")
+    suspend fun deleteVocabularyItem(id: String)
+
     // App Events
     @Query("SELECT * FROM app_events ORDER BY createdAt DESC LIMIT 200")
     fun observeAppEvents(): Flow<List<AppEventEntity>>

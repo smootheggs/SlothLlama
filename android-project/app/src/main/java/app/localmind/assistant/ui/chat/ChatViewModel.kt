@@ -154,6 +154,17 @@ class ChatViewModel @Inject constructor(
         _editingMessage.value = null
     }
 
+    /**
+     * Text sent from another app with "Ask SlothLlama": a new chat with the current persona, with
+     * the question waiting in the message box so it can be edited (or the persona changed) first.
+     */
+    fun askAbout(text: String) {
+        if (_isGenerating.value) return
+        createNewConversation()
+        val chinese = text.any { it.code in 0x3400..0x9FFF }
+        _inputText.value = if (chinese) "Explain this word by word, with meanings:\n\n$text" else "Explain this:\n\n$text"
+    }
+
     /** Switching tutor starts a fresh chat, so lessons in different languages never mix. */
     fun startConversationWith(personaId: String) {
         if (_isGenerating.value) return

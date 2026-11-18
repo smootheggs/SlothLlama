@@ -32,6 +32,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -52,6 +54,11 @@ import app.localmind.assistant.ui.chat.components.MessageList
 import app.localmind.assistant.ui.chat.components.RenameConversationDialog
 import app.localmind.assistant.ui.speech.LocalSpeakAction
 import app.localmind.assistant.ui.speech.rememberTutorSpeaker
+import app.localmind.assistant.data.study.StudyLanguage
+import app.localmind.assistant.ui.study.AddFlashcardDialog
+import app.localmind.assistant.ui.study.FlashcardsViewModel
+import app.localmind.assistant.ui.study.LocalSaveWordAction
+import androidx.hilt.navigation.compose.hiltViewModel
 import kotlinx.coroutines.launch
 import app.localmind.assistant.ui.theme.SlothPalette as P
 
@@ -62,6 +69,7 @@ fun ChatScreen(
     onOpenPersonas: () -> Unit,
     onOpenModels: () -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenFlashcards: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -74,6 +82,16 @@ fun ChatScreen(
     val persona = uiState.activePersona
     val speakAction: ((String) -> Unit)? = persona.speech?.let { language ->
         { text: String -> speaker.speak(text, language) }
+    }
+    val flashcards: FlashcardsViewModel = hiltViewModel()
+    val flashcardState by flashcards.uiState.collectAsStateWithLifecycle()
+    val flashcardMessage by flashcards.message.collectAsStateWithLifecycle()
+    var saveWordsFrom by remember { mutableStateOf<String?>(null) }
+    LaunchedEffect(flashcardMessage) {
+        flashcardMessage?.let {
+            snackbarHostState.showSnackbar(it)
+            flashcards.clearMessage()
+        }
     }
 
     LaunchedEffect(uiState.isDrawerOpen) {
@@ -116,12 +134,17 @@ fun ChatScreen(
                     onOpenPersonas = { closeDrawerThen(onOpenPersonas) },
                     onOpenModels = { closeDrawerThen(onOpenModels) },
                     onOpenSettings = { closeDrawerThen(onOpenSettings) },
+                    onOpenFlashcards = { closeDrawerThen(onOpenFlashcards) },
+                    flashcardsDue = flashcardState.dueCount,
                     modelStatus = uiState.activeModelName
                 )
             }
         }
     ) {
-        CompositionLocalProvider(LocalSpeakAction provides speakAction) {
+        CompositionLocalProvider(
+            LocalSpeakAction provides speakAction,
+            LocalSaveWordAction provides { text: String -> saveWordsFrom = text }
+        ) {
             Scaffold(
                 containerColor = P.Canvas,
                 // Insets are handled once: the top bar takes the status bar, the composer
@@ -218,6 +241,14 @@ fun ChatScreen(
             conversation = conv,
             onConfirm = viewModel::confirmDeleteConversation,
             onDismiss = viewModel::dismissDeleteDialog
+        )
+    }
+    saveWordsFrom?.let { text ->
+        AddFlashcardDialog(
+            replyText = text,
+            defaultLanguage = StudyLanguage.from(persona.speech),
+            onSave = flashcards::add,
+            onDismiss = { saveWordsFrom = null }
         )
     }
     if (uiState.isClearAllConfirmOpen) {
