@@ -105,7 +105,7 @@ fun HomeRoute(
         val due = cards.dueCount
         add(
             if (due > 0) TodayItem(Icons.Outlined.Style, "$due due", "Flashcards", "Review now", Tone.ACCENT, onFlashcards)
-            else TodayItem(Icons.Outlined.Style, "All done", "Flashcards", "Nothing due today", Tone.QUIET, onFlashcards)
+            else TodayItem(Icons.Outlined.Style, "None due", "Flashcards", "", Tone.QUIET, onFlashcards)
         )
         if (lobster != null && onLobster != null) {
             val caught = lobster.catch.size
@@ -130,10 +130,10 @@ fun HomeRoute(
             HomeTile(
                 Icons.Outlined.LocalLibrary, "Library",
                 when (items) {
-                    0 -> "Books, documents, Wikipedia"
+                    0 -> ""
                     1 -> "1 item"
                     else -> "$items items"
-                } + if (meaningOn && items > 0) " · search by meaning on" else "",
+                },
                 onLibrary
             )
         )
@@ -141,21 +141,21 @@ fun HomeRoute(
             HomeTile(
                 Icons.Outlined.StickyNote2, "Notes",
                 when (notes.size) {
-                    0 -> "Say \"take a note: …\""
+                    0 -> ""
                     1 -> "1 note"
                     else -> "${notes.size} notes"
                 },
                 onNotes
             )
         )
-        add(HomeTile(Icons.Outlined.Translate, "Dictionary", "Chinese · offline", onDictionary))
+        add(HomeTile(Icons.Outlined.Translate, "Dictionary", "", onDictionary))
         if (onLobster != null && lobsterLine != null) {
             add(HomeTile(Icons.Outlined.Sailing, "SlothLobster", lobsterLine, onLobster, Tone.LOBSTER))
         }
         add(
             HomeTile(
                 Icons.Outlined.ShowChart, "SlothDesk",
-                glance?.let { "Prices to ${shortDate(it.dataDate.toString())} · paper only" } ?: "Strategies on paper · load prices",
+                glance?.let { "Prices to ${shortDate(it.dataDate.toString())}" } ?: "",
                 onDesk
             )
         )
@@ -164,7 +164,7 @@ fun HomeRoute(
             add(
                 HomeTile(
                     Icons.Outlined.Translate, "Ourjong",
-                    if (intent != null) "Hong Kong mahjong" else "Not installed on this tablet",
+                    if (intent != null) "" else "Not installed",
                     onClick = {
                         if (intent != null) runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                         else Toast.makeText(context, "Ourjong isn't installed. Add it in Obtainium, then it opens from here.", Toast.LENGTH_LONG).show()
@@ -184,11 +184,15 @@ fun HomeRoute(
     // Practice: writing to a tutor, or reviewing a flashcard.
     val tutors = ui.personas.filter { it.speech != null }
     val practice = if (settings.practiceWeek) practiceWeek(written, tutors.map { it.id }.toSet(), reviews.map { it.second }, todayDate, zone) else null
-    val lastPractised = if (!settings.practiceWeek) emptyMap() else tutors.groupBy { it.speech!! }.mapNotNull { (language, list) ->
+    val lastAtByLanguage: Map<SpeechLanguage, Long> = tutors.groupBy { it.speech!! }.mapNotNull { (language, list) ->
         val chats = list.mapNotNull { lastByPersona[it.id] }.maxOrNull()
         val reviewed = reviews.filter { it.first.speech == language }.maxOfOrNull { it.second }
-        practisedAgo(listOfNotNull(chats, reviewed).maxOrNull(), todayDate, zone)?.let { language to it }
+        listOfNotNull(chats, reviewed).maxOrNull()?.let { language to it }
     }.toMap()
+    val lastPractised = if (!settings.practiceWeek) emptyMap() else
+        lastAtByLanguage.mapNotNull { (language, at) -> practisedAgo(at, todayDate, zone)?.let { language to it } }.toMap()
+    val recentLanguages = lastAtByLanguage.filterValues { now - it < RECENT_MS }.keys
+    val todayLanguages = lastAtByLanguage.filterValues { practisedAgo(it, todayDate, zone) == "today" }.keys
 
     /** Starts a chat with [persona] (or the current one) and sends [prompt]. */
     fun startAndSend(persona: Persona?, prompt: String) {
@@ -225,7 +229,9 @@ fun HomeRoute(
             caught = lobster?.catch?.size ?: 0,
             due = cards.dueCount,
             practice = practice,
-            lastPractised = lastPractised
+            lastPractised = lastPractised,
+            recentLanguages = recentLanguages,
+            todayLanguages = todayLanguages
         ),
         actions = HomeActions(
             onDrill = { tutor -> startAndSend(tutor, DRILL) },
@@ -239,6 +245,9 @@ fun HomeRoute(
         )
     )
 }
+
+/** Languages practised within two weeks keep their chip on Home. */
+private const val RECENT_MS = 14 * 24 * 60 * 60 * 1000L
 
 /** Ourjong's release build, then its dev build ("Ourjong Dev"). */
 private val OURJONG = listOf("app.ourjong", "app.ourjong.debug")
@@ -263,14 +272,11 @@ internal fun askIdiom(idiom: Idiom, traditional: Boolean): String =
         "how it's used today, and one natural example sentence with pinyin and English."
 
 private fun deskItem(g: DeskGlance, today: LocalDate, onDesk: () -> Unit): TodayItem {
-    val opens = runCatching { LocalDate.parse(g.nextOpen) }.getOrNull()
+    val tickets = if (g.trades == 1) "1 ticket" else "${g.trades} tickets"
     return when {
         g.trades == 0 -> TodayItem(Icons.Outlined.ShowChart, "No trades", "SlothDesk", "Prices to ${shortDate(g.dataDate.toString())}", Tone.QUIET, onDesk)
-        opens != null && opens.isAfter(today) ->
-            TodayItem(Icons.Outlined.ShowChart, if (g.trades == 1) "1 ticket" else "${g.trades} tickets", "SlothDesk", "For the ${shortDate(g.nextOpen)} open", Tone.ACCENT, onDesk)
-        g.unmarked > 0 ->
-            TodayItem(Icons.Outlined.ShowChart, if (g.trades == 1) "1 ticket" else "${g.trades} tickets", "SlothDesk", "Mark how it went", Tone.ACCENT, onDesk)
-        else -> TodayItem(Icons.Outlined.ShowChart, "All marked", "SlothDesk", "Prices to ${shortDate(g.dataDate.toString())}", Tone.QUIET, onDesk)
+        g.unmarked > 0 -> TodayItem(Icons.Outlined.ShowChart, tickets, "SlothDesk", "Mark how it went", Tone.ACCENT, onDesk)
+        else -> TodayItem(Icons.Outlined.ShowChart, "All marked", "SlothDesk", "", Tone.QUIET, onDesk, calm = "tickets marked")
     }
 }
 
@@ -286,10 +292,12 @@ private fun lobsterStatus(state: MailboxState, now: Long): String {
 }
 
 private fun backupItem(state: AutoBackupState, now: Long, onSettings: () -> Unit): TodayItem = when {
-    !state.enabled -> TodayItem(Icons.Outlined.Shield, "Off", "Weekly backup", "Turn it on in Settings", Tone.QUIET, onSettings)
-    state.lastAt == 0L -> TodayItem(Icons.Outlined.Shield, "Soon", "Weekly backup", "First one within a day", Tone.ACCENT, onSettings)
-    !state.lastOk -> TodayItem(Icons.Outlined.Shield, "Not saved", "Weekly backup", state.lastResult ?: "Open Settings to see why", Tone.PROBLEM, onSettings)
-    else -> TodayItem(Icons.Outlined.Shield, "Saved", "Weekly backup", "${dayLabel(state.lastAt, now).replaceFirstChar { it.uppercase() }} · newest 4 kept", Tone.ACCENT, onSettings)
+    !state.enabled -> TodayItem(Icons.Outlined.Shield, "Off", "Backup", "Turn it on in Settings", Tone.QUIET, onSettings, calm = "weekly backup off")
+    state.lastAt == 0L -> TodayItem(Icons.Outlined.Shield, "Soon", "Backup", "First one within a day", Tone.QUIET, onSettings, calm = "first backup within a day")
+    !state.lastOk -> TodayItem(Icons.Outlined.Shield, "Not saved", "Backup", state.lastResult ?: "Open Settings to see why", Tone.PROBLEM, onSettings)
+    else -> dayLabel(state.lastAt, now).let { day ->
+        TodayItem(Icons.Outlined.Shield, "Saved", "Backup", day.replaceFirstChar { it.uppercase() }, Tone.OK, onSettings, calm = "backup saved $day")
+    }
 }
 
 /** "today", "yesterday", "Sun" within the week, else a short date. */

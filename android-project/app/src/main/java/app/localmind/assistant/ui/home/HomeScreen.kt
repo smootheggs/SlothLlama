@@ -107,8 +107,14 @@ import java.time.Instant
 import java.time.ZoneId
 import kotlinx.coroutines.delay
 
-/** How a tile's number or icon is coloured: the accent, the Lobster's coral, quiet, or a problem. */
-enum class Tone { ACCENT, LOBSTER, QUIET, PROBLEM }
+/**
+ * How a tile's value is coloured. Colour means "needs you": the accent for something to do, coral for
+ * something the Lobster brought, red for a problem. QUIET is nothing to do; OK is healthy (grey, with
+ * a small green dot).
+ */
+enum class Tone { ACCENT, LOBSTER, QUIET, OK, PROBLEM;
+    val needsYou: Boolean get() = this == ACCENT || this == LOBSTER || this == PROBLEM
+}
 
 /** One shortcut on the Home page: an icon (or a small text mark), a name and a live status line. */
 data class HomeTile(
@@ -128,7 +134,9 @@ data class TodayItem(
     val title: String,
     val detail: String,
     val tone: Tone,
-    val onClick: () -> Unit
+    val onClick: () -> Unit,
+    /** How it reads on the "All caught up" line ("backup saved yesterday"); null = leave it off. */
+    val calm: String? = null
 )
 
 /** The Home page's optional touches, as set in Settings → Home, with what they need. */
@@ -139,7 +147,11 @@ data class HomeExtrasUi(
     val due: Int = 0,
     val practice: PracticeWeek? = null,
     /** "yesterday", per language. */
-    val lastPractised: Map<SpeechLanguage, String> = emptyMap()
+    val lastPractised: Map<SpeechLanguage, String> = emptyMap(),
+    /** Languages practised in the last two weeks: their chips show; the rest fold into "+N". */
+    val recentLanguages: Set<SpeechLanguage> = emptySet(),
+    /** Languages practised today: their chips are filled. */
+    val todayLanguages: Set<SpeechLanguage> = emptySet()
 )
 
 /** What the Home page's extras can do. */
@@ -263,14 +275,18 @@ fun HomeScreen(
         if (today.isNotEmpty()) {
             Column {
                 SectionLabel("Today")
-                BoxWithConstraints {
-                    // All in one row when each tile gets a comfortable width; otherwise two by two.
-                    val oneRow = (maxWidth - 12.dp * (today.size - 1)) / today.size >= 160.dp
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        today.chunked(if (oneRow) today.size else 2).forEach { row ->
-                            Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                row.forEach { item -> TodayTile(item, Modifier.weight(1f).fillMaxHeight()) }
-                                repeat((if (oneRow) today.size else 2) - row.size) { Spacer(Modifier.weight(1f)) }
+                if (today.none { it.tone.needsYou }) {
+                    CaughtUp(today)
+                } else {
+                    BoxWithConstraints {
+                        // All in one row when each tile gets a comfortable width; otherwise two by two.
+                        val oneRow = (maxWidth - 12.dp * (today.size - 1)) / today.size >= 200.dp
+                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                            today.chunked(if (oneRow) today.size else 2).forEach { row ->
+                                Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                    row.forEach { item -> TodayTile(item, Modifier.weight(1f).fillMaxHeight()) }
+                                    repeat((if (oneRow) today.size else 2) - row.size) { Spacer(Modifier.weight(1f)) }
+                                }
                             }
                         }
                     }
@@ -294,21 +310,36 @@ fun HomeScreen(
     }
     val tutorSection: @Composable () -> Unit = {
         if (tutorGroups.isNotEmpty()) {
+            var allLanguages by remember { mutableStateOf(false) }
+            // Languages practised lately; with none yet, the first two.
+            val recent = tutorGroups.filter { it.language in extras.recentLanguages }.ifEmpty { tutorGroups.take(2) }
+            val shownGroups = if (allLanguages) tutorGroups else recent
+            val hidden = tutorGroups.size - recent.size
             Column {
                 Row(Modifier.padding(bottom = SECTION_LABEL_GAP), verticalAlignment = Alignment.CenterVertically) {
                     SectionLabel("Tutors", gap = 0.dp)
-                    Spacer(Modifier.weight(1f))
-                    extras.practice?.takeIf { s.practiceWeek }?.let { PracticeDots(it) }
+                    extras.practice?.takeIf { s.practiceWeek }?.let { week ->
+                        Spacer(Modifier.width(16.dp))
+                        PracticeDots(week)
+                        Spacer(Modifier.width(8.dp))
+                        Text("${week.count} of 7", color = P.Faint, fontSize = 12.sp, modifier = Modifier.clearAndSetSemantics {})
+                    }
                 }
                 FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    tutorGroups.forEach { group ->
+                    shownGroups.forEach { group ->
                         TutorChip(
                             group, script,
                             lastPractised = extras.lastPractised[group.language]?.takeIf { s.practiceWeek },
+                            active = group.language in extras.todayLanguages,
                             drills = s.tutorDrills,
                             onStartWith = onStartWith,
                             onDrill = actions.onDrill
                         )
+                    }
+                    if (hidden > 0) {
+                        MoreLanguages(if (allLanguages) "Fewer" else "+$hidden", if (allLanguages) "Show fewer languages" else "Show $hidden more languages") {
+                            allLanguages = !allLanguages
+                        }
                     }
                 }
             }
@@ -576,8 +607,11 @@ private fun IdiomHalf(idiom: Idiom, traditional: Boolean, actions: HomeActions, 
         Text(idiom.written(traditional), color = P.Text, fontSize = 24.sp, lineHeight = 30.sp, modifier = Modifier.padding(top = 8.dp))
         Text(idiom.pinyin, color = P.Muted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp))
         Text(idiom.meaning, color = P.Text, fontSize = 14.sp, lineHeight = 19.sp, maxLines = if (story) 4 else 2, overflow = TextOverflow.Ellipsis)
+        Text(
+            "Literally: ${idiom.literal}", color = P.Muted, fontSize = 13.sp, lineHeight = 18.sp, fontStyle = FontStyle.Italic,
+            maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp)
+        )
         if (story) {
-            Text("Literally: ${idiom.literal}.", color = P.Muted, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 6.dp))
             if (idiom.story.isNotBlank()) Text(idiom.story, color = P.Muted, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 4.dp))
             Text(
                 "Ask the teacher →", color = P.Accent, fontSize = 13.sp,
@@ -588,7 +622,10 @@ private fun IdiomHalf(idiom: Idiom, traditional: Boolean, actions: HomeActions, 
                     .padding(vertical = 6.dp)
             )
         } else {
-            Text("Tap for its story", color = P.Faint, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+            Text(
+                if (idiom.story.isNotBlank()) "Tap for its story" else "Tap to ask the teacher about it",
+                color = P.Faint, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp)
+            )
         }
     }
 }
@@ -656,7 +693,7 @@ private fun ago(time: Long, now: Long): String =
 private fun toneColor(tone: Tone): Color = when (tone) {
     Tone.ACCENT -> P.Accent
     Tone.LOBSTER -> P.Lobster
-    Tone.QUIET -> P.Muted
+    Tone.QUIET, Tone.OK -> P.Muted
     Tone.PROBLEM -> P.Danger
 }
 
@@ -734,29 +771,80 @@ private fun NewChatCard(modifier: Modifier, onClick: () -> Unit) {
     }
 }
 
+/** A slim Today tile: an icon, the value and its name on one line, and a line about it. */
 @Composable
 private fun TodayTile(item: TodayItem, modifier: Modifier) {
     val shape = RoundedCornerShape(16.dp)
-    Column(
+    Row(
         modifier
-            .heightIn(min = 104.dp)
+            .heightIn(min = 64.dp)
             .clip(shape)
             .border(1.dp, P.Border, shape)
             .clickable(role = Role.Button, onClick = item.onClick)
-            .padding(horizontal = 16.dp, vertical = 14.dp),
-        verticalArrangement = Arrangement.spacedBy(3.dp)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Icon(item.icon, contentDescription = null, tint = if (item.tone == Tone.LOBSTER) P.Lobster else P.Muted, modifier = Modifier.size(20.dp))
-            Spacer(Modifier.weight(1f))
-            Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = P.Faint, modifier = Modifier.size(18.dp))
+        Icon(item.icon, contentDescription = null, tint = if (item.tone == Tone.LOBSTER) P.Lobster else P.Muted, modifier = Modifier.size(20.dp))
+        Spacer(Modifier.width(14.dp))
+        Column(Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (item.tone == Tone.OK) {
+                    Box(Modifier.size(6.dp).clip(CircleShape).background(P.Success))
+                    Spacer(Modifier.width(6.dp))
+                }
+                Text(
+                    item.value, color = toneColor(item.tone), fontSize = 16.sp, fontWeight = FontWeight.Medium,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+                Text(" · ${item.title}", color = P.Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            if (item.detail.isNotBlank()) {
+                Text(
+                    item.detail, color = P.Faint, fontSize = 12.sp, lineHeight = 16.sp,
+                    maxLines = if (item.tone == Tone.LOBSTER) 2 else 1, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 2.dp)
+                )
+            }
         }
-        Text(item.value, color = toneColor(item.tone), fontSize = 21.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(item.title, color = P.Text, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    }
+}
+
+/** Nothing needs you: one quiet line instead of the tiles. A tap opens the first thing it names. */
+@Composable
+private fun CaughtUp(items: List<TodayItem>) {
+    val calm = items.filter { it.calm != null }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(12.dp))
+            .clickable(enabled = calm.isNotEmpty(), role = Role.Button) { calm.firstOrNull()?.onClick?.invoke() }
+            .padding(vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.size(8.dp).clip(CircleShape).background(P.Success))
+        Spacer(Modifier.width(12.dp))
         Text(
-            item.detail, color = P.Faint, fontSize = 12.sp, lineHeight = 16.sp,
-            maxLines = if (item.tone == Tone.LOBSTER) 2 else 1, overflow = TextOverflow.Ellipsis
+            (listOf("All caught up") + calm.mapNotNull { it.calm }).joinToString(" · "),
+            color = P.Muted, fontSize = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis
         )
+    }
+}
+
+/** The "+4" chip that shows the rest of the languages. */
+@Composable
+private fun MoreLanguages(label: String, description: String, onClick: () -> Unit) {
+    val shape = RoundedCornerShape(28.dp)
+    Box(
+        Modifier
+            .heightIn(min = 52.dp)
+            .clip(shape)
+            .border(1.dp, P.Border, shape)
+            .clickable(role = Role.Button, onClick = onClick)
+            .semantics { contentDescription = description }
+            .padding(horizontal = 18.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text(label, color = P.Muted, fontSize = 15.sp, modifier = Modifier.clearAndSetSemantics {})
     }
 }
 
@@ -770,6 +858,7 @@ private fun TutorChip(
     group: TutorGroup,
     script: ChineseScript,
     lastPractised: String?,
+    active: Boolean,
     drills: Boolean,
     onStartWith: (Persona) -> Unit,
     onDrill: (Persona) -> Unit
@@ -794,8 +883,18 @@ private fun TutorChip(
                 .padding(start = 7.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            Box(Modifier.size(36.dp).clip(CircleShape).background(P.AccentSoft), contentAlignment = Alignment.Center) {
-                Text(languageMark(group.language, script), color = P.Accent, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+            // Filled for a language practised today; an outline otherwise, so the page isn't all green.
+            Box(
+                Modifier
+                    .size(36.dp)
+                    .clip(CircleShape)
+                    .then(if (active) Modifier.background(P.AccentSoft) else Modifier.border(1.dp, P.Border, CircleShape)),
+                contentAlignment = Alignment.Center
+            ) {
+                Text(
+                    languageMark(group.language, script), color = if (active) P.Accent else P.Muted,
+                    fontSize = 15.sp, fontWeight = FontWeight.Medium
+                )
             }
             Spacer(Modifier.width(12.dp))
             Column {
@@ -855,12 +954,13 @@ private fun ThingTile(tile: HomeTile, modifier: Modifier) {
         Spacer(Modifier.width(14.dp))
         Column(Modifier.weight(1f)) {
             Text(tile.label, color = P.Text, fontSize = 16.sp)
-            Text(
-                tile.detail, color = if (tile.tone == Tone.ACCENT) P.Accent else P.Muted, fontSize = 13.sp,
-                maxLines = 1, overflow = TextOverflow.Ellipsis
-            )
+            if (tile.detail.isNotBlank()) {
+                Text(
+                    tile.detail, color = if (tile.tone == Tone.ACCENT) P.Accent else P.Muted, fontSize = 13.sp,
+                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                )
+            }
         }
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = P.Faint, modifier = Modifier.size(18.dp))
     }
 }
 

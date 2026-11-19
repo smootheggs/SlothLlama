@@ -31,7 +31,13 @@ The rules the Home, Personas, Lobster and SlothDesk pages follow. Keep new scree
 | Amber (`Warning`) | Prices, and stale data |
 | Green / red (`Success` / `Danger`) | Gates passed / failed, followed / not |
 
-Icons stay neutral (`Muted`) unless their colour carries meaning.
+Colour means "needs you". Something healthy (a saved backup, marked tickets) is grey with at most
+a small green dot; a page where everything is fine should be mostly grey. Icons stay neutral
+(`Muted`) unless their colour carries meaning, and tiles don't carry chevrons: the whole tile is
+the button.
+
+A second line on a tile is for live information (2 items, Awake, Prices to 19 Nov), never a
+description of what the tile is.
 
 ## Type
 
