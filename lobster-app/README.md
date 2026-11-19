@@ -27,6 +27,14 @@ New in 1.1:
 - **Sturdier search**: Brave and Mojeek join DuckDuckGo and Bing; Settings shows which answer.
 - **Read it all here**: everything brought back opens in full in the Lobster.
 
+New in 1.4:
+
+- **Prices for SlothDesk**: SlothLlama's SlothDesk page sends a Prices order (once, or every day
+  after the close); the Lobster fetches daily prices and sends them back as a sealed prices
+  file. ETFs (GLD, SLV …) and USD/JPY come from **Tiingo** with your own free key
+  (**Settings → Market data**); rates come from FRED and gold's volatility index from Cboe,
+  with no key. Without a key, USD/JPY falls back to FRED's daily noon rate.
+
 New in 1.3:
 
 - **White or OLED black**: Settings → Look (or match the tablet). Same coral, readable in both.
@@ -62,6 +70,8 @@ On a phone, keep the same folder in sync with the tablet using Syncthing.
 - No backups of its data, no tracking, no account. CI checks it asks for no other permissions.
 - Orders older than 14 days, or taken before, are ignored, so old order files can't be replayed.
 - The pairing code is wiped from the clipboard once it's pasted (SlothLlama marks it sensitive).
+- The Tiingo key is sealed by its own Android Keystore key, sent only to api.tiingo.com in a
+  header (never in a link, so never in the Log), and wiped from the clipboard once saved.
 - Builds only read the repo, and every third-party build step is pinned to an exact commit.
 - Install the **release** build (signed with your own key from GitHub Secrets). The "Dev" build
   is signed with the public debug key in this repo, so anyone could make an APK that installs

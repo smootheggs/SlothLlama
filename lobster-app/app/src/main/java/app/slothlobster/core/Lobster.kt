@@ -9,6 +9,7 @@ import app.slothlobster.jobs.Engine
 import app.slothlobster.jobs.RepeatRule
 import app.slothlobster.jobs.Repeats
 import app.slothlobster.web.Feeds
+import app.slothlobster.mailbox.KeyVault
 import app.slothlobster.mailbox.Mailbox
 import app.slothlobster.mailbox.OrderKind
 import app.slothlobster.run.LobsterService
@@ -248,6 +249,30 @@ class Lobster private constructor(val context: Context) {
             scope.launch { refreshLive(); engine.poke() }
         }
         return ok
+    }
+
+    // --- market data key (SlothDesk's prices) ---
+
+    /** Wrapped by its own Android Keystore key, like the pairing code; never shown again once saved. */
+    private val dataKeys = KeyVault(prefs, alias = "slothlobster-data-tiingo", name = "tiingo_wrapped")
+
+    fun tiingoKey(): String? = runCatching { dataKeys.loadText() }.getOrNull()?.takeIf { it.isNotBlank() }
+
+    fun hasTiingoKey(): Boolean = tiingoKey() != null
+
+    /** Saves (or with null, removes) the Tiingo key. False if it doesn't look like one. */
+    fun setTiingoKey(key: String?): Boolean {
+        val k = key?.trim().orEmpty()
+        if (k.isEmpty()) {
+            dataKeys.clear()
+            store.log("settings", "Removed the market data key")
+            return true
+        }
+        if (!Regex("^[A-Za-z0-9]{20,64}$").matches(k)) return false
+        dataKeys.saveText(k)
+        runCatching { context.getSystemService(ClipboardManager::class.java)?.clearPrimaryClip() }
+        store.log("settings", "Saved a market data key", "Tiingo, ending …${k.takeLast(4)}")
+        return true
     }
 
     fun unpair() {

@@ -15,21 +15,30 @@ import javax.crypto.spec.GCMParameterSpec
  * in the device's secure hardware and never readable by any app, this one included. Only the
  * wrapped form is saved, so a copy of the app's files alone doesn't reveal the mailbox key.
  */
-class KeyVault(private val prefs: SharedPreferences) {
+class KeyVault(
+    private val prefs: SharedPreferences,
+    private val alias: String = ALIAS,
+    private val name: String = KEY_WRAPPED
+) {
 
     fun load(): ByteArray? {
-        val wrapped = prefs.getString(KEY_WRAPPED, null) ?: return null
+        val wrapped = prefs.getString(name, null) ?: return null
         return runCatching { unwrap(Base64.getDecoder().decode(wrapped)) }.getOrNull()
     }
 
     fun clear() {
-        prefs.edit().remove(KEY_WRAPPED).apply()
+        prefs.edit().remove(name).apply()
     }
 
     fun save(key: ByteArray) {
         val wrapped = Base64.getEncoder().encodeToString(wrap(key))
-        prefs.edit().putString(KEY_WRAPPED, wrapped).apply()
+        prefs.edit().putString(name, wrapped).apply()
     }
+
+    /** A secret that is text, such as a data service's key. */
+    fun saveText(text: String) = save(text.toByteArray(Charsets.UTF_8))
+
+    fun loadText(): String? = load()?.toString(Charsets.UTF_8)
 
     private fun wrap(key: ByteArray): ByteArray {
         val cipher = Cipher.getInstance("AES/GCM/NoPadding")
@@ -45,10 +54,10 @@ class KeyVault(private val prefs: SharedPreferences) {
 
     private fun vaultKey(): SecretKey {
         val store = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
-        (store.getKey(ALIAS, null) as? SecretKey)?.let { return it }
+        (store.getKey(alias, null) as? SecretKey)?.let { return it }
         val generator = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEYSTORE)
         generator.init(
-            KeyGenParameterSpec.Builder(ALIAS, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
+            KeyGenParameterSpec.Builder(alias, KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT)
                 .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
                 .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
                 .setKeySize(256)

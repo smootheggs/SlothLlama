@@ -70,6 +70,8 @@ fun SettingsScreen(
     onSetFeeds: (String) -> Unit,
     onImportOpml: (android.net.Uri) -> Unit,
     onBriefNow: () -> Unit,
+    dataKeySaved: Boolean,
+    onDataKey: (String?) -> Boolean,
     onStopEverything: () -> Unit,
     modifier: Modifier = Modifier
 ) {
@@ -77,6 +79,7 @@ fun SettingsScreen(
     var pairing by rememberSaveable { mutableStateOf(false) }
     var timing by rememberSaveable { mutableStateOf(false) }
     var feeds by rememberSaveable { mutableStateOf(false) }
+    var dataKeyOpen by rememberSaveable { mutableStateOf(false) }
     var diagnosticsOpen by rememberSaveable { mutableStateOf(false) }
     var diagnosticsVersion by rememberSaveable { mutableStateOf(0) }
     val context = LocalContext.current
@@ -235,6 +238,24 @@ fun SettingsScreen(
                 }
             }
 
+            Section("Market data") {
+                Panel {
+                    ListRow(
+                        "Tiingo key",
+                        if (dataKeySaved) "Saved, sealed by this phone's Keystore. Used only for SlothDesk's daily prices"
+                        else "Free from tiingo.com (sign up, then Account → API). Needed for ETF prices such as GLD and SLV",
+                        onClick = { dataKeyOpen = true },
+                        divider = false
+                    ) { Text(if (dataKeySaved) "Change" else "Add", color = Sea.Coral, fontSize = 14.sp, fontWeight = FontWeight.Medium) }
+                }
+                Text(
+                    "Rates (FRED) and gold's volatility index (Cboe) need no key. The key is sent only to Tiingo, in a " +
+                        "header, and is never written to the Log or the mailbox.",
+                    color = Sea.Faint,
+                    fontSize = 12.sp
+                )
+            }
+
             Section("Diagnostics") {
                 Panel {
                     ListRow(
@@ -292,6 +313,9 @@ fun SettingsScreen(
             onDismiss = { diagnosticsOpen = false }
         )
     }
+    if (dataKeyOpen) DataKeyDialog(saved = dataKeySaved, onDismiss = { dataKeyOpen = false }, onSave = { key ->
+        onDataKey(key).also { if (it) dataKeyOpen = false }
+    })
     if (feeds) FeedsDialog(Feeds.formatList(s.feeds, s.feedGroups), onDismiss = { feeds = false }) { text ->
         onSetFeeds(text)
         feeds = false
@@ -370,6 +394,54 @@ private fun PairDialog(onDismiss: () -> Unit, onPair: (String) -> Boolean) {
             TextButton(onClick = { wrong = !onPair(code) }, enabled = code.isNotBlank()) { Text("Pair", color = Sea.Coral) }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel", color = Sea.Muted) } }
+    )
+}
+
+@Composable
+private fun DataKeyDialog(saved: Boolean, onDismiss: () -> Unit, onSave: (String?) -> Boolean) {
+    var key by rememberSaveable { mutableStateOf("") }
+    var wrong by rememberSaveable { mutableStateOf(false) }
+    val clipboard = LocalClipboardManager.current
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        containerColor = Sea.Card,
+        title = { Text("Tiingo key", color = Sea.Text) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(
+                    "The free plan is enough: SlothDesk asks for a few tickers once a day. Paste the key from " +
+                        "tiingo.com → Account → API. It can't be read back once saved.",
+                    color = Sea.Muted,
+                    fontSize = 13.sp
+                )
+                OutlinedTextField(
+                    value = key,
+                    onValueChange = { key = it.trim(); wrong = false },
+                    label = { Text("API key") },
+                    singleLine = true,
+                    isError = wrong,
+                    supportingText = if (wrong) ({ Text("That doesn't look like a Tiingo key (letters and numbers).") }) else null,
+                    visualTransformation = androidx.compose.ui.text.input.PasswordVisualTransformation(),
+                    textStyle = androidx.compose.ui.text.TextStyle(fontFamily = FontFamily.Monospace, fontSize = 14.sp, color = Sea.Text),
+                    trailingIcon = {
+                        IconButton(onClick = { clipboard.getText()?.text?.let { key = it.trim(); wrong = false } }) {
+                            Icon(LobsterIcons.Paste, contentDescription = "Paste", tint = Sea.Coral)
+                        }
+                    },
+                    colors = OutlinedTextFieldDefaults.colors(focusedBorderColor = Sea.Coral, focusedLabelColor = Sea.Coral, cursorColor = Sea.Coral),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = { wrong = !onSave(key) }, enabled = key.isNotBlank()) { Text("Save", color = Sea.Coral) }
+        },
+        dismissButton = {
+            Row {
+                if (saved) TextButton(onClick = { onSave(null) }) { Text("Remove", color = Sea.Muted) }
+                TextButton(onClick = onDismiss) { Text("Cancel", color = Sea.Muted) }
+            }
+        }
     )
 }
 

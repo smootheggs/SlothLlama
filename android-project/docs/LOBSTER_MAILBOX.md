@@ -44,7 +44,8 @@ Because the type is authenticated, a catch can't be passed off as an order or th
 ```
 
 - `kind`: `research` (a question to look into), `fetch` (a link to bring back for offline
-  reading), `watch` (something to keep an eye on), `brief` (a regular round-up), `ask` (anything else)
+  reading), `watch` (something to keep an eye on), `brief` (a regular round-up), `ask` (anything else),
+  `prices` (1.4: daily prices for SlothDesk; see below)
 - `depth`: `quick`, or `deep` (may run overnight)
 - `deliver`: where the user wants the catch filed: `library`, `notes` or `chat` (a hint; the user decides)
 - `queries` (optional, since 1.1): for `research`, up to 5 searches to run instead of the question
@@ -63,10 +64,34 @@ remote" become the words to watch for.
   "createdAt": 1763452800000, "fileName": "paper.pdf", "fileBase64": "…" }
 ```
 
-- `kind`: `document`, `note`, `message` or `alert`
+- `kind`: `document`, `note`, `message`, `alert` or `prices` (1.4)
 - `orderId`: the order it answers; leave it out for things the Lobster sends on its own (a brief, an alert)
 - `fileName` / `fileBase64`: optional, for a fetched PDF, EPUB or HTML page (keep files under 15 MB)
 - Research should list its **sources**; claims should rest on at least three of them.
+
+## Prices for SlothDesk (1.4)
+
+SlothDesk sends a `prices` order whose text names the series and the first day, e.g.
+`Prices for SlothDesk: GLD SLV USDJPY DTB3 JP3M GVZ from 2008-01-01` (with `every day at 18:30`
+once, to make it repeat). The Lobster answers with a catch of kind `prices`, a Markdown summary
+as its text and `fileName` `slothdesk-prices.json`, whose content is:
+
+```json
+{ "format": "slothdesk-prices", "v": 1, "made_at": "2026-11-19T23:30:00Z", "made_by": "SlothLobster 1.4.0",
+  "series": {
+    "GLD":  { "kind": "bars", "source": "tiingo", "adjusted": true, "dates": ["2008-01-02", "…"],
+              "open": [84.86, "…"], "close": [85.20, "…"] },
+    "DTB3": { "kind": "rate", "freq": "daily", "source": "fred:DTB3", "dates": ["…"], "values": [0.0322, "…"] },
+    "JP3M": { "kind": "rate", "freq": "monthly", "source": "fred:IR3TIB01JPM156N", "dates": ["…"], "values": ["…"] },
+    "GVZ":  { "kind": "vol", "freq": "daily", "source": "cboe:GVZ", "dates": ["…"], "values": [0.18, "…"] } } }
+```
+
+- `bars`: adjusted daily open and close; `rate`: decimal (3.22% is 0.0322), dated as the source
+  dates it (SlothDesk applies the publication lag); `vol`: a volatility index as a decimal.
+- The Colab notebook writes the same file (`export_prices`) and reads it (`load_bundle`), so the
+  tablet and Colab can run on identical data.
+- SlothDesk checks every row (dates, positive prices, rates and vols in range, frozen feeds,
+  40% one-day jumps), takes the series in and removes the catch. It never runs anything in it.
 
 ## Status (Lobster → SlothLlama), JSON
 

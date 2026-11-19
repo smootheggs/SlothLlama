@@ -81,6 +81,12 @@ class LobsterViewModel(app: Application) : AndroidViewModel(app) {
     fun setFolder(uri: Uri) = lobster.setFolder(uri)
     fun settings(change: (Settings) -> Settings) = lobster.settings(change)
     fun briefNow() = lobster.briefNow()
+
+    private val _dataKey = MutableStateFlow(lobster.hasTiingoKey())
+    /** A Tiingo key is saved (SlothDesk's prices). */
+    val dataKey: StateFlow<Boolean> = _dataKey.asStateFlow()
+
+    fun setDataKey(key: String?): Boolean = lobster.setTiingoKey(key).also { _dataKey.value = lobster.hasTiingoKey() }
     fun setFeeds(text: String) = lobster.setFeeds(text)
     fun importOpml(uri: Uri) = lobster.importOpml(uri)
 

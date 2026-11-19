@@ -64,6 +64,7 @@ enum class Tab(val label: String, val icon: ImageVector) {
 fun LobsterUi(vm: LobsterViewModel) {
     val saved by vm.saved.collectAsStateWithLifecycle()
     val live by vm.live.collectAsStateWithLifecycle()
+    val dataKeySaved by vm.dataKey.collectAsStateWithLifecycle()
     val now by vm.now.collectAsStateWithLifecycle()
     val shared by vm.shared.collectAsStateWithLifecycle()
 
@@ -124,6 +125,8 @@ fun LobsterUi(vm: LobsterViewModel) {
                     onSetFeeds = vm::setFeeds,
                     onImportOpml = vm::importOpml,
                     onBriefNow = vm::briefNow,
+                    dataKeySaved = dataKeySaved,
+                    onDataKey = vm::setDataKey,
                     onStopEverything = vm::stopEverything,
                     modifier = mod
                 )

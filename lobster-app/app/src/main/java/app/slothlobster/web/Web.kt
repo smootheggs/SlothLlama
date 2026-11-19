@@ -73,12 +73,19 @@ object Web {
      * Gets a page or file. [asBrowser] sends an ordinary browser's name, for sites that turn
      * away unknown apps; APIs (Wikipedia) get the Lobster's own name, as they ask.
      */
-    suspend fun get(url: String, asBrowser: Boolean = true, maxBytes: Long = MAX_BYTES): Fetched = withContext(Dispatchers.IO) {
+    suspend fun get(
+        url: String,
+        asBrowser: Boolean = true,
+        maxBytes: Long = MAX_BYTES,
+        /** Extra headers, such as a data service's key (OkHttp drops Authorization on a redirect to another host). */
+        headers: Map<String, String> = emptyMap()
+    ): Fetched = withContext(Dispatchers.IO) {
         val safe = safeUrl(url) ?: throw WebException("Not a web link the Lobster can open: $url")
         val request = Request.Builder()
             .url(safe)
             .header("User-Agent", if (asBrowser) BROWSER_AGENT else USER_AGENT)
             .header("Accept-Language", "en,*;q=0.5")
+            .apply { headers.forEach { (k, v) -> header(k, v) } }
             .build()
         client.newCall(request).execute().use { response ->
             val finalUrl = response.request.url.toString()

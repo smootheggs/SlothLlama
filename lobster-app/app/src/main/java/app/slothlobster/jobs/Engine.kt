@@ -207,6 +207,7 @@ class Engine(private val lobster: Lobster) {
                 OrderKind.WATCH -> watchOrder(job)
                 OrderKind.BRIEF -> briefOrder(job)
                 OrderKind.ASK -> ask(job)
+                OrderKind.PRICES -> prices(job)
             }
             checkpoint(job.id)
             val sent = deliver(outcome.catch, job.id, outcome.subtitle)
@@ -420,6 +421,30 @@ class Engine(private val lobster: Lobster) {
             createdAt = System.currentTimeMillis()
         )
         return Outcome(catch, "Watching $title, every ${watch.everyHours} hours.", "Now watching")
+    }
+
+    /** SlothDesk's daily prices: public data services only, the Tiingo key sent in a header. */
+    private suspend fun prices(job: Job): Outcome {
+        val (names, since) = Prices.request(job.text)
+        if (names.isEmpty()) throw WebException("The order doesn't name any prices to fetch")
+        setSources(job.id, names.map { SourceState(it, "", "prices", "reading") })
+        val g = Prices.gather(names, since, lobster.tiingoKey(), BuildConfig.VERSION_NAME) { name, what ->
+            store.log("prices", name, what)
+        }
+        setSources(job.id, names.map { SourceState(it, "", "prices", if (it in g.bundle.series) "done" else "failed") })
+        val last = g.bundle.series.values.maxOf { it.dates.last() }
+        val summary = Prices.summary(g)
+        val catch = LobsterCatch(
+            id = UUID.randomUUID().toString(),
+            orderId = job.orderId,
+            kind = "prices",
+            title = "Prices to $last",
+            text = summary,
+            createdAt = System.currentTimeMillis(),
+            fileName = "slothdesk-prices.json",
+            fileBase64 = Base64.getEncoder().encodeToString(Prices.encode(g.bundle).toByteArray(Charsets.UTF_8))
+        )
+        return Outcome(catch, summary, "${g.bundle.series.size} series for SlothDesk")
     }
 
     private suspend fun briefOrder(job: Job): Outcome {
@@ -735,6 +760,7 @@ class Engine(private val lobster: Lobster) {
             OrderKind.WATCH -> "Setting up a watch"
             OrderKind.BRIEF -> "Making a brief"
             OrderKind.ASK -> "Reading"
+            OrderKind.PRICES -> "Fetching prices"
         }
     }
 }
