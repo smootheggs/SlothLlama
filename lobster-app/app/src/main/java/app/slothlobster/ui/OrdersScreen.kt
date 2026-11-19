@@ -256,6 +256,7 @@ private fun placeholder(kind: OrderKind) = when (kind) {
     OrderKind.WATCH -> "A page's link, or a topic for the news"
     OrderKind.BRIEF -> "A topic, or feed links, for a round-up"
     OrderKind.ASK -> ""
+    OrderKind.PRICES -> "GLD SLV USDJPY DTB3 JP3M GVZ from 2008-01-01"
 }
 
 private fun hint(kind: OrderKind) = when (kind) {
@@ -264,6 +265,7 @@ private fun hint(kind: OrderKind) = when (kind) {
     OrderKind.WATCH -> "Checked every 6 hours; change it on the Watch tab."
     OrderKind.BRIEF -> "Headlines with links, sent to the mailbox."
     OrderKind.ASK -> ""
+    OrderKind.PRICES -> "Daily prices for SlothDesk; ETFs need a Tiingo key (Settings, Market data)."
 }
 
 private fun orderLine(job: Job, now: Long): String {
