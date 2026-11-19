@@ -255,7 +255,7 @@ private fun placeholder(kind: OrderKind) = when (kind) {
     OrderKind.FETCH -> "A link to bring back for offline reading"
     OrderKind.WATCH -> "A page's link, or a topic for the news"
     OrderKind.BRIEF -> "A topic, or feed links, for a round-up"
-    OrderKind.ASK -> ""
+    OrderKind.ASK -> "Your question; it's researched like Research"
     OrderKind.PRICES -> "GLD SLV USDJPY DTB3 JP3M GVZ from 2008-01-01"
 }
 
@@ -263,8 +263,8 @@ private fun hint(kind: OrderKind) = when (kind) {
     OrderKind.RESEARCH -> "Free job. SlothLlama writes the answer offline."
     OrderKind.FETCH -> "Pages come back as text; PDFs and EPUBs as files."
     OrderKind.WATCH -> "Checked every 6 hours; change it on the Watch tab."
-    OrderKind.BRIEF -> "Headlines with links, sent to the mailbox."
-    OrderKind.ASK -> ""
+    OrderKind.BRIEF -> "Two to four key words work best; \"updates\" and \"top news\" only narrow it."
+    OrderKind.ASK -> "Runs as Research: SlothLlama answers from the sources."
     OrderKind.PRICES -> "Daily prices for SlothDesk; ETFs need a Tiingo key (Settings, Market data)."
 }
 

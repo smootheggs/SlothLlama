@@ -27,6 +27,15 @@ New in 1.1:
 - **Sturdier search**: Brave and Mojeek join DuckDuckGo and Bing; Settings shows which answer.
 - **Read it all here**: everything brought back opens in full in the Lobster.
 
+New in 1.5:
+
+- **Ask runs as Research**: there's still no model here, by design (the Lobster reads the web, so
+  it has no brain to be talked into anything); a question is researched and SlothLlama answers
+  from the sources, offline. An order kind this version doesn't know gets an "update the
+  SlothLobster" message instead of a guess.
+- **Better topic briefs**: filler such as "updates", "top news" or "etc." is left out of the
+  news search, and only the last two days' stories come back.
+
 New in 1.4:
 
 - **Prices for SlothDesk**: SlothLlama's SlothDesk page sends a Prices order (once, or every day

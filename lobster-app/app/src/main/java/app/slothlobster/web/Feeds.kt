@@ -79,8 +79,30 @@ object Feeds {
     }
 
     /** A Google News search as a feed: the free way to follow a topic. */
-    fun newsSearch(topic: String): String =
-        "https://news.google.com/rss/search?q=" + URLEncoder.encode(topic.trim(), "UTF-8") + "&hl=en-US&gl=US&ceid=US:en"
+    fun newsSearch(topic: String, days: Int = 0): String {
+        val q = topic.trim() + if (days > 0) " when:${days}d" else ""
+        return "https://news.google.com/rss/search?q=" + URLEncoder.encode(q, "UTF-8") + "&hl=en-US&gl=US&ceid=US:en"
+    }
+
+    /** Words that only narrow a news search ("updates", "top news", "etc."). */
+    private val FILLER = setOf(
+        "update", "updates", "top", "news", "latest", "headline", "headlines", "etc", "etcetera", "today", "todays",
+        "daily", "brief", "briefing", "roundup", "round-up", "summary", "info", "information", "stuff", "things",
+        "volumes", "volume", "prices", "price", "a", "an", "the", "on", "about", "of", "for", "and", "&", "please", "me", "my"
+    )
+
+    /**
+     * A brief's topic as a news search: key words only, in order, repeats dropped. Filler like
+     * "updates", "top news" or "prices" goes (Google News treats every word as required), unless
+     * nothing else is left. Quoted phrases and OR are kept as written.
+     */
+    fun newsQuery(topic: String): String {
+        val t = topic.trim()
+        if ('"' in t || Regex("""\bOR\b""").containsMatchIn(t)) return t
+        val words = t.split(Regex("""[\s,;/]+""")).map { it.trim('.', '!', '?', ':', '(', ')') }.filter { it.isNotBlank() }
+        val kept = words.filter { it.lowercase() !in FILLER }.distinctBy { it.lowercase() }
+        return (kept.ifEmpty { words }).joinToString(" ")
+    }
 
     private fun clean(s: String?): String = s.orEmpty().trim().replace(Regex("\\s+"), " ")
 

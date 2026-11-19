@@ -38,3 +38,24 @@ class PricesTests {
         assertEquals(LocalDate.of(2008, 1, 1), since)
     }
 }
+
+/** 1.5: briefs search on key words, not filler. */
+class BriefQueryTests {
+
+    @Test
+    fun `filler words are dropped from a brief's news search`() {
+        assertEquals("Precious metals market", app.slothlobster.web.Feeds.newsQuery("Precious metals market updates, top news, prices, volumes, etc."))
+        assertEquals("Hong Kong economy", app.slothlobster.web.Feeds.newsQuery("Hong Kong economy news"))
+    }
+
+    @Test
+    fun `quoted phrases and OR are kept, and an all-filler topic stays as it was`() {
+        assertEquals("\"gold price\" OR silver", app.slothlobster.web.Feeds.newsQuery("\"gold price\" OR silver"))
+        assertEquals("top news", app.slothlobster.web.Feeds.newsQuery("top news"))
+    }
+
+    @Test
+    fun `recent stories only, when asked`() {
+        assertTrue(app.slothlobster.web.Feeds.newsSearch("gold", days = 2).contains("when%3A2d"))
+    }
+}

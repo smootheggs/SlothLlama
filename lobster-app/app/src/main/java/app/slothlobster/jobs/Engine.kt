@@ -116,6 +116,21 @@ class Engine(private val lobster: Lobster) {
         for (order in orders) {
             if (order.id in known) continue
             store.update { it.copy(seenOrders = it.seenOrders + order.id) }
+            // A kind this version doesn't know (sent by a newer SlothLlama): say so instead of guessing.
+            if (OrderKind.entries.none { it.id == order.kind }) {
+                val note = LobsterCatch(
+                    id = UUID.randomUUID().toString(),
+                    orderId = order.id,
+                    kind = "message",
+                    title = "Update the SlothLobster",
+                    text = "This SlothLobster (${BuildConfig.VERSION_NAME}) doesn't know \"${order.kind.take(20)}\" orders yet. " +
+                        "Update it (Obtainium), then send the order again.\n\nYour order: ${order.text.take(300)}",
+                    createdAt = System.currentTimeMillis()
+                )
+                deliver(note, null, "Needs an update")
+                store.log("problem", "An order kind this version doesn't know", order.kind.take(20))
+                continue
+            }
             // Only fresh orders: an old order file put back in the folder is ignored.
             if (order.createdAt < now - MAX_ORDER_AGE_MS || order.createdAt > now + Store.DAY_MS) {
                 store.log("problem", "Ignored an out-of-date order", "${OrderKind.of(order.kind).label}: ${order.text.take(80)}")
@@ -206,7 +221,8 @@ class Engine(private val lobster: Lobster) {
                 OrderKind.FETCH -> fetch(job)
                 OrderKind.WATCH -> watchOrder(job)
                 OrderKind.BRIEF -> briefOrder(job)
-                OrderKind.ASK -> ask(job)
+                // No model here: a question is researched, and SlothLlama answers from what comes back.
+                OrderKind.ASK -> research(job)
                 OrderKind.PRICES -> prices(job)
             }
             checkpoint(job.id)
@@ -452,7 +468,9 @@ class Engine(private val lobster: Lobster) {
         val topic = job.text.replace(Regex("""https?://\S+"""), "")
             .replace(Regex("""^(?:a\s+|the\s+)?(?:brief|briefing|round-?up|news)\s+(?:on|about|of)\s+""", RegexOption.IGNORE_CASE), "")
             .trim()
-        val feeds = links.ifEmpty { listOf(Feeds.newsSearch(topic.ifBlank { "world news" })) }
+        // "Precious metals market updates, top news, prices, etc." searches as "precious metals market":
+        // filler words only narrow a news search. Recent stories only.
+        val feeds = links.ifEmpty { listOf(Feeds.newsSearch(Feeds.newsQuery(topic).ifBlank { "world news" }, days = 2)) }
         val (text, sources) = gatherBrief(feeds, perFeed = if (links.isEmpty()) 10 else 5, skipSeen = job.repeatId != null)
         val title = "Brief · " + (topic.ifBlank { "your feeds" }).take(80)
         val catch = LobsterCatch(
@@ -465,21 +483,6 @@ class Engine(private val lobster: Lobster) {
             createdAt = System.currentTimeMillis()
         )
         return Outcome(catch, text.take(1_500), "${sources.size} headlines")
-    }
-
-    private fun ask(job: Job): Outcome {
-        val catch = LobsterCatch(
-            id = UUID.randomUUID().toString(),
-            orderId = job.orderId,
-            kind = "message",
-            title = "The Lobster has no brain switched on",
-            text = "The SlothLobster runs free jobs only for now, with no AI model of its own, so it can't " +
-                "answer this itself. It can research (gather sources for SlothLlama to read and answer from), " +
-                "fetch a link, watch a page or topic, or make a brief. Send it again as **Research** and " +
-                "SlothLlama will answer from what comes back.\n\nYour order: ${job.text.take(300)}",
-            createdAt = System.currentTimeMillis()
-        )
-        return Outcome(catch, "Needs a model, which is switched off. Try Research instead.", "Needs a model")
     }
 
     // --- search engines ---
@@ -759,7 +762,7 @@ class Engine(private val lobster: Lobster) {
             OrderKind.FETCH -> "Fetching"
             OrderKind.WATCH -> "Setting up a watch"
             OrderKind.BRIEF -> "Making a brief"
-            OrderKind.ASK -> "Reading"
+            OrderKind.ASK -> "Researching"
             OrderKind.PRICES -> "Fetching prices"
         }
     }
