@@ -286,9 +286,9 @@ private fun lobsterStatus(state: MailboxState, now: Long): String {
 
 private fun backupItem(state: AutoBackupState, now: Long, onSettings: () -> Unit): TodayItem = when {
     !state.enabled -> TodayItem(Icons.Outlined.Shield, "Off", "Weekly backup", "Turn it on in Settings", Tone.QUIET, onSettings)
-    state.lastAt == 0L -> TodayItem(Icons.Outlined.Shield, "Soon", "Weekly backup", "The first one runs within a day", Tone.ACCENT, onSettings)
-    !state.lastOk -> TodayItem(Icons.Outlined.Shield, "Didn't save", "Weekly backup", state.lastResult ?: "Open Settings to see why", Tone.PROBLEM, onSettings)
-    else -> TodayItem(Icons.Outlined.Shield, "Saved ${dayLabel(state.lastAt, now)}", "Weekly backup", "The newest 4 are kept", Tone.ACCENT, onSettings)
+    state.lastAt == 0L -> TodayItem(Icons.Outlined.Shield, "Soon", "Weekly backup", "First one within a day", Tone.ACCENT, onSettings)
+    !state.lastOk -> TodayItem(Icons.Outlined.Shield, "Not saved", "Weekly backup", state.lastResult ?: "Open Settings to see why", Tone.PROBLEM, onSettings)
+    else -> TodayItem(Icons.Outlined.Shield, "Saved", "Weekly backup", "${dayLabel(state.lastAt, now).replaceFirstChar { it.uppercase() }} · newest 4 kept", Tone.ACCENT, onSettings)
 }
 
 /** "today", "yesterday", "Sun" within the week, else a short date. */

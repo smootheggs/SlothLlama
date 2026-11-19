@@ -80,6 +80,8 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Density
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.localmind.assistant.R
@@ -229,7 +231,7 @@ fun HomeScreen(
     val greetingBlock: @Composable (Boolean) -> Unit = { compact ->
         Row(verticalAlignment = Alignment.CenterVertically) {
             SlothPortrait(greeting.mood, compact)
-            Spacer(Modifier.width(18.dp))
+            Spacer(Modifier.width(20.dp))
             Column {
                 greeting.chinese?.let { zh -> ChineseHelloLine(zh, actions.onSpeak) }
                 Text(
@@ -237,7 +239,10 @@ fun HomeScreen(
                     lineHeight = if (compact) 36.sp else 40.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.semantics { heading() }
                 )
-                Text(greeting.sub, color = P.Muted, fontSize = 17.sp, lineHeight = 23.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                Text(
+                    greeting.sub, color = P.Muted, fontSize = 17.sp, lineHeight = 23.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
             }
         }
     }
@@ -258,11 +263,16 @@ fun HomeScreen(
         if (today.isNotEmpty()) {
             Column {
                 SectionLabel("Today")
-                // Up to three in a row; four make a tidy two-by-two.
-                today.chunked(if (today.size > 3) 2 else 3).forEachIndexed { i, row ->
-                    if (i > 0) Spacer(Modifier.height(12.dp))
-                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        row.forEach { item -> TodayTile(item, Modifier.weight(1f)) }
+                BoxWithConstraints {
+                    // All in one row when each tile gets a comfortable width; otherwise two by two.
+                    val oneRow = (maxWidth - 12.dp * (today.size - 1)) / today.size >= 160.dp
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        today.chunked(if (oneRow) today.size else 2).forEach { row ->
+                            Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                row.forEach { item -> TodayTile(item, Modifier.weight(1f).fillMaxHeight()) }
+                                repeat((if (oneRow) today.size else 2) - row.size) { Spacer(Modifier.weight(1f)) }
+                            }
+                        }
                     }
                 }
             }
@@ -285,8 +295,8 @@ fun HomeScreen(
     val tutorSection: @Composable () -> Unit = {
         if (tutorGroups.isNotEmpty()) {
             Column {
-                Row(verticalAlignment = Alignment.Top) {
-                    SectionLabel("Tutors")
+                Row(Modifier.padding(bottom = SECTION_LABEL_GAP), verticalAlignment = Alignment.CenterVertically) {
+                    SectionLabel("Tutors", gap = 0.dp)
                     Spacer(Modifier.weight(1f))
                     extras.practice?.takeIf { s.practiceWeek }?.let { PracticeDots(it) }
                 }
@@ -313,7 +323,7 @@ fun HomeScreen(
                         row.forEach { tile -> ThingTile(tile, Modifier.weight(1f)) }
                         if (row.size == 1) Spacer(Modifier.weight(1f))
                     }
-                    Spacer(Modifier.height(10.dp))
+                    Spacer(Modifier.height(12.dp))
                 }
             }
         }
@@ -338,10 +348,10 @@ fun HomeScreen(
             // your things on the right.
             Column(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 16.dp)) {
                 top()
-                Row(Modifier.weight(1f).padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(40.dp)) {
+                Row(Modifier.weight(1f).padding(top = 24.dp), horizontalArrangement = Arrangement.spacedBy(48.dp)) {
                     Column(
                         Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(20.dp)
+                        verticalArrangement = Arrangement.spacedBy(SECTION_GAP)
                     ) {
                         greetingBlock(true)
                         mainActions()
@@ -350,7 +360,7 @@ fun HomeScreen(
                     }
                     Column(
                         Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(16.dp)
+                        verticalArrangement = Arrangement.spacedBy(SECTION_GAP)
                     ) {
                         tutorSection()
                         thingsGrid()
@@ -359,8 +369,8 @@ fun HomeScreen(
                 }
             }
         } else {
-            // One page: the sections spread over the screen's height. It only scrolls if they truly
-            // can't fit (very large text, split screen).
+            // The sections spread over the screen's height when they fit, and never sit closer than
+            // SECTION_GAP: past one screen the page scrolls with room to breathe.
             val screen = maxHeight
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                 Column(
@@ -369,8 +379,8 @@ fun HomeScreen(
                         .fillMaxWidth()
                         .verticalScroll(rememberScrollState())
                         .heightIn(min = screen)
-                        .padding(horizontal = 24.dp, vertical = 16.dp),
-                    verticalArrangement = Arrangement.SpaceBetween
+                        .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 28.dp),
+                    verticalArrangement = Spread(SECTION_GAP, 56.dp)
                 ) {
                     top()
                     greetingBlock(false)
@@ -409,11 +419,11 @@ private fun DateBlock(
                 .padding(end = 8.dp, bottom = 2.dp)
         ) {
             Text(clock, color = P.Muted, fontSize = 15.sp)
-            Text(chinese, color = P.Faint, fontSize = 15.sp, modifier = Modifier.padding(top = 3.dp))
+            Text(chinese, color = P.Faint, fontSize = 15.sp, modifier = Modifier.padding(top = 4.dp))
             almanac?.let {
                 Text(
                     it.text, color = if (it.special) P.Accent else P.Faint, fontSize = 13.sp,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 3.dp)
+                    maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 6.dp)
                 )
             }
         }
@@ -450,7 +460,7 @@ private fun ChineseHelloLine(zh: ChineseHello, onSpeak: (String, SpeechLanguage)
         Modifier
             .clip(RoundedCornerShape(8.dp))
             .clickable(role = Role.Button, onClickLabel = "Say it") { onSpeak(zh.text, language) }
-            .padding(bottom = 2.dp)
+            .padding(bottom = 6.dp)
             .semantics { contentDescription = "${zh.text}, ${zh.reading}. ${language.label}." },
         verticalAlignment = Alignment.CenterVertically
     ) {
@@ -531,13 +541,13 @@ private fun DailyCard(word: DailyWord?, idiom: Idiom?, traditional: Boolean, scr
 private fun WordHalf(word: DailyWord, traditional: Boolean, script: ChineseScript, actions: HomeActions, modifier: Modifier) {
     val language = if (word.cantonese) SpeechLanguage.CANTONESE else SpeechLanguage.MANDARIN
     val written = word.written(traditional)
-    Column(modifier.padding(start = 16.dp, end = 6.dp, top = 12.dp, bottom = 6.dp)) {
+    Column(modifier.padding(start = 20.dp, end = 8.dp, top = 16.dp, bottom = 8.dp)) {
         Text(
             "WORD · ${languageMark(language, script)}", color = P.Faint, fontSize = 11.sp, letterSpacing = 1.2.sp,
             fontWeight = FontWeight.Medium
         )
-        Text(written, color = P.Text, fontSize = 24.sp, lineHeight = 30.sp, modifier = Modifier.padding(top = 4.dp))
-        Text(word.reading, color = P.Muted, fontSize = 13.sp)
+        Text(written, color = P.Text, fontSize = 24.sp, lineHeight = 30.sp, modifier = Modifier.padding(top = 8.dp))
+        Text(word.reading, color = P.Muted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp))
         Text(word.meaning, color = P.Text, fontSize = 14.sp, lineHeight = 19.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
         Row(Modifier.padding(top = 2.dp)) {
             IconButton(onClick = { actions.onSpeak(written, language) }, modifier = Modifier.size(44.dp)) {
@@ -560,11 +570,11 @@ private fun IdiomHalf(idiom: Idiom, traditional: Boolean, actions: HomeActions, 
     Column(
         modifier
             .clickable(role = Role.Button, onClickLabel = if (story) "Hide the story" else "Tell its story") { story = !story }
-            .padding(start = 16.dp, end = 16.dp, top = 12.dp, bottom = 12.dp)
+            .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 16.dp)
     ) {
         Text("IDIOM", color = P.Faint, fontSize = 11.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.Medium)
-        Text(idiom.written(traditional), color = P.Text, fontSize = 24.sp, lineHeight = 30.sp, modifier = Modifier.padding(top = 4.dp))
-        Text(idiom.pinyin, color = P.Muted, fontSize = 13.sp)
+        Text(idiom.written(traditional), color = P.Text, fontSize = 24.sp, lineHeight = 30.sp, modifier = Modifier.padding(top = 8.dp))
+        Text(idiom.pinyin, color = P.Muted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp))
         Text(idiom.meaning, color = P.Text, fontSize = 14.sp, lineHeight = 19.sp, maxLines = if (story) 4 else 2, overflow = TextOverflow.Ellipsis)
         if (story) {
             Text("Literally: ${idiom.literal}.", color = P.Muted, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 6.dp))
@@ -578,7 +588,7 @@ private fun IdiomHalf(idiom: Idiom, traditional: Boolean, actions: HomeActions, 
                     .padding(vertical = 6.dp)
             )
         } else {
-            Text("Tap for its story", color = P.Faint, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+            Text("Tap for its story", color = P.Faint, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
         }
     }
 }
@@ -651,11 +661,34 @@ private fun toneColor(tone: Tone): Color = when (tone) {
 }
 
 @Composable
-private fun SectionLabel(text: String) {
+private fun SectionLabel(text: String, gap: Dp = SECTION_LABEL_GAP) {
     Text(
         text.uppercase(), color = P.Faint, fontSize = 12.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Medium,
-        modifier = Modifier.padding(bottom = 10.dp).semantics { heading() }
+        modifier = Modifier.padding(bottom = gap).semantics { heading() }
     )
+}
+
+/** Space between the page's sections, and under a section's label. */
+private val SECTION_GAP = 32.dp
+private val SECTION_LABEL_GAP = 14.dp
+
+/**
+ * Like SpaceBetween while everything fits (gaps up to [max]), but never closer than [min]: once the
+ * page is taller than the screen it scrolls with steady gaps instead of squeezing them to nothing.
+ */
+private class Spread(private val min: Dp, private val max: Dp) : Arrangement.Vertical {
+    override val spacing: Dp = min
+
+    override fun Density.arrange(totalSize: Int, sizes: IntArray, outPositions: IntArray) {
+        if (sizes.isEmpty()) return
+        val gaps = (sizes.size - 1).coerceAtLeast(1)
+        val gap = ((totalSize - sizes.sum()) / gaps).coerceIn(min.roundToPx(), max.roundToPx())
+        var y = 0
+        sizes.forEachIndexed { i, size ->
+            outPositions[i] = y
+            y += size + gap
+        }
+    }
 }
 
 @Composable
@@ -706,12 +739,12 @@ private fun TodayTile(item: TodayItem, modifier: Modifier) {
     val shape = RoundedCornerShape(16.dp)
     Column(
         modifier
-            .heightIn(min = 100.dp)
+            .heightIn(min = 104.dp)
             .clip(shape)
             .border(1.dp, P.Border, shape)
             .clickable(role = Role.Button, onClick = item.onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.spacedBy(2.dp)
+            .padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(3.dp)
     ) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Icon(item.icon, contentDescription = null, tint = if (item.tone == Tone.LOBSTER) P.Lobster else P.Muted, modifier = Modifier.size(20.dp))
@@ -720,7 +753,10 @@ private fun TodayTile(item: TodayItem, modifier: Modifier) {
         }
         Text(item.value, color = toneColor(item.tone), fontSize = 21.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(item.title, color = P.Text, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(item.detail, color = P.Faint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            item.detail, color = P.Faint, fontSize = 12.sp, lineHeight = 16.sp,
+            maxLines = if (item.tone == Tone.LOBSTER) 2 else 1, overflow = TextOverflow.Ellipsis
+        )
     }
 }
 

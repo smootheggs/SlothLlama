@@ -107,7 +107,7 @@ internal fun HomeSettingsSection() {
         }
         ToggleRow(
             "A hello that notices the day",
-            "Birthdays, festivals, the season turning, something from the Lobster, cards waiting.",
+            "A birthday, a festival, the season turning.",
             s.contextGreeting
         ) { v -> vm.update { it.copy(contextGreeting = v) } }
         ChoiceRow(

@@ -38,7 +38,7 @@ data class GreetingOptions(
 
 /**
  * The hello at the top of Home: your name when you've given one, a line that notices the day
- * (a birthday, a festival, the season turning, something the Lobster brought, cards waiting),
+ * (a birthday, a festival, the season turning),
  * and a hello in Mandarin or Cantonese. Pure, so it can be tested.
  */
 object HomeGreeting {
@@ -51,8 +51,7 @@ object HomeGreeting {
             festivalToday != null && festivalToday.custom.isNotBlank() -> festivalToday.custom
             festivalToday != null && !festivalToday.isFestival -> "The season turns: ${festivalToday.english} begins today."
             festivalToday != null -> "Today is the ${festivalToday.english}."
-            f.caught > 0 && f.hour in 5..22 -> if (f.caught == 1) "The Lobster brought something back. 🦞" else "The Lobster brought back ${f.caught} things. 🦞"
-            f.due > 0 && f.hour in 6..21 -> if (f.due == 1) "One card is ready when you are." else "${f.due} cards are ready when you are."
+            // What the Lobster brought and cards due are in Today; the hello doesn't repeat them.
             else -> f.base.second
         }
         val language = when (o.language) {
