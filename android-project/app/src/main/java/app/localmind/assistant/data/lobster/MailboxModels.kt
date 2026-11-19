@@ -73,8 +73,8 @@ enum class OrderKind(val id: String, val label: String, val hint: String) {
     companion object {
         fun of(id: String) = entries.firstOrNull { it.id == id } ?: ASK
 
-        /** The kinds you can pick in the Lobster page's order box. */
-        val forOrderBox: List<OrderKind> get() = entries.filter { it != PRICES }
+        /** The kinds you can pick in the Lobster page's order box (Ask now runs as Research, so it isn't offered). */
+        val forOrderBox: List<OrderKind> get() = entries.filter { it != PRICES && it != ASK }
     }
 }
 

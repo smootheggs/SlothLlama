@@ -98,6 +98,11 @@ class LobsterViewModel @Inject constructor(
 
     fun dismiss(item: CaughtItem) = act { mailbox.remove(item); null }
 
+    /** Opens a chat where SlothLlama shapes a rough idea into a Lobster order (see [LobsterTips]). */
+    fun draftOrder(prompt: String) {
+        askInbox.post(LaunchRequest.Shared(prompt = prompt))
+    }
+
     fun clearMessage() {
         _message.value = null
     }

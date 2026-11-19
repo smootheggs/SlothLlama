@@ -121,7 +121,7 @@ fun LobsterScreen(viewModel: LobsterViewModel, onBack: () -> Unit, onRead: (Stri
                         val left: @Composable (Modifier) -> Unit = { m ->
                             Column(m) {
                                 StatusCard(state, busy, onPause = viewModel::setPaused)
-                                OrderBox(enabled = !busy, onSend = viewModel::send)
+                                OrderBox(enabled = !busy, onSend = viewModel::send, onDraft = viewModel::draftOrder)
                                 Orders(state.orders, onCancel = viewModel::cancel)
                             }
                         }
@@ -247,7 +247,7 @@ private fun StatusCard(state: MailboxState, busy: Boolean, onPause: (Boolean) ->
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun OrderBox(enabled: Boolean, onSend: (OrderKind, String, Boolean, String) -> Unit) {
+private fun OrderBox(enabled: Boolean, onSend: (OrderKind, String, Boolean, String) -> Unit, onDraft: (String) -> Unit) {
     var text by rememberSaveable { mutableStateOf("") }
     var kindId by rememberSaveable { mutableStateOf(OrderKind.RESEARCH.id) }
     var deep by rememberSaveable { mutableStateOf(false) }
@@ -258,7 +258,36 @@ private fun OrderBox(enabled: Boolean, onSend: (OrderKind, String, Boolean, Stri
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             OrderKind.forOrderBox.forEach { k -> Chip(k.label, k == kind) { kindId = k.id } }
         }
-        Text(kind.hint, color = P.Faint, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+        var tips by rememberSaveable { mutableStateOf(false) }
+        Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(kind.hint, color = P.Faint, fontSize = 12.sp, modifier = Modifier.weight(1f))
+            Text(
+                if (tips) "Hide tips" else "How to ask",
+                color = P.Faint, fontSize = 12.sp,
+                modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable { tips = !tips }.padding(horizontal = 6.dp, vertical = 4.dp)
+            )
+        }
+        if (tips) {
+            val tip = LobsterTips.forKind(kind)
+            Column(
+                Modifier.fillMaxWidth().padding(top = 6.dp).clip(RoundedCornerShape(12.dp)).background(P.Canvas).padding(12.dp)
+            ) {
+                Text(LobsterTips.HOW_IT_WORKS, color = P.Muted, fontSize = 12.sp, lineHeight = 17.sp)
+                if (tip.rule.isNotBlank()) {
+                    Text(tip.rule, color = P.Text, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 8.dp))
+                }
+                tip.examples.forEach { ex ->
+                    Text(
+                        ex, color = P.Accent, fontSize = 12.sp, lineHeight = 17.sp, fontFamily = FontFamily.Monospace,
+                        modifier = Modifier.fillMaxWidth().padding(top = 6.dp).clip(RoundedCornerShape(8.dp))
+                            .clickable { text = ex }.padding(6.dp)
+                    )
+                }
+                Text("Tap an example to use it, or let SlothLlama shape your idea into an order:",
+                    color = P.Faint, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                Action("Draft it in a chat") { onDraft(LobsterTips.draftPrompt(kind, text)) }
+            }
+        }
         Box(
             Modifier
                 .fillMaxWidth()
@@ -311,8 +340,13 @@ private fun OrderBox(enabled: Boolean, onSend: (OrderKind, String, Boolean, Stri
 @Composable
 private fun Orders(orders: List<OrderView>, onCancel: (app.localmind.assistant.data.lobster.SentOrder) -> Unit) {
     if (orders.isEmpty()) return
+    var showDone by rememberSaveable { mutableStateOf(false) }
+    val now = System.currentTimeMillis()
+    // Brought back more than a day ago: folded away, so the catch stays near the top.
+    val (recent, old) = orders.partition { it.state != OrderState.DONE || now - it.sent.order.createdAt < DAY_MS }
     Label("ORDERS")
-    orders.take(12).forEach { o ->
+    if (recent.isEmpty()) Text("Nothing in progress.", color = P.Muted, fontSize = 13.sp)
+    (if (showDone) recent + old else recent).take(20).forEach { o ->
         Row(Modifier.fillMaxWidth().padding(vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Column(Modifier.weight(1f)) {
                 Text(
@@ -328,7 +362,12 @@ private fun Orders(orders: List<OrderView>, onCancel: (app.localmind.assistant.d
         }
         HorizontalDivider(color = P.Border)
     }
+    if (old.isNotEmpty()) {
+        Action(if (showDone) "Hide earlier orders" else "Done earlier · ${old.size}", muted = true) { showDone = !showDone }
+    }
 }
+
+private const val DAY_MS = 24 * 60 * 60 * 1000L
 
 @Composable
 private fun Catch(
@@ -369,8 +408,9 @@ private fun Catch(
             // Tap the title or the preview to read it all.
             Column(Modifier.clickable { onRead(ci) }) {
                 Text(c.title, color = P.Text, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                if (c.text.isNotBlank()) {
-                    Text(c.text, color = P.Muted, fontSize = 13.sp, lineHeight = 19.sp, maxLines = 5, overflow = TextOverflow.Ellipsis,
+                val preview = remember(c.id) { plainPreview(c.text, c.title) }
+                if (preview.isNotBlank()) {
+                    Text(preview, color = P.Muted, fontSize = 13.sp, lineHeight = 19.sp, maxLines = 5, overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.padding(top = 4.dp))
                 }
             }
@@ -382,9 +422,12 @@ private fun Catch(
             }
             Row(Modifier.padding(top = 6.dp)) {
                 Action("Read") { onRead(ci) }
-                Action("Library") { onLibrary(ci) }
-                Action("Notes") { onNotes(ci) }
-                Action("Chat") { onChat(ci) }
+                // A message or an alert is something to read, not to file.
+                if (c.kind != "message" && c.kind != "alert") {
+                    Action("Library") { onLibrary(ci) }
+                    Action("Notes") { onNotes(ci) }
+                    Action("Chat") { onChat(ci) }
+                }
                 Spacer(Modifier.weight(1f))
                 Action("Dismiss", muted = true) { onDismiss(ci) }
             }

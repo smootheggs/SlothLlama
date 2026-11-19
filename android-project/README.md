@@ -144,7 +144,10 @@ model too big for the GPU falls back to the CPU on its own.
   with Syncthing). The Lobster page (Settings → SlothLobster) sets it up, sends orders
   (research, fetch, watch, brief), shows whether the Lobster is awake, and lists what it brought
   back for you to file in the Library, Notes or a chat. In a chat, "ask the lobster to …" sends
-  an order too. The format is in [docs/LOBSTER_MAILBOX.md](docs/LOBSTER_MAILBOX.md).
+  an order too. The format is in [docs/LOBSTER_MAILBOX.md](docs/LOBSTER_MAILBOX.md). **How to ask** (under the order box)
+  explains how the Lobster works, with examples for each kind, and **Draft it in a chat** has
+  SlothLlama shape a rough idea into a well-formed order. Old orders fold away after a day;
+  messages show only Read and Dismiss; previews show plain text.
 - **SlothDesk (paper trading).** Home → SlothDesk runs four starter strategies (gold trend with a
   GVZ filter, the gold/silver ratio, USD/JPY carry, a modelled GLD covered call) on daily prices,
   on the tablet, with the same engine and numbers as the Colab notebook: fills at the next open,
