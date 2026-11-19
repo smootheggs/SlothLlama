@@ -7,6 +7,7 @@ import androidx.compose.material.icons.outlined.LocalLibrary
 import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material.icons.outlined.Sailing
+import androidx.compose.material.icons.outlined.ShowChart
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.StickyNote2
 import androidx.compose.material.icons.outlined.Style
@@ -40,6 +41,7 @@ fun HomeRoute(
     onSettings: () -> Unit,
     onLibrary: () -> Unit,
     onNotes: () -> Unit,
+    onDesk: () -> Unit = {},
     onLobster: (() -> Unit)? = null,
     /** The Lobster's mailbox, when the Lobster is switched on. */
     lobster: MailboxState? = null
@@ -106,7 +108,8 @@ fun HomeRoute(
     val more = listOf(
         HomeTile(Icons.Outlined.ChatBubbleOutline, "Chats", "", onOpenChats),
         HomeTile(Icons.Outlined.PersonOutline, "Personas", "", onPersonas),
-        HomeTile(Icons.Outlined.Memory, "Models", ui.activeModelName.ifBlank { "choose one" }, onModels)
+        HomeTile(Icons.Outlined.Memory, "Models", ui.activeModelName.ifBlank { "choose one" }, onModels),
+        HomeTile(Icons.Outlined.ShowChart, "SlothDesk", "", onDesk)
     )
 
     HomeScreen(

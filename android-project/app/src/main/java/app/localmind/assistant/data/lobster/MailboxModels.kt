@@ -66,10 +66,15 @@ enum class OrderKind(val id: String, val label: String, val hint: String) {
     FETCH("fetch", "Fetch", "A link to bring back for offline reading"),
     WATCH("watch", "Watch", "A page or topic to keep an eye on"),
     BRIEF("brief", "Brief", "A short daily round-up"),
-    ASK("ask", "Ask", "Anything else");
+    ASK("ask", "Ask", "Anything else"),
+    /** (1.4) Daily prices for SlothDesk; sent from the Desk, not the order box. */
+    PRICES("prices", "Prices", "Daily prices for SlothDesk");
 
     companion object {
         fun of(id: String) = entries.firstOrNull { it.id == id } ?: ASK
+
+        /** The kinds you can pick in the Lobster page's order box. */
+        val forOrderBox: List<OrderKind> get() = entries.filter { it != PRICES }
     }
 }
 

@@ -145,6 +145,18 @@ model too big for the GPU falls back to the CPU on its own.
   (research, fetch, watch, brief), shows whether the Lobster is awake, and lists what it brought
   back for you to file in the Library, Notes or a chat. In a chat, "ask the lobster to …" sends
   an order too. The format is in [docs/LOBSTER_MAILBOX.md](docs/LOBSTER_MAILBOX.md).
+- **SlothDesk (paper trading).** Home → SlothDesk runs four starter strategies (gold trend with a
+  GVZ filter, the gold/silver ratio, USD/JPY carry, a modelled GLD covered call) on daily prices,
+  on the tablet, with the same engine and numbers as the Colab notebook: fills at the next open,
+  slippage, commission, borrow, financing and FX swap costs. Each strategy shows its held-out
+  years against buy-and-hold and against buy-and-hold at the same risk, a rerun with costs
+  doubled, the **deflated Sharpe ratio** (luck from trying many settings, counted on the tablet),
+  a reshuffled-history range, and six **gates** (enough trades, holds up held out, survives
+  doubled costs, not luck, nearby settings agree, paper-traded by the rules). Tonight's ticket
+  for each comes with a drawdown guardrail and a **paper journal** (followed or not, and which
+  slip). Prices come from the Lobster (a Prices order, once or every day; ETFs need a free Tiingo
+  key in the Lobster) or a prices file from Colab. "Ask about this" attaches a report to a chat,
+  which explains it; the numbers are always worked out in code. Nothing connects to a broker.
 - **Reader.** Tap **Read** on a catch (the morning brief, a fetched page, research), a Library
   document or a note to read it in full: headings, lists and links laid out for reading, text
   size (A− / A+), find in text, and it reopens where you stopped. Tap a link to have the Lobster

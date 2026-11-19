@@ -207,7 +207,7 @@ private fun Shelf(viewModel: ReaderViewModel, selectedKey: String?, onOpen: (Rea
 
     val rows = when (tab) {
         ShelfTab.CATCH -> mailbox.catch.mapNotNull { ci ->
-            ci.item?.let { c -> ShelfRow(ReaderSource.CATCH, ci.fileName, "catch:${c.id}", c.title, c.kind.replaceFirstChar { it.uppercase() }) }
+            ci.item?.takeIf { it.kind != "prices" }?.let { c -> ShelfRow(ReaderSource.CATCH, ci.fileName, "catch:${c.id}", c.title, c.kind.replaceFirstChar { it.uppercase() }) }
         }
         ShelfTab.LIBRARY -> library.orEmpty().filter { it.kind == LibraryKind.DOCUMENT }.map {
             ShelfRow(ReaderSource.LIBRARY, it.id.toString(), "lib:${it.id}", it.name, it.detail)
@@ -222,7 +222,7 @@ private fun Shelf(viewModel: ReaderViewModel, selectedKey: String?, onOpen: (Rea
         Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             ShelfTab.entries.forEach { t ->
                 val count = when (t) {
-                    ShelfTab.CATCH -> mailbox.catch.count { it.item != null }
+                    ShelfTab.CATCH -> mailbox.catch.count { it.item != null && it.item.kind != "prices" }
                     ShelfTab.LIBRARY -> library.orEmpty().count { it.kind == LibraryKind.DOCUMENT }
                     ShelfTab.NOTES -> notes.size
                 }

@@ -45,7 +45,9 @@ data class BackupContents(
     /** What else was on the device (names only), so a restore can list what to import again. */
     val inventory: BackupInventory = BackupInventory(),
     /** Memory of you (Settings → Memory). */
-    val memories: List<UserMemoryEntity> = emptyList()
+    val memories: List<UserMemoryEntity> = emptyList(),
+    /** SlothDesk's settings, trial log and paper journal (desk/state.json); prices are fetched again. */
+    val desk: String? = null
 )
 
 /** Names of the models and Library files, which are too large to go into a backup. */
@@ -84,6 +86,7 @@ class BackupManager @Inject constructor(
     private val database: LocalMindDatabase,
     private val dao: LocalMindDao,
     private val notes: app.localmind.assistant.data.tools.NotesStore,
+    private val desk: app.localmind.assistant.data.desk.DeskStore,
     private val models: app.localmind.assistant.data.models.ModelLibrary,
     private val library: app.localmind.assistant.data.library.LibraryStore
 ) {
@@ -99,7 +102,8 @@ class BackupManager @Inject constructor(
             flashcards = dao.getAllVocabulary(),
             settings = readSettings(),
             inventory = inventory(),
-            memories = dao.getAllMemories()
+            memories = dao.getAllMemories(),
+            desk = desk.backupText()
         )
         val payload = gzip(json.encodeToString(BackupContents.serializer(), contents).toByteArray())
         val bytes = if (password.isNullOrEmpty()) header(encrypted = false) + payload else seal(payload, password)
@@ -141,6 +145,7 @@ class BackupManager @Inject constructor(
         }
         writeSettings(contents.settings)
         notes.reload()
+        contents.desk?.let { runCatching { desk.mergeBackup(it) } }
         val here = inventory()
         contents.summary().copy(
             missingModels = contents.inventory.models - here.models.toSet(),

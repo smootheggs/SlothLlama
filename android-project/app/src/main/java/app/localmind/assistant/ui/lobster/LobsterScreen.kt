@@ -73,7 +73,7 @@ import kotlinx.coroutines.delay
  * The Lobster is a separate app that goes online; SlothLlama only shares a mailbox folder with it.
  */
 @Composable
-fun LobsterScreen(viewModel: LobsterViewModel, onBack: () -> Unit, onRead: (String) -> Unit = {}) {
+fun LobsterScreen(viewModel: LobsterViewModel, onBack: () -> Unit, onRead: (String) -> Unit = {}, onDesk: () -> Unit = {}) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
@@ -133,7 +133,8 @@ fun LobsterScreen(viewModel: LobsterViewModel, onBack: () -> Unit, onRead: (Stri
                                     onNotes = viewModel::toNotes,
                                     onChat = viewModel::toChat,
                                     onDismiss = viewModel::dismiss,
-                                    onRead = { onRead(it.fileName) }
+                                    onRead = { onRead(it.fileName) },
+                                    onDesk = onDesk
                                 )
                                 Pairing(
                                     folderName = state.folderName.orEmpty(),
@@ -255,7 +256,7 @@ private fun OrderBox(enabled: Boolean, onSend: (OrderKind, String, Boolean, Stri
     Label("NEW ORDER")
     Card {
         FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            OrderKind.entries.forEach { k -> Chip(k.label, k == kind) { kindId = k.id } }
+            OrderKind.forOrderBox.forEach { k -> Chip(k.label, k == kind) { kindId = k.id } }
         }
         Text(kind.hint, color = P.Faint, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
         Box(
@@ -336,7 +337,8 @@ private fun Catch(
     onNotes: (CaughtItem) -> Unit,
     onChat: (CaughtItem) -> Unit,
     onDismiss: (CaughtItem) -> Unit,
-    onRead: (CaughtItem) -> Unit
+    onRead: (CaughtItem) -> Unit,
+    onDesk: () -> Unit
 ) {
     Label(if (items.isEmpty()) "THE CATCH" else "THE CATCH · ${items.size}")
     if (items.isEmpty()) {
@@ -350,6 +352,17 @@ private fun Catch(
                 Text("A file that can't be opened", color = P.Text, fontSize = 15.sp)
                 Text("It may be damaged, or sealed with an older key.", color = P.Muted, fontSize = 13.sp)
                 Row { Spacer(Modifier.weight(1f)); Action("Dismiss") { onDismiss(ci) } }
+                return@Card
+            }
+            if (c.kind == "prices") {
+                // SlothDesk takes these in itself when its page opens.
+                Text("Prices for SlothDesk · ${ago(c.createdAt)}", color = P.Faint, fontSize = 11.sp)
+                Text(c.title, color = P.Text, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+                Row(Modifier.padding(top = 6.dp)) {
+                    Action("Open SlothDesk") { onDesk() }
+                    Spacer(Modifier.weight(1f))
+                    Action("Dismiss", muted = true) { onDismiss(ci) }
+                }
                 return@Card
             }
             Text("${c.kind.replaceFirstChar { it.uppercase() }} · ${ago(c.createdAt)}", color = P.Faint, fontSize = 11.sp)

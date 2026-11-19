@@ -41,6 +41,8 @@ import app.localmind.assistant.ui.library.LibraryViewModel
 import app.localmind.assistant.ui.lobster.LobsterScreen
 import app.localmind.assistant.ui.lobster.LobsterViewModel
 import app.localmind.assistant.ui.notes.NotesScreen
+import app.localmind.assistant.ui.desk.DeskScreen
+import app.localmind.assistant.ui.desk.DeskViewModel
 import app.localmind.assistant.ui.reader.ReaderScreen
 import app.localmind.assistant.ui.reader.ReaderSource
 import app.localmind.assistant.ui.reader.ReaderViewModel
@@ -184,7 +186,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES, LOBSTER, READER }
+private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES, LOBSTER, READER, DESK }
 
 /**
  * Home (or the last chat, per Settings) on a fresh start. Screens open on top of each other and
@@ -291,6 +293,7 @@ private fun SlothRoot(
                     onSettings = { navigate(Destination.SETTINGS) },
                     onLibrary = { navigate(Destination.LIBRARY) },
                     onNotes = { navigate(Destination.NOTES) },
+                    onDesk = { navigate(Destination.DESK) },
                     onLobster = openLobster,
                     lobster = lobsterState.takeIf { it.enabled }
                 )
@@ -330,7 +333,13 @@ private fun SlothRoot(
                 Destination.LOBSTER -> LobsterScreen(
                     viewModel = lobster,
                     onBack = goHome,
-                    onRead = { fileName -> read(ReaderSource.CATCH, fileName) }
+                    onRead = { fileName -> read(ReaderSource.CATCH, fileName) },
+                    onDesk = { navigate(Destination.DESK) }
+                )
+                Destination.DESK -> DeskScreen(
+                    viewModel = hiltViewModel<DeskViewModel>(),
+                    onBack = goHome,
+                    onOpenLobster = { navigate(Destination.LOBSTER) }
                 )
                 Destination.READER -> ReaderScreen(
                     viewModel = reader,
