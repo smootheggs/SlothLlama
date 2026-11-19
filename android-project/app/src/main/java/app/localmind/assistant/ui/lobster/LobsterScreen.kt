@@ -73,7 +73,7 @@ import kotlinx.coroutines.delay
  * The Lobster is a separate app that goes online; SlothLlama only shares a mailbox folder with it.
  */
 @Composable
-fun LobsterScreen(viewModel: LobsterViewModel, onBack: () -> Unit) {
+fun LobsterScreen(viewModel: LobsterViewModel, onBack: () -> Unit, onRead: (String) -> Unit = {}) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
@@ -132,7 +132,8 @@ fun LobsterScreen(viewModel: LobsterViewModel, onBack: () -> Unit) {
                                     onLibrary = viewModel::toLibrary,
                                     onNotes = viewModel::toNotes,
                                     onChat = viewModel::toChat,
-                                    onDismiss = viewModel::dismiss
+                                    onDismiss = viewModel::dismiss,
+                                    onRead = { onRead(it.fileName) }
                                 )
                                 Pairing(
                                     folderName = state.folderName.orEmpty(),
@@ -334,7 +335,8 @@ private fun Catch(
     onLibrary: (CaughtItem) -> Unit,
     onNotes: (CaughtItem) -> Unit,
     onChat: (CaughtItem) -> Unit,
-    onDismiss: (CaughtItem) -> Unit
+    onDismiss: (CaughtItem) -> Unit,
+    onRead: (CaughtItem) -> Unit
 ) {
     Label(if (items.isEmpty()) "THE CATCH" else "THE CATCH · ${items.size}")
     if (items.isEmpty()) {
@@ -351,10 +353,13 @@ private fun Catch(
                 return@Card
             }
             Text("${c.kind.replaceFirstChar { it.uppercase() }} · ${ago(c.createdAt)}", color = P.Faint, fontSize = 11.sp)
-            Text(c.title, color = P.Text, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
-            if (c.text.isNotBlank()) {
-                Text(c.text, color = P.Muted, fontSize = 13.sp, lineHeight = 19.sp, maxLines = 5, overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 4.dp))
+            // Tap the title or the preview to read it all.
+            Column(Modifier.clickable { onRead(ci) }) {
+                Text(c.title, color = P.Text, fontSize = 16.sp, fontWeight = FontWeight.Medium, maxLines = 2, overflow = TextOverflow.Ellipsis)
+                if (c.text.isNotBlank()) {
+                    Text(c.text, color = P.Muted, fontSize = 13.sp, lineHeight = 19.sp, maxLines = 5, overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(top = 4.dp))
+                }
             }
             if (c.sources.isNotEmpty()) {
                 Text("${c.sources.size} source${if (c.sources.size == 1) "" else "s"}: " +
@@ -363,6 +368,7 @@ private fun Catch(
                     modifier = Modifier.padding(top = 4.dp))
             }
             Row(Modifier.padding(top = 6.dp)) {
+                Action("Read") { onRead(ci) }
                 Action("Library") { onLibrary(ci) }
                 Action("Notes") { onNotes(ci) }
                 Action("Chat") { onChat(ci) }

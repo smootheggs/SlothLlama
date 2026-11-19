@@ -145,6 +145,13 @@ model too big for the GPU falls back to the CPU on its own.
   (research, fetch, watch, brief), shows whether the Lobster is awake, and lists what it brought
   back for you to file in the Library, Notes or a chat. In a chat, "ask the lobster to …" sends
   an order too. The format is in [docs/LOBSTER_MAILBOX.md](docs/LOBSTER_MAILBOX.md).
+- **Reader.** Tap **Read** on a catch (the morning brief, a fetched page, research), a Library
+  document or a note to read it in full: headings, lists and links laid out for reading, text
+  size (A− / A+), find in text, and it reopens where you stopped. Tap a link to have the Lobster
+  fetch it, or pick several headlines with **+** and send them together; the reader itself never
+  opens a link. Press and hold a paragraph to save it to Notes or ask a new chat to explain,
+  simplify, translate or sum it up (the passage goes along as an attachment). Share sends the
+  text as Markdown. On a tablet held sideways the catch, the Library and Notes sit beside it.
 - **Backups.** Settings → Backup: one file with chats, custom personas, flashcards, notes and settings,
   optionally AES-256 encrypted with a password. Restore adds it back. Models aren't included, but
   a backup lists their names (and the Library's), so a restore shows what to import again.

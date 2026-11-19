@@ -529,6 +529,30 @@ class LibraryStore @Inject constructor(
             else LibraryPassage(title = c.getString(0), where = c.getString(1), text = c.getString(2))
         }
 
+    /**
+     * A document put back together from its passages, for the reader: (name, text), with each new
+     * heading as a Markdown heading. Null for a Wikipedia file (read in place, not stored) or a
+     * document that's gone. Stops at [maxChars] so a very long book can't fill the memory.
+     */
+    suspend fun fullText(id: Long, maxChars: Int = 2_000_000): Pair<String, String>? = withContext(io) {
+        val r = db.readableDatabase
+        val name = r.rawQuery("SELECT name, kind FROM documents WHERE id = ?", arrayOf(id.toString())).use { c ->
+            if (!c.moveToFirst() || c.getString(1) == LibraryKind.WIKI.name) null else c.getString(0)
+        } ?: return@withContext null
+        val sb = StringBuilder()
+        var heading = ""
+        r.rawQuery("SELECT heading, text FROM chunks WHERE doc_id = ? ORDER BY ord", arrayOf(id.toString())).use { c ->
+            while (c.moveToNext() && sb.length < maxChars) {
+                val h = c.getString(0)
+                if (h.isNotBlank() && h != heading) sb.append("## ").append(h).append("\n\n")
+                heading = h
+                sb.append(c.getString(1)).append("\n\n")
+            }
+        }
+        if (sb.length >= maxChars) sb.append("\n\n(The rest of this book is in the library but too long to show here.)")
+        name to sb.toString().trim()
+    }
+
     private fun readItems(): List<LibraryItem> =
         db.readableDatabase.rawQuery(
             "SELECT id, name, kind, detail, added_at, enabled FROM documents ORDER BY added_at DESC", null

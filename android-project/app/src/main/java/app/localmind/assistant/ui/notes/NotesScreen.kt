@@ -54,7 +54,7 @@ import java.util.Date
 
 /** Quick notes: written here, or by saying "take a note: …" to an assistant in a chat. */
 @Composable
-fun NotesScreen(viewModel: NotesViewModel, onBack: () -> Unit) {
+fun NotesScreen(viewModel: NotesViewModel, onBack: () -> Unit, onRead: (String) -> Unit = {}) {
     val notes by viewModel.notes.collectAsStateWithLifecycle()
     var draft by rememberSaveable { mutableStateOf("") }
     var editing by remember { mutableStateOf<Note?>(null) }
@@ -112,7 +112,7 @@ fun NotesScreen(viewModel: NotesViewModel, onBack: () -> Unit) {
                         verticalArrangement = Arrangement.spacedBy(10.dp)
                     ) {
                         items(notes, key = { it.id }) { note ->
-                            NoteCard(note, onEdit = { editing = note }, onDelete = { viewModel.remove(note) })
+                            NoteCard(note, onEdit = { editing = note }, onDelete = { viewModel.remove(note) }, onRead = { onRead(note.id) })
                         }
                     }
                 }
@@ -146,7 +146,7 @@ fun NotesScreen(viewModel: NotesViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-private fun NoteCard(note: Note, onEdit: () -> Unit, onDelete: () -> Unit) {
+private fun NoteCard(note: Note, onEdit: () -> Unit, onDelete: () -> Unit, onRead: () -> Unit) {
     val shape = RoundedCornerShape(14.dp)
     Column(
         Modifier
@@ -165,6 +165,10 @@ private fun NoteCard(note: Note, onEdit: () -> Unit, onDelete: () -> Unit) {
             Text(
                 DateFormat.getDateTimeInstance(DateFormat.MEDIUM, DateFormat.SHORT).format(Date(note.createdAt)),
                 color = P.Faint, fontSize = 11.sp, modifier = Modifier.weight(1f)
+            )
+            Text(
+                "Read", color = P.Accent, fontSize = 13.sp, fontWeight = FontWeight.Medium,
+                modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(onClick = onRead).padding(horizontal = 10.dp, vertical = 8.dp)
             )
             IconButton(onClick = onDelete) {
                 Icon(Icons.Outlined.Delete, contentDescription = "Delete note", tint = P.Muted, modifier = Modifier.size(18.dp))

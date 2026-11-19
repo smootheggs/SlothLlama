@@ -76,7 +76,7 @@ import app.localmind.assistant.ui.theme.SlothPalette as P
  * in place, and a test search. In landscape the list and the search sit side by side.
  */
 @Composable
-fun LibraryScreen(viewModel: LibraryViewModel, onBack: () -> Unit) {
+fun LibraryScreen(viewModel: LibraryViewModel, onBack: () -> Unit, onRead: (Long) -> Unit = {}) {
     val items by viewModel.items.collectAsStateWithLifecycle()
     val working by viewModel.working.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
@@ -123,6 +123,7 @@ fun LibraryScreen(viewModel: LibraryViewModel, onBack: () -> Unit) {
                         onAddWiki = { wikiPicker.launch(arrayOf("*/*")) },
                         onToggle = viewModel::setEnabled,
                         onRemove = { pendingRemove = it },
+                        onRead = { onRead(it.id) },
                         modifier = m,
                         meaningCard = {
                             MeaningCard(
@@ -206,6 +207,7 @@ private fun Shelf(
     onAddWiki: () -> Unit,
     onToggle: (LibraryItem, Boolean) -> Unit,
     onRemove: (LibraryItem) -> Unit,
+    onRead: (LibraryItem) -> Unit,
     modifier: Modifier,
     meaningCard: @Composable () -> Unit = {}
 ) {
@@ -233,7 +235,7 @@ private fun Shelf(
             )
         }
         list.forEach { item ->
-            ItemRow(item, onToggle = { onToggle(item, it) }, onRemove = { onRemove(item) })
+            ItemRow(item, onToggle = { onToggle(item, it) }, onRemove = { onRemove(item) }, onRead = { onRead(item) })
         }
     }
 }
@@ -260,7 +262,7 @@ private fun AddButton(icon: ImageVector, label: String, detail: String, modifier
 }
 
 @Composable
-private fun ItemRow(item: LibraryItem, onToggle: (Boolean) -> Unit, onRemove: () -> Unit) {
+private fun ItemRow(item: LibraryItem, onToggle: (Boolean) -> Unit, onRemove: () -> Unit, onRead: () -> Unit) {
     Row(Modifier.fillMaxWidth().padding(top = 14.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier.size(36.dp).clip(CircleShape).background(P.Elevated),
@@ -272,7 +274,9 @@ private fun ItemRow(item: LibraryItem, onToggle: (Boolean) -> Unit, onRemove: ()
             )
         }
         Spacer(Modifier.width(12.dp))
-        Column(Modifier.weight(1f)) {
+        // Documents open in the reader; a Wikipedia file is searched, not read through.
+        val readable = item.kind == LibraryKind.DOCUMENT
+        Column(Modifier.weight(1f).clickable(enabled = readable, onClick = onRead)) {
             Text(item.name, color = if (item.enabled) P.Text else P.Muted, fontSize = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             Text(item.detail, color = P.Faint, fontSize = 12.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
         }

@@ -41,6 +41,9 @@ import app.localmind.assistant.ui.library.LibraryViewModel
 import app.localmind.assistant.ui.lobster.LobsterScreen
 import app.localmind.assistant.ui.lobster.LobsterViewModel
 import app.localmind.assistant.ui.notes.NotesScreen
+import app.localmind.assistant.ui.reader.ReaderScreen
+import app.localmind.assistant.ui.reader.ReaderSource
+import app.localmind.assistant.ui.reader.ReaderViewModel
 import app.localmind.assistant.ui.notes.NotesViewModel
 import app.localmind.assistant.ui.home.HomeRoute
 import app.localmind.assistant.ui.dictionary.DictionaryViewModel
@@ -181,7 +184,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES, LOBSTER }
+private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES, LOBSTER, READER }
 
 /**
  * Home (or the last chat, per Settings) on a fresh start. Screens open on top of each other and
@@ -260,6 +263,15 @@ private fun SlothRoot(
     LaunchedEffect(lobsterState.enabled) {
         if (lobsterState.enabled) lobster.refresh()
     }
+    // The reader: one for the whole app, so Back from a chat it opened returns to the same text.
+    val reader: ReaderViewModel = hiltViewModel()
+    val read: (ReaderSource, String) -> Unit = { source, ref ->
+        reader.open(source, ref)
+        navigate(Destination.READER)
+    }
+    fun withCatch(fileName: String, action: (app.localmind.assistant.data.lobster.CaughtItem) -> Unit) {
+        lobsterState.catch.firstOrNull { it.fileName == fileName }?.let(action)
+    }
 
     Box(Modifier.fillMaxSize().background(P.Canvas)) {
         Crossfade(targetState = destination, animationSpec = tween(180), label = "destination") { screen ->
@@ -305,9 +317,28 @@ private fun SlothRoot(
                 Destination.MODELS -> ModelsScreen(viewModel = hiltViewModel<ModelsViewModel>(), onBack = goHome)
                 Destination.FLASHCARDS -> FlashcardsScreen(viewModel = hiltViewModel<FlashcardsViewModel>(), onBack = goHome)
                 Destination.DICTIONARY -> DictionaryScreen(viewModel = hiltViewModel<DictionaryViewModel>(), onBack = goHome)
-                Destination.LIBRARY -> LibraryScreen(viewModel = hiltViewModel<LibraryViewModel>(), onBack = goHome)
-                Destination.NOTES -> NotesScreen(viewModel = hiltViewModel<NotesViewModel>(), onBack = goHome)
-                Destination.LOBSTER -> LobsterScreen(viewModel = lobster, onBack = goHome)
+                Destination.LIBRARY -> LibraryScreen(
+                    viewModel = hiltViewModel<LibraryViewModel>(),
+                    onBack = goHome,
+                    onRead = { id -> read(ReaderSource.LIBRARY, id.toString()) }
+                )
+                Destination.NOTES -> NotesScreen(
+                    viewModel = hiltViewModel<NotesViewModel>(),
+                    onBack = goHome,
+                    onRead = { id -> read(ReaderSource.NOTE, id) }
+                )
+                Destination.LOBSTER -> LobsterScreen(
+                    viewModel = lobster,
+                    onBack = goHome,
+                    onRead = { fileName -> read(ReaderSource.CATCH, fileName) }
+                )
+                Destination.READER -> ReaderScreen(
+                    viewModel = reader,
+                    onBack = goHome,
+                    onCatchToLibrary = { f -> withCatch(f, lobster::toLibrary) },
+                    onCatchToNotes = { f -> withCatch(f, lobster::toNotes) },
+                    onCatchDismiss = { f -> withCatch(f, lobster::dismiss) }
+                )
                 Destination.SETTINGS -> SettingsScreen(
                     themeMode = themeMode,
                     onThemeModeChange = onThemeModeChange,
