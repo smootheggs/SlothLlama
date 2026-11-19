@@ -27,8 +27,9 @@
         <intent>
             <action android:name="android.intent.action.TTS_SERVICE" />
         </intent>
-        <!-- Ourjong, the mahjong app: only so Home can open it. Nothing is shared with it. -->
+        <!-- Ourjong, the mahjong app (release and dev builds): only so Home can open it. Nothing is shared with it. -->
         <package android:name="app.ourjong" />
+        <package android:name="app.ourjong.debug" />
     </queries>
 
     <application

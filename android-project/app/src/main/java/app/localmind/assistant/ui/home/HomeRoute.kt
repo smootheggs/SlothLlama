@@ -94,7 +94,7 @@ fun HomeRoute(
     // Ourjong is a separate app: look for it each time Home comes back into view.
     var ourjong by remember { mutableStateOf<Intent?>(null) }
     LifecycleResumeEffect(Unit) {
-        ourjong = runCatching { context.packageManager.getLaunchIntentForPackage(OURJONG) }.getOrNull()
+        ourjong = OURJONG.firstNotNullOfOrNull { pkg -> runCatching { context.packageManager.getLaunchIntentForPackage(pkg) }.getOrNull() }
         onPauseOrDispose { }
     }
 
@@ -240,7 +240,8 @@ fun HomeRoute(
     )
 }
 
-private const val OURJONG = "app.ourjong"
+/** Ourjong's release build, then its dev build ("Ourjong Dev"). */
+private val OURJONG = listOf("app.ourjong", "app.ourjong.debug")
 
 /** Desk tickets older than this many business days aren't "today" any more. */
 private const val FRESH_DAYS = 2
