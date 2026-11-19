@@ -12,6 +12,8 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.activity.viewModels
 import androidx.core.content.ContextCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -41,6 +43,18 @@ class MainActivity : ComponentActivity() {
                 val style = if (colors.isDark) SystemBarStyle.dark(Color.TRANSPARENT)
                 else SystemBarStyle.light(Color.TRANSPARENT, Color.TRANSPARENT)
                 enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+            }
+            // Full screen: the status bar and the taskbar hide; a swipe from the edge shows them for a moment.
+            val fullScreen = saved.settings.fullScreen
+            LaunchedEffect(fullScreen) {
+                WindowInsetsControllerCompat(window, window.decorView).apply {
+                    if (fullScreen) {
+                        systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                        hide(WindowInsetsCompat.Type.systemBars())
+                    } else {
+                        show(WindowInsetsCompat.Type.systemBars())
+                    }
+                }
             }
             LobsterTheme(colors) { LobsterUi(vm) }
         }

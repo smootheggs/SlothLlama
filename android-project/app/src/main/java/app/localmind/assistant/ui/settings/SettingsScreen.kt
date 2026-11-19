@@ -88,6 +88,8 @@ fun SettingsScreen(
     onThemeModeChange: (ThemeMode) -> Unit,
     privacyScreen: Boolean,
     onPrivacyScreenChange: (Boolean) -> Unit,
+    fullScreen: Boolean,
+    onFullScreenChange: (Boolean) -> Unit,
     chineseStyle: ChineseStyle,
     onChineseScriptChange: (ChineseScript) -> Unit,
     onRomanizationChange: (Boolean) -> Unit,
@@ -183,6 +185,13 @@ fun SettingsScreen(
                         detail = "Follow the tablet's light / dark setting",
                         selected = themeMode == ThemeMode.SYSTEM,
                         onClick = { onThemeModeChange(ThemeMode.SYSTEM) }
+                    )
+                    HorizontalDivider(color = P.Border)
+                    ToggleRow(
+                        title = "Full screen",
+                        detail = "Hide the status bar and the taskbar. Swipe in from the bottom or top edge to show them for a moment.",
+                        checked = fullScreen,
+                        onCheckedChange = onFullScreenChange
                     )
                     HorizontalDivider(color = P.Border)
                     ToggleRow(

@@ -187,6 +187,15 @@ fun SettingsScreen(
                         )
                     }
                 }
+                Panel {
+                    SwitchRow(
+                        "Full screen",
+                        "Hide the status bar and the taskbar. Swipe in from the edge to show them for a moment.",
+                        s.fullScreen,
+                        { on -> onSettings { it.copy(fullScreen = on) } },
+                        divider = false
+                    )
+                }
             }
 
             Section("Brain") {

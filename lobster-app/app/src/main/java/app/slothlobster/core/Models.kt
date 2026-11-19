@@ -156,7 +156,9 @@ data class Settings(
     val pausedHere: Boolean = false,
     val lastBriefDay: String? = null,
     /** Settings → Look: "oled", "white" or "system". */
-    val theme: String = "oled"
+    val theme: String = "oled",
+    /** Settings → Look: hide the status bar and the taskbar (a swipe from the edge shows them). */
+    val fullScreen: Boolean = false
 ) {
     companion object {
         val DEFAULT_FEEDS = listOf(

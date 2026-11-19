@@ -14,6 +14,9 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -113,6 +116,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val mode by appearance.mode.collectAsStateWithLifecycle()
             val privacyScreen by appearance.privacyScreen.collectAsStateWithLifecycle()
+            val fullScreen by appearance.fullScreen.collectAsStateWithLifecycle()
             val chineseStyle by chineseStyleStore.style.collectAsStateWithLifecycle()
             val thinking by assistantSettings.thinking.collectAsStateWithLifecycle()
             val colors = resolveColors(mode)
@@ -121,6 +125,19 @@ class MainActivity : ComponentActivity() {
             DisposableEffect(privacyScreen) {
                 if (privacyScreen) window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
                 else window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                onDispose { }
+            }
+
+            // Full screen: the status bar and the tablet's taskbar hide; a swipe from the edge shows them for a moment.
+            DisposableEffect(fullScreen) {
+                WindowInsetsControllerCompat(window, window.decorView).apply {
+                    if (fullScreen) {
+                        systemBarsBehavior = WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+                        hide(WindowInsetsCompat.Type.systemBars())
+                    } else {
+                        show(WindowInsetsCompat.Type.systemBars())
+                    }
+                }
                 onDispose { }
             }
 
@@ -141,6 +158,8 @@ class MainActivity : ComponentActivity() {
                         onThemeModeChange = appearance::set,
                         privacyScreen = privacyScreen,
                         onPrivacyScreenChange = appearance::setPrivacyScreen,
+                        fullScreen = fullScreen,
+                        onFullScreenChange = appearance::setFullScreen,
                         chineseStyle = chineseStyle,
                         onChineseScriptChange = chineseStyleStore::setScript,
                         onRomanizationChange = chineseStyleStore::setRomanization,
@@ -198,6 +217,8 @@ private fun SlothRoot(
     onThemeModeChange: (ThemeMode) -> Unit,
     privacyScreen: Boolean,
     onPrivacyScreenChange: (Boolean) -> Unit,
+    fullScreen: Boolean,
+    onFullScreenChange: (Boolean) -> Unit,
     chineseStyle: ChineseStyle,
     onChineseScriptChange: (ChineseScript) -> Unit,
     onRomanizationChange: (Boolean) -> Unit,
@@ -275,7 +296,9 @@ private fun SlothRoot(
         lobsterState.catch.firstOrNull { it.fileName == fileName }?.let(action)
     }
 
-    Box(Modifier.fillMaxSize().background(P.Canvas)) {
+    // Every page stays clear of the navigation bar and a tablet's taskbar (they draw over the app
+    // edge to edge); padding here also covers pages, snackbars and buttons that don't pad themselves.
+    Box(Modifier.fillMaxSize().background(P.Canvas).navigationBarsPadding()) {
         Crossfade(targetState = destination, animationSpec = tween(180), label = "destination") { screen ->
             when (screen) {
                 Destination.HOME -> HomeRoute(
@@ -353,6 +376,8 @@ private fun SlothRoot(
                     onThemeModeChange = onThemeModeChange,
                     privacyScreen = privacyScreen,
                     onPrivacyScreenChange = onPrivacyScreenChange,
+                    fullScreen = fullScreen,
+                    onFullScreenChange = onFullScreenChange,
                     chineseStyle = chineseStyle,
                     onChineseScriptChange = onChineseScriptChange,
                     onRomanizationChange = onRomanizationChange,

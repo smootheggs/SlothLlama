@@ -182,8 +182,18 @@ class AppearanceStore @Inject constructor(@ApplicationContext context: Context) 
         _privacyScreen.value = enabled
     }
 
+    private val _fullScreen = MutableStateFlow(prefs.getBoolean(KEY_FULL_SCREEN, false))
+    /** Hides the status bar and the tablet's taskbar; a swipe from the edge brings them back for a moment. */
+    val fullScreen: StateFlow<Boolean> = _fullScreen.asStateFlow()
+
+    fun setFullScreen(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_FULL_SCREEN, enabled).apply()
+        _fullScreen.value = enabled
+    }
+
     private companion object {
         const val KEY = "theme_mode"
         const val KEY_PRIVACY = "privacy_screen"
+        const val KEY_FULL_SCREEN = "full_screen"
     }
 }
