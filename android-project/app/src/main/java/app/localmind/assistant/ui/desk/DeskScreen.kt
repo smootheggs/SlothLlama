@@ -25,7 +25,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.outlined.MoreHoriz
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.SnackbarHost
@@ -48,7 +56,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -97,12 +111,43 @@ fun DeskScreen(viewModel: DeskViewModel, onBack: () -> Unit, onOpenLobster: () -
     }
     val lobsterReady = lobster.enabled && lobster.folderName != null
     val pick = { picker.launch(arrayOf("application/json", "text/plain", "*/*")) }
+    var menu by remember { mutableStateOf(false) }
+    // The strategy shown in full; the others are rows beneath it.
+    var featured by rememberSaveable { mutableStateOf<String?>(null) }
+    val shown = ui.reports.firstOrNull { it.key == featured } ?: ui.reports.firstOrNull()
 
     Box(Modifier.fillMaxSize().background(P.Canvas)) {
         Column(Modifier.fillMaxSize()) {
-            SlothTopBar(title = "SlothDesk", subtitle = "Paper trading · nothing goes to a broker", onBack = onBack)
+            SlothTopBar(
+                title = "SlothDesk",
+                subtitle = "Paper trading · nothing goes to a broker",
+                onBack = onBack,
+                actions = {
+                    Box {
+                        IconButton(onClick = { menu = true }) {
+                            Icon(Icons.Outlined.MoreHoriz, contentDescription = "More", tint = P.Muted)
+                        }
+                        DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, modifier = Modifier.background(P.Elevated)) {
+                            if (lobsterReady && !ui.state.dailyOrderSent) {
+                                DropdownMenuItem(text = { Text("Prices every evening (18:30)", color = P.Text) }, onClick = { menu = false; viewModel.daily("18:30") })
+                                DropdownMenuItem(text = { Text("Prices every morning (07:00)", color = P.Text) }, onClick = { menu = false; viewModel.daily("07:00") })
+                            }
+                            if (!lobsterReady) {
+                                DropdownMenuItem(text = { Text("Set up the Lobster", color = P.Text) }, onClick = { menu = false; onOpenLobster() })
+                            }
+                            DropdownMenuItem(text = { Text("Import a prices file", color = P.Text) }, onClick = { menu = false; pick() })
+                            if (ui.state.hidden.isNotEmpty()) {
+                                DropdownMenuItem(
+                                    text = { Text("Show hidden strategies (${ui.state.hidden.size})", color = P.Text) },
+                                    onClick = { menu = false; viewModel.showAll() }
+                                )
+                            }
+                        }
+                    }
+                }
+            )
             ui.working?.let { w ->
-                Row(Modifier.padding(horizontal = 20.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.padding(horizontal = 24.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     CircularProgressIndicator(Modifier.size(14.dp), color = P.Accent, strokeWidth = 2.dp)
                     Spacer(Modifier.width(8.dp))
                     Text(w, color = P.Accent, fontSize = 13.sp)
@@ -112,36 +157,50 @@ fun DeskScreen(viewModel: DeskViewModel, onBack: () -> Unit, onOpenLobster: () -
                 val wide = maxWidth >= WIDE
                 val left: @Composable (Modifier) -> Unit = { m ->
                     Column(m) {
-                        DataCard(ui, lobsterReady, onUpdate = viewModel::updateNow, onDaily = viewModel::daily,
-                            onImport = pick, onOpenLobster = onOpenLobster)
+                        PricesLine(ui, lobsterReady, onUpdate = viewModel::updateNow, onImport = pick, onOpenLobster = onOpenLobster)
                         if (ui.hasData) {
-                            Tickets(ui, onMark = { marking = it }, onFollowed = { e -> viewModel.mark(e.strategy, e.dataDate, true) })
-                            Journal(ui)
+                            Tickets(
+                                ui,
+                                onMark = { marking = it },
+                                onFollowed = { e -> viewModel.mark(e.strategy, e.dataDate, true) },
+                                onAllFollowed = { entries -> entries.forEach { e -> viewModel.mark(e.strategy, e.dataDate, true) } }
+                            )
+                            if (!wide) Journal(ui)
                         }
                     }
                 }
                 val right: @Composable (Modifier) -> Unit = { m ->
                     Column(m) {
                         if (ui.hasData) {
-                            Label("STRATEGIES")
-                            ui.reports.forEach { r -> StrategyCard(r, viewModel) }
+                            shown?.let { FeaturedStrategy(it, viewModel) }
+                            val others = ui.reports.filter { it.key != shown?.key }
+                            if (others.isNotEmpty()) {
+                                Label("OTHER STRATEGIES")
+                                others.forEach { r ->
+                                    HorizontalDivider(color = P.Border)
+                                    StrategyRow(r) { featured = r.key }
+                                }
+                                HorizontalDivider(color = P.Border)
+                            }
                             ui.waiting.forEach { (key, missing) ->
                                 Text("${DeskStrategies.template(key).label}: waiting for ${missing.joinToString(", ")}",
-                                    color = P.Muted, fontSize = 13.sp, modifier = Modifier.padding(vertical = 4.dp))
+                                    color = P.Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 10.dp))
                             }
-                            if (ui.state.hidden.isNotEmpty()) Action("Show hidden strategies (${ui.state.hidden.size})", muted = true) { viewModel.showAll() }
+                            if (wide) Journal(ui)
                         }
                         Footer()
                     }
                 }
                 if (wide) {
-                    Row(Modifier.widthIn(max = 1400.dp).fillMaxSize().padding(horizontal = 16.dp)) {
-                        left(Modifier.weight(0.42f).fillMaxSize().verticalScroll(rememberScrollState()))
-                        VerticalDivider(color = P.Border, modifier = Modifier.padding(16.dp))
-                        right(Modifier.weight(0.58f).fillMaxSize().verticalScroll(rememberScrollState()))
+                    Row(
+                        Modifier.widthIn(max = 1400.dp).fillMaxSize().padding(horizontal = 24.dp),
+                        horizontalArrangement = Arrangement.spacedBy(32.dp)
+                    ) {
+                        left(Modifier.weight(0.46f).fillMaxSize().verticalScroll(rememberScrollState()))
+                        right(Modifier.weight(0.54f).fillMaxSize().verticalScroll(rememberScrollState()))
                     }
                 } else {
-                    Column(Modifier.widthIn(max = 760.dp).fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp)) {
+                    Column(Modifier.widthIn(max = 760.dp).fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
                         left(Modifier.fillMaxWidth())
                         right(Modifier.fillMaxWidth())
                         Spacer(Modifier.height(32.dp))
@@ -176,24 +235,23 @@ fun DeskScreen(viewModel: DeskViewModel, onBack: () -> Unit, onOpenLobster: () -
 
 // --- prices ---
 
+/** One line about the prices, with Update now; the rest is in ⋯. A first visit gets the full story. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun DataCard(
+private fun PricesLine(
     ui: DeskUi,
     lobsterReady: Boolean,
     onUpdate: () -> Unit,
-    onDaily: (String) -> Unit,
     onImport: () -> Unit,
     onOpenLobster: () -> Unit
 ) {
-    Label("PRICES")
-    Card {
-        if (!ui.ready) {
-            Text("Opening…", color = P.Muted, fontSize = 14.sp)
-            return@Card
-        }
-        if (!ui.hasData) {
-            Text("No prices yet", color = P.Text, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+    if (!ui.ready) {
+        Text("Opening…", color = P.Muted, fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp))
+        return
+    }
+    if (!ui.hasData) {
+        Card(Modifier.padding(top = 12.dp)) {
+            Text("No prices yet", color = P.Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
             Text(
                 "SlothDesk runs four starter strategies on daily prices, here on the tablet, writes tonight's tickets " +
                     "for paper trading and keeps score. Two ways to get prices:\n\n" +
@@ -201,75 +259,124 @@ private fun DataCard(
                     "• Or import a prices file made in Colab (export_prices in the SlothDesk notebook).",
                 color = P.Muted, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.padding(top = 6.dp)
             )
-            FlowRow(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            FlowRow(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 if (lobsterReady) Button("Ask the Lobster for prices", onUpdate) else Button("Set up the Lobster", onOpenLobster)
                 Action("Import a prices file", onClick = onImport)
             }
-            return@Card
         }
-        val s = ui.state
-        Text("Prices to ${ui.lastDate}", color = P.Text, fontSize = 16.sp, fontWeight = FontWeight.Medium)
+        return
+    }
+    val s = ui.state
+    val stale = ui.ageDays > 4
+    Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Box(Modifier.size(8.dp).clip(CircleShape).background(if (stale) P.Warning else P.Success))
+        Spacer(Modifier.width(12.dp))
         Text(
-            buildString {
-                append(if (s.pricesFrom.isNotBlank()) "From ${s.pricesFrom}" else "Stored on the tablet")
-                append(" · ").append(ui.series.joinToString(" "))
-            },
-            color = P.Faint, fontSize = 12.sp
+            listOfNotNull(
+                "Prices to ${ui.lastDate}",
+                s.pricesFrom.takeIf { it.isNotBlank() }?.let { "from ${it.replaceFirstChar { c -> c.lowercase() }}" },
+                if (s.dailyOrderSent) "daily" else null
+            ).joinToString(" · "),
+            color = P.Text, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f)
         )
-        if (ui.ageDays > 4) {
-            Text("The latest close is ${ui.ageDays} business days old: update before acting on a ticket.",
-                color = P.Warning, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
-        }
-        s.pricesNotes.take(4).forEach { Text("• $it", color = P.Muted, fontSize = 12.sp) }
-        FlowRow(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            if (lobsterReady) {
-                Action("Update now", onClick = onUpdate)
-                if (!s.dailyOrderSent) {
-                    Action("Every evening (18:30)") { onDaily("18:30") }
-                    Action("Every morning (07:00)", muted = true) { onDaily("07:00") }
-                }
-            } else {
-                Action("Set up the Lobster", muted = true, onClick = onOpenLobster)
-            }
-            Action("Import a file", muted = true, onClick = onImport)
-        }
-        if (s.dailyOrderSent) Text("Daily prices are on. To stop them, switch the repeat off in the SlothLobster.", color = P.Faint, fontSize = 12.sp)
+        if (lobsterReady) Action("Update now", onClick = onUpdate)
+    }
+    if (stale) {
+        Text("The latest close is ${ui.ageDays} business days old: update before acting on a ticket.",
+            color = P.Warning, fontSize = 13.sp, modifier = Modifier.padding(start = 20.dp, top = 2.dp))
+    }
+    s.pricesNotes.take(3).forEach {
+        Text("· $it", color = P.Faint, fontSize = 12.sp, modifier = Modifier.padding(start = 20.dp, top = 2.dp))
     }
 }
 
 // --- tonight's tickets ---
 
+/** Tonight's tickets as a table: what to do at the next open, the gates, and whether you followed it. */
 @Composable
-private fun Tickets(ui: DeskUi, onMark: (JournalEntry) -> Unit, onFollowed: (JournalEntry) -> Unit) {
+private fun Tickets(
+    ui: DeskUi,
+    onMark: (JournalEntry) -> Unit,
+    onFollowed: (JournalEntry) -> Unit,
+    onAllFollowed: (List<JournalEntry>) -> Unit
+) {
     if (ui.reports.isEmpty()) return
-    Label("TONIGHT'S TICKETS · FROM THE ${ui.lastDate} CLOSE")
-    ui.reports.forEach { r ->
-        Card(Modifier.padding(bottom = 10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(r.label, color = P.Text, fontSize = 15.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f),
-                    maxLines = 1, overflow = TextOverflow.Ellipsis)
-                GateDots(r.gates)
-            }
-            Text(r.ticket.nextOpen, color = if (r.ticket.trade) P.Accent else P.Muted, fontSize = 14.sp,
-                fontWeight = if (r.ticket.trade) FontWeight.Medium else FontWeight.Normal, modifier = Modifier.padding(top = 4.dp))
-            Text("Now: ${r.ticket.positionNow}", color = P.Faint, fontSize = 12.sp)
-            r.guardrail?.let { Text("⚠ $it", color = P.Warning, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp)) }
-            if (r.gatesPassed < 4) {
-                Text("Research only: ${r.gatesPassed} of ${r.gates.size} gates passed.", color = P.Faint, fontSize = 12.sp,
-                    modifier = Modifier.padding(top = 2.dp))
-            }
-            val entry = ui.state.journal.firstOrNull { it.strategy == r.key && it.dataDate == r.ticket.dataDate.toString() }
-            if (entry != null) {
-                Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    when (entry.followed) {
-                        "yes" -> Text("Marked: followed", color = P.Success, fontSize = 13.sp, modifier = Modifier.weight(1f))
-                        "no" -> Text("Marked: didn't follow (${entry.mistake})", color = P.Muted, fontSize = 13.sp, modifier = Modifier.weight(1f))
-                        else -> Text("Paper journal", color = P.Faint, fontSize = 12.sp, modifier = Modifier.weight(1f))
-                    }
-                    Action("Followed") { onFollowed(entry) }
-                    Action("Didn't", muted = true) { onMark(entry) }
+    val entries = ui.reports.associate { r ->
+        r.key to ui.state.journal.firstOrNull { it.strategy == r.key && it.dataDate == r.ticket.dataDate.toString() }
+    }
+    val unmarked = entries.values.filterNotNull().filter { it.followed.isBlank() }
+    Card(Modifier.padding(top = 16.dp), padding = 20.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "TONIGHT · FROM THE ${ui.lastDate?.let { "%02d-%02d".format(it.monthValue, it.dayOfMonth) } ?: ""} CLOSE",
+                color = P.Faint, fontSize = 12.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Medium,
+                modifier = Modifier.weight(1f).semantics { heading() }
+            )
+            if (unmarked.isNotEmpty()) OutlineButton("Mark all followed") { onAllFollowed(unmarked) }
+        }
+        Row(Modifier.padding(top = 14.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Strategy", color = P.Faint, fontSize = 12.sp, modifier = Modifier.weight(1f))
+            Text("At the next open", color = P.Faint, fontSize = 12.sp, modifier = Modifier.weight(1.3f))
+            Text("Gates", color = P.Faint, fontSize = 12.sp, modifier = Modifier.width(GATES_W))
+            Text("Done", color = P.Faint, fontSize = 12.sp, modifier = Modifier.width(DONE_W), textAlign = TextAlign.Center)
+        }
+        ui.reports.forEach { r ->
+            HorizontalDivider(color = P.Border)
+            val entry = entries[r.key]
+            val researchOnly = r.gatesPassed < 4
+            Row(Modifier.fillMaxWidth().heightIn(min = 60.dp).padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(r.label, color = P.Text, fontSize = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f).padding(end = 8.dp))
+                Column(Modifier.weight(1.3f).padding(end = 8.dp)) {
+                    Text(
+                        r.ticket.nextOpen,
+                        color = when {
+                            researchOnly -> P.Faint
+                            r.ticket.trade -> P.Accent
+                            else -> P.Text
+                        },
+                        fontSize = 14.sp, fontWeight = if (r.ticket.trade && !researchOnly) FontWeight.Medium else FontWeight.Normal,
+                        style = Numbers, maxLines = 2, overflow = TextOverflow.Ellipsis
+                    )
+                    if (researchOnly) Text("Research only · ${r.gatesPassed} of ${r.gates.size} gates", color = P.Faint, fontSize = 11.sp)
+                    r.guardrail?.let { Text("⚠ $it", color = P.Warning, fontSize = 12.sp, lineHeight = 16.sp) }
+                }
+                Box(Modifier.width(GATES_W)) { GateDots(r.gates) }
+                Box(Modifier.width(DONE_W), contentAlignment = Alignment.Center) {
+                    if (entry != null) DoneMark(entry, onFollowed = { onFollowed(entry) }, onDidnt = { onMark(entry) })
                 }
             }
+        }
+    }
+}
+
+private val GATES_W = 80.dp
+private val DONE_W = 48.dp
+
+/** ✓ followed, ✕ didn't, an empty ring until you say; a tap asks which. */
+@Composable
+private fun DoneMark(entry: JournalEntry, onFollowed: () -> Unit, onDidnt: () -> Unit) {
+    var asking by remember { mutableStateOf(false) }
+    val (ring, mark, label) = when (entry.followed) {
+        "yes" -> Triple(P.Success, "✓", "Followed")
+        "no" -> Triple(P.Danger, "✕", "Didn't follow: ${entry.mistake}")
+        else -> Triple(P.BorderStrong, "", "Not marked yet")
+    }
+    Box {
+        Box(
+            Modifier
+                .size(36.dp)
+                .clip(CircleShape)
+                .border(1.dp, ring, CircleShape)
+                .clickable(role = Role.Button, onClickLabel = "Mark this ticket") { asking = true }
+                .semantics { contentDescription = label },
+            contentAlignment = Alignment.Center
+        ) {
+            Text(mark, color = ring, fontSize = 15.sp)
+        }
+        DropdownMenu(expanded = asking, onDismissRequest = { asking = false }, modifier = Modifier.background(P.Elevated)) {
+            DropdownMenuItem(text = { Text("Followed the ticket", color = P.Text) }, onClick = { asking = false; onFollowed() })
+            DropdownMenuItem(text = { Text("Didn't follow it…", color = P.Text) }, onClick = { asking = false; onDidnt() })
         }
     }
 }
@@ -299,26 +406,41 @@ private fun Journal(ui: DeskUi) {
 
 // --- strategies ---
 
+/** One strategy in full: its curve, four numbers that matter, and the details on request. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun StrategyCard(r: StrategyReport, vm: DeskViewModel) {
+private fun FeaturedStrategy(r: StrategyReport, vm: DeskViewModel) {
     var expanded by rememberSaveable(r.key) { mutableStateOf(false) }
     val t = DeskStrategies.template(r.key)
-    Card(Modifier.padding(bottom = 12.dp)) {
-        Row(Modifier.clickable { expanded = !expanded }, verticalAlignment = Alignment.CenterVertically) {
-            Column(Modifier.weight(1f)) {
-                Text(r.label, color = P.Text, fontSize = 16.sp, fontWeight = FontWeight.Medium)
-                Text("Held out: " + DeskText.line(r.heldOut), color = P.Muted, fontSize = 12.sp)
-            }
+    Card(Modifier.padding(top = 16.dp), padding = 20.dp) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(r.label, color = P.Text, fontSize = 19.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f).semantics { heading() })
             GateDots(r.gates)
-            Text(" ${r.gatesPassed}/${r.gates.size}", color = P.Faint, fontSize = 12.sp)
+            Text("  ${r.gatesPassed}/${r.gates.size}", color = P.Faint, fontSize = 12.sp, style = Numbers)
         }
-        Spacer(Modifier.height(8.dp))
-        EquityChart(r.chart)
-        Text("Growth of 1 · strategy (accent) against buy-and-hold (grey); dashes mark where the held-out years start.",
-            color = P.Faint, fontSize = 11.sp)
+        Spacer(Modifier.height(14.dp))
+        EquityChart(r.chart, height = 170.dp)
+        Text("Growth of 1 on a log scale · strategy (green) and buy-and-hold (grey); the shaded years were held out.",
+            color = P.Faint, fontSize = 11.sp, lineHeight = 15.sp, modifier = Modifier.padding(top = 6.dp))
+        Row(Modifier.fillMaxWidth().padding(top = 16.dp)) {
+            Figure("Held-out Sharpe", DeskText.num(r.heldOut?.sharpe), Modifier.weight(1f))
+            Figure("Same-risk hold", DeskText.num(r.volMatchedHeldOut?.sharpe), Modifier.weight(1f))
+            Figure("Worst drop", r.heldOut?.let { "−" + DeskText.plainPct(abs(it.maxDrawdown)) } ?: "–", Modifier.weight(1f))
+            Figure("Luck check", r.robustInSample?.let { DeskText.num(it.dsr) } ?: "–", Modifier.weight(1f))
+        }
+        r.robustInSample?.let { rb ->
+            Text(
+                rb.minTrackRecordYears?.let { "Needs about ${DeskText.num(it, 1)} years of results to tell from zero" }
+                    ?: "At this Sharpe, no track record would tell it from zero",
+                color = P.Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 10.dp)
+            )
+        }
         if (!expanded) {
-            Action("Details, settings and gates", muted = true) { expanded = true }
+            Row(Modifier.padding(top = 6.dp)) {
+                Action("Details, settings and gates", muted = true) { expanded = true }
+                Spacer(Modifier.weight(1f))
+                Action("Ask about this") { vm.askAbout(r) }
+            }
             return@Card
         }
         Text(t.blurb, color = P.Muted, fontSize = 13.sp, lineHeight = 19.sp, modifier = Modifier.padding(top = 8.dp))
@@ -387,6 +509,35 @@ private fun StrategyCard(r: StrategyReport, vm: DeskViewModel) {
     }
 }
 
+/** A figure with its label above, in fixed-width digits. */
+@Composable
+private fun Figure(label: String, value: String, modifier: Modifier) {
+    Column(modifier) {
+        Text(label, color = P.Faint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(value, color = P.Text, fontSize = 22.sp, style = Numbers, modifier = Modifier.padding(top = 2.dp))
+    }
+}
+
+/** Another strategy, in one line; a tap shows it in full. */
+@Composable
+private fun StrategyRow(r: StrategyReport, onOpen: () -> Unit) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 52.dp)
+            .clickable(role = Role.Button, onClickLabel = "Show ${r.label}", onClick = onOpen)
+            .padding(vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(r.label, color = P.Text, fontSize = 15.sp, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text("Sharpe ${DeskText.num(r.heldOut?.sharpe)} held out", color = P.Muted, fontSize = 13.sp, style = Numbers)
+        Spacer(Modifier.width(14.dp))
+        GateDots(r.gates)
+        Spacer(Modifier.width(6.dp))
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = P.Faint, modifier = Modifier.size(18.dp))
+    }
+}
+
 @Composable
 private fun MetricRow(label: String, m: Metrics?, color: Color) {
     Row(Modifier.fillMaxWidth().padding(vertical = 1.dp)) {
@@ -426,11 +577,12 @@ private fun GateDots(gates: List<Gate>) {
 }
 
 @Composable
-private fun EquityChart(c: Chart) {
+private fun EquityChart(c: Chart, height: androidx.compose.ui.unit.Dp = 130.dp) {
     val accent = P.Accent
     val grey = P.Faint
     val grid = P.Border
-    Canvas(Modifier.fillMaxWidth().height(130.dp)) {
+    val shade = P.Elevated
+    Canvas(Modifier.fillMaxWidth().height(height)) {
         val all = (c.strategy.toList() + c.benchmark.toList()).filter { !it.isNaN() && it > 0 }
         if (all.size < 2 || c.dates.size < 2) return@Canvas
         // Log scale: equal heights are equal percentage moves.
@@ -442,6 +594,7 @@ private fun EquityChart(c: Chart) {
         val one = y(1.0)
         drawLine(grid, Offset(0f, one), Offset(size.width, one), strokeWidth = 1f)
         val sx = size.width * ChronoUnit.DAYS.between(c.dates.first(), c.split) / span
+        drawRect(shade, topLeft = Offset(sx, 0f), size = androidx.compose.ui.geometry.Size(size.width - sx, size.height))
         drawLine(grid, Offset(sx, 0f), Offset(sx, size.height), strokeWidth = 1.5f,
             pathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 6f)))
         fun path(v: DoubleArray): Path {
@@ -471,16 +624,35 @@ private fun Footer() {
 // --- small pieces ---
 
 @Composable
-private fun Card(modifier: Modifier = Modifier, content: @Composable () -> Unit) {
-    val shape = RoundedCornerShape(16.dp)
+private fun Card(modifier: Modifier = Modifier, padding: androidx.compose.ui.unit.Dp = 16.dp, content: @Composable () -> Unit) {
+    val shape = RoundedCornerShape(18.dp)
     Column(
-        modifier.fillMaxWidth().clip(shape).background(P.Card).border(1.dp, P.Border, shape).padding(14.dp)
+        modifier.fillMaxWidth().clip(shape).background(P.Card).border(1.dp, P.Border, shape).padding(padding)
     ) { content() }
 }
 
 @Composable
 private fun Label(text: String) {
-    Text(text, color = P.Faint, fontSize = 11.sp, letterSpacing = 1.2.sp, modifier = Modifier.padding(top = 20.dp, bottom = 8.dp))
+    Text(
+        text, color = P.Faint, fontSize = 12.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Medium,
+        modifier = Modifier.padding(top = 28.dp, bottom = 10.dp).semantics { heading() }
+    )
+}
+
+/** Fixed-width digits, so figures line up. */
+private val Numbers = TextStyle(fontFeatureSettings = "tnum")
+
+@Composable
+private fun OutlineButton(label: String, onClick: () -> Unit) {
+    Text(
+        label, color = P.Text, fontSize = 13.sp,
+        modifier = Modifier
+            .heightIn(min = 36.dp)
+            .clip(RoundedCornerShape(18.dp))
+            .border(1.dp, P.BorderStrong, RoundedCornerShape(18.dp))
+            .clickable(role = Role.Button, onClick = onClick)
+            .padding(horizontal = 14.dp, vertical = 8.dp)
+    )
 }
 
 @Composable

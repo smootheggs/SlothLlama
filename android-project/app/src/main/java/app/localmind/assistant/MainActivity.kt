@@ -338,7 +338,10 @@ private fun SlothRoot(
                         chatViewModel.startConversationWith(personaId)
                         goToChat()
                     },
-                    onBack = goHome
+                    onBack = goHome,
+                    defaultModelName = chatViewModel.uiState.collectAsStateWithLifecycle().value.activeModelName,
+                    onModels = { navigate(Destination.MODELS) },
+                    script = chineseStyle.script
                 )
                 Destination.MODELS -> ModelsScreen(viewModel = hiltViewModel<ModelsViewModel>(), onBack = goHome)
                 Destination.FLASHCARDS -> FlashcardsScreen(viewModel = hiltViewModel<FlashcardsViewModel>(), onBack = goHome)

@@ -6,6 +6,11 @@ import app.localmind.assistant.data.models.LocalModel
 import app.localmind.assistant.data.models.ModelLibrary
 import app.localmind.assistant.data.persona.PersonaModelStore
 import app.localmind.assistant.data.persona.PersonaRepository
+import app.localmind.assistant.data.persona.TutorLevelStore
+import app.localmind.assistant.data.local.LocalMindDao
+import app.localmind.assistant.domain.persona.TutorLevel
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.map
 import app.localmind.assistant.domain.persona.Persona
 import app.localmind.assistant.domain.persona.SpeechLanguage
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -67,8 +72,19 @@ data class PersonaDraft(
 class PersonasViewModel @Inject constructor(
     private val repository: PersonaRepository,
     private val library: ModelLibrary,
-    private val personaModels: PersonaModelStore
+    private val personaModels: PersonaModelStore,
+    tutorLevels: TutorLevelStore,
+    dao: LocalMindDao
 ) : ViewModel() {
+
+    /** Your level in each language, for the tutors' tiles. */
+    val levels: StateFlow<Map<SpeechLanguage, TutorLevel>> = tutorLevels.levels
+
+    /** When you last wrote to each persona. */
+    val lastChat: StateFlow<Map<String, Long>> = dao.observeLastWrittenByPersona()
+        .map { rows -> rows.associate { it.personaId to it.at } }
+        .catch { emit(emptyMap()) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyMap())
 
     val personas: StateFlow<List<Persona>> =
         repository.personas.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())

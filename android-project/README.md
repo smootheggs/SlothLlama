@@ -118,6 +118,11 @@ model too big for the GPU falls back to the CPU on its own.
   practice and "last practised" on each tutor; long-press a tutor for a five-minute drill.
   SlothDesk's fresh tickets in Today, the Lobster's top headline on its tile, and an Ourjong
   tile that opens the mahjong app if it's installed. All offline, from short lists in the app.
+- **One design kit.** Personas is a grid of tiles grouped by language (tap to chat, ⋯ to
+  customize or give one its own model); the Lobster page leads with a slim status line, a calm
+  order box and the newest catch as a card, the rest as rows; SlothDesk shows tonight's tickets
+  as a table you mark in place, one strategy in full and the others as rows. The rules are in
+  [docs/DESIGN.md](docs/DESIGN.md).
 - **Landscape.** On a tablet held sideways the chat list stays open beside the chat, the Home
   page and Settings use two columns, and Models and Personas show cards side by side.
 - **Start page.** The time, today in Chinese (weekday, lunar date, zodiac year — computed on the
