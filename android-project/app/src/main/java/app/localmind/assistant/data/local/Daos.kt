@@ -3,6 +3,9 @@ package app.localmind.assistant.data.local
 import androidx.room.*
 import kotlinx.coroutines.flow.Flow
 
+/** A persona and a time, from a query (not a table). */
+data class PersonaTime(val personaId: String, val at: Long)
+
 @Dao
 interface LocalMindDao {
     // Installed Models & Downloads
@@ -105,6 +108,20 @@ interface LocalMindDao {
 
     @Query("DELETE FROM messages WHERE conversationId = :conversationId AND createdAt >= :timestamp")
     suspend fun deleteMessagesFromTimestamp(conversationId: String, timestamp: Long)
+
+    /** For each persona, when you last wrote to it (the Home page's "last practised"). */
+    @Query(
+        "SELECT c.personaId AS personaId, MAX(m.createdAt) AS at FROM messages m " +
+            "JOIN conversations c ON c.id = m.conversationId WHERE m.role = 'USER' GROUP BY c.personaId"
+    )
+    fun observeLastWrittenByPersona(): Flow<List<PersonaTime>>
+
+    /** The hours since [since] in which you wrote to each persona (one row per persona and hour; days are counted in local time by the caller). */
+    @Query(
+        "SELECT DISTINCT c.personaId AS personaId, (m.createdAt / 3600000) * 3600000 AS at FROM messages m " +
+            "JOIN conversations c ON c.id = m.conversationId WHERE m.role = 'USER' AND m.createdAt >= :since"
+    )
+    fun observeWrittenSince(since: Long): Flow<List<PersonaTime>>
 
     // Knowledge Collections, Sources & Chunks
     @Query("SELECT * FROM knowledge_collections ORDER BY updatedAt DESC")

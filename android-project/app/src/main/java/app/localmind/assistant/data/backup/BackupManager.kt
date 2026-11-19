@@ -88,7 +88,8 @@ class BackupManager @Inject constructor(
     private val notes: app.localmind.assistant.data.tools.NotesStore,
     private val desk: app.localmind.assistant.data.desk.DeskStore,
     private val models: app.localmind.assistant.data.models.ModelLibrary,
-    private val library: app.localmind.assistant.data.library.LibraryStore
+    private val library: app.localmind.assistant.data.library.LibraryStore,
+    private val home: app.localmind.assistant.data.home.HomePrefs
 ) {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
@@ -145,6 +146,7 @@ class BackupManager @Inject constructor(
         }
         writeSettings(contents.settings)
         notes.reload()
+        home.reload()
         contents.desk?.let { runCatching { desk.mergeBackup(it) } }
         val here = inventory()
         contents.summary().copy(
@@ -274,6 +276,6 @@ class BackupManager @Inject constructor(
         private const val PBKDF2_ROUNDS = 310_000
         private const val CIPHER = "AES/GCM/NoPadding"
         /** Settings worth carrying over (appearance, Chinese, assistant, persona models). */
-        private val SETTINGS_FILES = listOf("appearance", "chinese_style", "assistant", "persona_models", "tutor_levels", "notes", "memory")
+        private val SETTINGS_FILES = listOf("appearance", "chinese_style", "assistant", "persona_models", "tutor_levels", "notes", "memory", "home")
     }
 }

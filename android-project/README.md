@@ -106,6 +106,18 @@ model too big for the GPU falls back to the CPU on its own.
   Open on the Home page). OLED black with a moss-green accent, kept for the main action and live
   numbers; coral is the Lobster's.
   Back returns to where you came from; Home is in the menu.
+- **Small touches on Home** (each one on or off in Settings → Home). Under the date, a faint
+  almanac line: today's festival or solar term (the 24 节气, worked out from the Sun's position
+  in China's time) or the next one, the New Year countdown in its last two months, and the
+  Sun's sign; the double hour (时辰) follows the lunar date, and a tap on the date opens the
+  almanac. A hello with your name that notices the day (a birthday, a festival, the season
+  turning, something from the Lobster, cards waiting), a hello in Mandarin or Cantonese (tap
+  to hear it), and a sloth with a coffee in the morning or a lantern on festival days.
+  **A little Chinese**: a word of the day (Mandarin and Cantonese in turn) to hear, keep as a
+  flashcard or ask the teacher about, and an idiom with its story. Seven dots for the week's
+  practice and "last practised" on each tutor; long-press a tutor for a five-minute drill.
+  SlothDesk's fresh tickets in Today, the Lobster's top headline on its tile, and an Ourjong
+  tile that opens the mahjong app if it's installed. All offline, from short lists in the app.
 - **Landscape.** On a tablet held sideways the chat list stays open beside the chat, the Home
   page and Settings use two columns, and Models and Personas show cards side by side.
 - **Start page.** The time, today in Chinese (weekday, lunar date, zodiac year — computed on the

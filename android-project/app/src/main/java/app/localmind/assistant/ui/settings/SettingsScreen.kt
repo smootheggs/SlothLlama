@@ -202,6 +202,8 @@ fun SettingsScreen(
                     )
                 }
 
+                HomeSettingsSection()
+
                 Section("Chinese") {
                     Text(
                         "How the Mandarin and Cantonese tutors write. Applies from their next reply.",
@@ -540,7 +542,7 @@ fun SettingsScreen(
 }
 
 @Composable
-private fun Section(title: String, content: @Composable () -> Unit) {
+internal fun Section(title: String, content: @Composable () -> Unit) {
     Column {
         Text(
             title.uppercase(), color = P.Faint, fontSize = 11.sp, letterSpacing = 1.2.sp,
@@ -686,7 +688,7 @@ private fun LevelRow(language: SpeechLanguage, level: TutorLevel, onChange: (Tut
 }
 
 @Composable
-private fun ToggleRow(title: String, detail: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
+internal fun ToggleRow(title: String, detail: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
