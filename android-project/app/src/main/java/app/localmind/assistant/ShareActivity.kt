@@ -88,6 +88,8 @@ class ShareActivity : ComponentActivity() {
     @Inject lateinit var notes: NotesStore
     @Inject lateinit var library: LibraryStore
     @Inject lateinit var mailbox: LobsterMailbox
+    @Inject lateinit var paperFiles: app.localmind.assistant.data.books.PaperFiles
+    @Inject lateinit var shelf: app.localmind.assistant.data.books.BookShelf
 
     private sealed interface Incoming {
         data class Text(val text: String, val subject: String?) : Incoming
@@ -265,6 +267,25 @@ class ShareActivity : ComponentActivity() {
                     fileChat(uri, BuiltInPersonas.READ_LIKE_A_TRADER, personaId = BuiltInPersonas.TRADER.id)
                 })
             }
+            val keepable = incoming.uris.filter { nameOf(it).let { n -> n.endsWith(".pdf", true) || n.endsWith(".epub", true) } }
+            if (keepable.isNotEmpty()) {
+                add(Choice(Icons.Outlined.LocalLibrary, "Keep in SlothBooks", "Saved in Documents/SlothBooks, with a card") {
+                    keepable.forEach { uri ->
+                        working = "Keeping ${nameOf(uri)}…"
+                        val epub = nameOf(uri).endsWith(".epub", true)
+                        val folder = if (epub) app.localmind.assistant.data.books.PaperFiles.BOOKS else app.localmind.assistant.data.books.PaperFiles.PAPERS
+                        kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                            val (saved, name) = paperFiles.copyIn(uri, folder)
+                            shelf.addFileBlocking(
+                                app.localmind.assistant.data.books.PaperFiles.titleFrom(name),
+                                if (epub) app.localmind.assistant.domain.books.Kinds.BOOK else app.localmind.assistant.domain.books.Kinds.PAPER,
+                                saved.toString(), name, "", fresh = true
+                            )
+                        }
+                    }
+                    if (keepable.size == 1) "Kept in SlothBooks 📚" else "Kept ${keepable.size} files in SlothBooks 📚"
+                })
+            }
             add(Choice(Icons.Outlined.LocalLibrary, "Add to Library", "Indexed here, found when you ask") {
                 incoming.uris.forEach { uri ->
                     working = "Adding ${nameOf(uri)}…"
@@ -282,7 +303,8 @@ class ShareActivity : ComponentActivity() {
         return buildList {
             if (link != null) {
                 if (mailbox.isReady) {
-                    add(Choice(Icons.Outlined.Sailing, "Ask the Lobster to fetch it 🦞", "Brought back to your Library") {
+                    val pdf = link.substringBefore('?').endsWith(".pdf", true) || "arxiv.org/pdf/" in link
+                    add(Choice(Icons.Outlined.Sailing, "Ask the Lobster to fetch it 🦞", if (pdf) "Kept in SlothBooks as a paper" else "Brought back to your Library") {
                         mailbox.send(OrderKind.FETCH, listOfNotNull(t.subject, link).joinToString("\n"), deliver = "library")
                         "Sent to the Lobster 🦞"
                     })

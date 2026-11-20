@@ -51,7 +51,9 @@ data class BackupContents(
     /** The Later shelf: saved articles and how far you'd read them. */
     val later: String? = null,
     /** The idea book: trade ideas, notes and reviews (trading/ideas.json). */
-    val trading: String? = null
+    val trading: String? = null,
+    /** SlothBooks' shelf: books, papers and your reading (books/shelf.json); the files stay in Documents/SlothBooks. */
+    val books: String? = null
 )
 
 /** Names of the models and Library files, which are too large to go into a backup. */
@@ -95,7 +97,8 @@ class BackupManager @Inject constructor(
     private val library: app.localmind.assistant.data.library.LibraryStore,
     private val home: app.localmind.assistant.data.home.HomePrefs,
     private val later: app.localmind.assistant.data.later.ReadingList,
-    private val ideas: app.localmind.assistant.data.trading.IdeaBook
+    private val ideas: app.localmind.assistant.data.trading.IdeaBook,
+    private val books: app.localmind.assistant.data.books.BookShelf
 ) {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
@@ -112,7 +115,8 @@ class BackupManager @Inject constructor(
             memories = dao.getAllMemories(),
             desk = desk.backupText(),
             later = runCatching { later.backupText() }.getOrNull(),
-            trading = runCatching { ideas.backupText() }.getOrNull()
+            trading = runCatching { ideas.backupText() }.getOrNull(),
+            books = runCatching { books.backupText() }.getOrNull()
         )
         val payload = gzip(json.encodeToString(BackupContents.serializer(), contents).toByteArray())
         val bytes = if (password.isNullOrEmpty()) header(encrypted = false) + payload else seal(payload, password)
@@ -158,6 +162,7 @@ class BackupManager @Inject constructor(
         contents.desk?.let { runCatching { desk.mergeBackup(it) } }
         contents.later?.let { runCatching { later.mergeBackup(it) } }
         contents.trading?.let { runCatching { ideas.mergeBackup(it) } }
+        contents.books?.let { runCatching { books.mergeBackup(it) } }
         val here = inventory()
         contents.summary().copy(
             missingModels = contents.inventory.models - here.models.toSet(),

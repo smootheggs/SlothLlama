@@ -35,6 +35,8 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.StarOutline
 import app.localmind.assistant.domain.trading.IdeaCard
+import app.localmind.assistant.domain.books.GistCard
+import androidx.compose.material.icons.outlined.LibraryAdd
 import androidx.compose.material.icons.outlined.BookmarkAdd
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
@@ -139,6 +141,8 @@ fun AssistantMessageBubble(
     val practise = LocalChatActions.current.onPractise
     val saveIdea = LocalChatActions.current.onSaveIdea
     val hasIdea = remember(message.content, saveIdea != null) { saveIdea != null && IdeaCard.has(message.content) }
+    val saveGist = LocalChatActions.current.onSaveGist
+    val hasGist = remember(message.content, saveGist != null) { saveGist != null && GistCard.has(message.content) }
 
     Column(modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp)) {
         when (message.status) {
@@ -197,6 +201,9 @@ fun AssistantMessageBubble(
                 }
                 if (saveIdea != null && hasIdea) {
                     ActionIcon(Icons.Outlined.BookmarkAdd, "Save the idea to SlothDesk") { saveIdea(message.content) }
+                }
+                if (saveGist != null && hasGist) {
+                    ActionIcon(Icons.Outlined.LibraryAdd, "Save the gist to the book's card") { saveGist(message.content) }
                 }
                 ActionIcon(Icons.Outlined.Share, "Share") {
                     val send = Intent(Intent.ACTION_SEND).apply {

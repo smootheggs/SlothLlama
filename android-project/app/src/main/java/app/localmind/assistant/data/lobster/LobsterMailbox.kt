@@ -61,7 +61,9 @@ enum class OrderState(val label: String) {
 @Singleton
 class LobsterMailbox @Inject constructor(
     @ApplicationContext private val context: Context,
-    private val later: app.localmind.assistant.data.later.ReadingList
+    private val later: app.localmind.assistant.data.later.ReadingList,
+    private val books: app.localmind.assistant.data.books.BookShelf,
+    private val files: app.localmind.assistant.data.books.PaperFiles
 ) {
 
     // Not in SlothLlama's backups: the key stays on this tablet (pair again after a restore).
@@ -207,6 +209,7 @@ class LobsterMailbox @Inject constructor(
             CaughtItem(f.name.orEmpty(), item, unreadable = item == null && now - f.lastModified() > UNREADABLE_AFTER_MS)
         }.filter { it.item != null || it.unreadable }
             .filterNot { shelvedForLater(root, it) }
+            .filterNot { keptAsFile(root, it) }
         val waiting = dir(root, ORDERS).listFiles().mapNotNull { it.name }.toSet()
         val answered = catch.mapNotNull { it.item?.orderId }.toSet() + prefs.getStringSet(KEY_DONE, emptySet()).orEmpty()
         _state.value = MailboxState(
@@ -234,6 +237,45 @@ class LobsterMailbox @Inject constructor(
             true
         }.getOrElse { e ->
             Log.w(TAG, "Couldn't shelve a page for later", e)
+            false
+        }
+    }
+
+    /**
+     * A PDF or EPUB the Lobster fetched is kept as a file in Documents/SlothBooks (Papers for a
+     * PDF, Books for an EPUB) and added to SlothBooks, then taken out of the mailbox. True when
+     * [ci] was one and it's been kept.
+     */
+    private fun keptAsFile(root: DocumentFile, ci: CaughtItem): Boolean {
+        val c = ci.item ?: return false
+        val name = c.fileName ?: return false
+        val b64 = c.fileBase64 ?: return false
+        val epub = name.endsWith(".epub", ignoreCase = true)
+        if (!epub && !name.endsWith(".pdf", ignoreCase = true)) return false
+        val kept = prefs.getStringSet(KEY_KEPT, emptySet()).orEmpty()
+        return runCatching {
+            if (c.id in kept) {
+                // Kept already; only its mailbox file is left to tidy away.
+                dir(root, CATCH).findFile(ci.fileName)?.delete()
+                return@runCatching true
+            }
+            val bytes = android.util.Base64.decode(b64, android.util.Base64.DEFAULT)
+            val folder = if (epub) app.localmind.assistant.data.books.PaperFiles.BOOKS else app.localmind.assistant.data.books.PaperFiles.PAPERS
+            val uri = files.save(name, bytes, folder)
+            books.addFileBlocking(
+                title = app.localmind.assistant.data.books.PaperFiles.titleFrom(name),
+                kind = if (epub) app.localmind.assistant.domain.books.Kinds.BOOK else app.localmind.assistant.domain.books.Kinds.PAPER,
+                uri = uri.toString(),
+                fileName = name,
+                source = c.sources.firstOrNull()?.url.orEmpty(),
+                fresh = true
+            )
+            prefs.edit().putStringSet(KEY_KEPT, (kept + c.id).toList().takeLast(MAX_KEPT_IDS).toSet()).apply()
+            dir(root, CATCH).findFile(ci.fileName)?.delete()
+            c.orderId?.let { id -> prefs.edit().putStringSet(KEY_DONE, (prefs.getStringSet(KEY_DONE, emptySet()).orEmpty() + id).toSet()).apply() }
+            true
+        }.getOrElse { e ->
+            Log.w(TAG, "Couldn't keep $name in SlothBooks", e)
             false
         }
     }
@@ -291,6 +333,8 @@ class LobsterMailbox @Inject constructor(
         private const val KEY_SENT = "sent"
         private const val KEY_DONE = "done"
         private const val KEY_NOTIFIED = "notified"
+        private const val KEY_KEPT = "kept_files"
+        private const val MAX_KEPT_IDS = 200
         const val ORDERS = "orders"
         const val CATCH = "catch"
         /** The catch kind the Lobster gives a page saved for later. */

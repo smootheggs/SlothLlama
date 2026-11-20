@@ -1,6 +1,6 @@
 # SlothLlama design kit
 
-The rules the Home, Personas, Lobster and SlothDesk pages follow. Keep new screens to them.
+The rules the Home, Personas, Lobster, SlothDesk and SlothBooks pages follow. Keep new screens to them.
 
 ## Three kinds of card
 
@@ -41,8 +41,9 @@ spread over the height, 20–48 dp apart, and the page scrolls only if they can'
   Chinese** (the word and the idiom as compact lines, ⋯ for flashcards or the teacher).
 - **Right page, places**: **Favourites** (a chip per favourite persona, + to choose them in
   Personas), **Learn** (the week's practice dots and the word tools as quiet links), **Know**
-  (Library, Notes, Later) and **Do** (SlothDesk, the Lobster, Ourjong) three a row, then the quiet
-  row: Chats, Personas, Models, Arrange.
+  (SlothBooks, Notes, Later) and **Do** (SlothDesk, the Lobster, Ourjong) three a row, then the
+  quiet row: Chats, Personas, Models, Library, Arrange. SlothBooks is what you read; the Library
+  is what SlothLlama reads, set up once like Models.
 - Upright, the same sections in that order on one page; Today goes four in a row and the word
   sits beside the idiom when there's room.
 - **Filled cards are status, outlined tiles are places.** Today's cards are filled with no
@@ -81,3 +82,15 @@ description of what the tile is.
 
 The sloth on its llama for SlothLlama; coral for the Lobster. Small touches (a coffee, a lantern,
 sleepy z's) are decoration: hidden from TalkBack and switchable in Settings → Home.
+
+## SlothBooks
+
+- Shelf, Papers and Insights are text tabs, like SlothDesk's. Sideways, the list sits beside the
+  picked book's card; upright, a tap opens the card.
+- **Reading now** is the shelf's hero (filled); books are rows with a small spine mark (no
+  covers: the app is offline) and a status mark: ○ to read, ◐ reading, ● read.
+- A card goes catalogue, **You**, **Gist**, **On your shelf too**, **Recall**, with one filled
+  button, Talk it through. Your words lead; anything the model wrote carries a faint mark saying
+  where it came from ("general knowledge, not the text"). A novel's gist stays folded until you
+  mark it Read.
+- Counts on Insights are worked out in code and say so.

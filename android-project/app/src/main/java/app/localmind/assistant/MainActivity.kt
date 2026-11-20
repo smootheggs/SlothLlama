@@ -210,7 +210,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES, LOBSTER, READER, DESK, CORE }
+private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES, LOBSTER, READER, DESK, CORE, BOOKS }
 
 /**
  * Home (or the last chat, per Settings) on a fresh start. Screens open on top of each other and
@@ -293,6 +293,10 @@ private fun SlothRoot(
     }
     // SlothDesk's ideas and calculators: one for the whole app, so a Trader card saved from a chat lands in its editor.
     val trading: TradingViewModel = hiltViewModel()
+    // SlothBooks: one for the whole app, so a gist saved from a Librarian chat finds its book.
+    val books: app.localmind.assistant.ui.books.BooksViewModel = hiltViewModel()
+    val rootScope = androidx.compose.runtime.rememberCoroutineScope()
+    val rootContext = androidx.compose.ui.platform.LocalContext.current
     // The reader: one for the whole app, so Back from a chat it opened returns to the same text.
     val reader: ReaderViewModel = hiltViewModel()
     val read: (ReaderSource, String) -> Unit = { source, ref ->
@@ -323,6 +327,7 @@ private fun SlothRoot(
                     onModels = { navigate(Destination.MODELS) },
                     onSettings = { navigate(Destination.SETTINGS) },
                     onLibrary = { navigate(Destination.LIBRARY) },
+                    onBooks = { navigate(Destination.BOOKS) },
                     onNotes = { navigate(Destination.NOTES) },
                     onDesk = { navigate(Destination.DESK) },
                     onLater = {
@@ -343,7 +348,12 @@ private fun SlothRoot(
                     onOpenLibrary = { navigate(Destination.LIBRARY) },
                     onOpenNotes = { navigate(Destination.NOTES) },
                     onOpenLobster = openLobster,
-                    onSaveIdea = { reply -> if (trading.draftFrom(reply)) navigate(Destination.DESK) }
+                    onSaveIdea = { reply -> if (trading.draftFrom(reply)) navigate(Destination.DESK) },
+                    onSaveGist = { reply ->
+                        rootScope.launch {
+                            android.widget.Toast.makeText(rootContext, books.saveGistFrom(reply), android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    }
                 )
                 Destination.PERSONAS -> PersonasScreen(
                     viewModel = hiltViewModel<PersonasViewModel>(),
@@ -394,6 +404,7 @@ private fun SlothRoot(
                     onBack = goHome,
                     onOpenLobster = { navigate(Destination.LOBSTER) }
                 )
+                Destination.BOOKS -> app.localmind.assistant.ui.books.BooksScreen(viewModel = books, onBack = goHome)
                 Destination.READER -> ReaderScreen(
                     viewModel = reader,
                     onBack = goHome,

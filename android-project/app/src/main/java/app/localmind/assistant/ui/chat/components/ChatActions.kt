@@ -14,7 +14,9 @@ data class ChatActions(
     /** Repeat-after-me with a sentence from this reply (tutors only). */
     val onPractise: ((String) -> Unit)? = null,
     /** Save the idea card in this reply to the idea book (the Trader only). */
-    val onSaveIdea: ((String) -> Unit)? = null
+    val onSaveIdea: ((String) -> Unit)? = null,
+    /** Save the gist card in this reply to the book's card in SlothBooks (the Librarian only). */
+    val onSaveGist: ((String) -> Unit)? = null
 )
 
 val LocalChatActions = compositionLocalOf { ChatActions() }

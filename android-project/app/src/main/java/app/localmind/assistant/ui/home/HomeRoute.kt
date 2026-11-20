@@ -8,6 +8,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.LocalLibrary
+import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material.icons.outlined.Sailing
@@ -37,7 +38,6 @@ import app.localmind.assistant.domain.persona.ChineseScript
 import app.localmind.assistant.domain.persona.Persona
 import app.localmind.assistant.domain.persona.SpeechLanguage
 import app.localmind.assistant.ui.chat.ChatViewModel
-import app.localmind.assistant.ui.library.LibraryViewModel
 import app.localmind.assistant.ui.notes.NotesViewModel
 import app.localmind.assistant.ui.speech.rememberTutorSpeaker
 import app.localmind.assistant.ui.study.FlashcardsViewModel
@@ -62,6 +62,8 @@ fun HomeRoute(
     onModels: () -> Unit,
     onSettings: () -> Unit,
     onLibrary: () -> Unit,
+    /** SlothBooks: the shelf, papers and the Librarian. */
+    onBooks: () -> Unit = {},
     onNotes: () -> Unit,
     onDesk: () -> Unit = {},
     /** The Later shelf (in the Reader). */
@@ -74,8 +76,8 @@ fun HomeRoute(
     val ui by chatViewModel.uiState.collectAsStateWithLifecycle()
     val flashcards: FlashcardsViewModel = hiltViewModel()
     val cards by flashcards.uiState.collectAsStateWithLifecycle()
-    val library: LibraryViewModel = hiltViewModel()
-    val shelf by library.items.collectAsStateWithLifecycle()
+    val booksVm: app.localmind.assistant.ui.books.BooksViewModel = hiltViewModel()
+    val bookList by booksVm.books.collectAsStateWithLifecycle()
     val notesVm: NotesViewModel = hiltViewModel()
     val notes by notesVm.notes.collectAsStateWithLifecycle()
     val home: HomeViewModel = hiltViewModel()
@@ -142,19 +144,25 @@ fun HomeRoute(
         HomeTile(Icons.Outlined.Translate, "Dictionary", "", onDictionary)
     )
 
-    // Know: what you keep and read.
+    // Know: what you read (SlothBooks), what you note, and what's saved for later.
     val know = buildList {
-        val items = shelf?.size ?: 0
+        val reading = bookList.filter { !it.isPaper && it.status == app.localmind.assistant.domain.books.Status.READING }
+            .maxByOrNull { it.updatedAt }
+        val freshPapers = bookList.count { it.fresh }
+        val shelved = bookList.count { !it.isPaper }
         add(
             HomeTile(
-                Icons.Outlined.LocalLibrary, "Library",
-                when (items) {
-                    0 -> ""
-                    1 -> "1 item"
-                    else -> "$items items"
+                Icons.AutoMirrored.Outlined.MenuBook, "SlothBooks",
+                when {
+                    freshPapers == 1 -> "1 new paper"
+                    freshPapers > 1 -> "$freshPapers new papers"
+                    reading != null -> "${reading.title} · ${reading.progress}%"
+                    shelved > 0 -> "%,d books".format(shelved)
+                    else -> ""
                 },
-                onLibrary,
-                key = "library"
+                onBooks,
+                if (freshPapers > 0 || reading != null) Tone.ACCENT else Tone.QUIET,
+                key = "books"
             )
         )
         add(
@@ -216,10 +224,12 @@ fun HomeRoute(
         }
     }
 
+    // The Library is what SlothLlama reads (files and Wikipedia it searches): set up once, like Models.
     val more = listOf(
         HomeTile(Icons.Outlined.ChatBubbleOutline, "Chats", "", onOpenChats),
         HomeTile(Icons.Outlined.PersonOutline, "Personas", "", onPersonas),
-        HomeTile(Icons.Outlined.Memory, "Models", ui.activeModelName.ifBlank { "choose one" }, onModels)
+        HomeTile(Icons.Outlined.Memory, "Models", ui.activeModelName.ifBlank { "choose one" }, onModels),
+        HomeTile(Icons.Outlined.LocalLibrary, "Library", "", onLibrary)
     )
 
     // Practice: writing to a tutor, or reviewing a flashcard.
@@ -245,7 +255,8 @@ fun HomeRoute(
         tutorGroups(ui.personas).firstOrNull { it.language == language }?.let(::drillTutor)
 
     // Arranged as you left them (Home → Arrange), and your favourite personas in their order.
-    val knowArranged = HomeSettings.arranged(know, settings.knowOrder) { it.key }
+    // SlothBooks took the Library's place in Know (1.29), so an order saved before keeps its slot.
+    val knowArranged = HomeSettings.arranged(know, settings.knowOrder.map { if (it == "library") "books" else it }) { it.key }
     val actArranged = HomeSettings.arranged(act, settings.doOrder) { it.key }
     val favourites = settings.favourites.mapNotNull { id -> ui.personas.firstOrNull { it.id == id } }
     val favouriteNotes = favourites.mapNotNull { p -> practisedAgo(lastByPersona[p.id], todayDate, zone)?.let { p.id to it } }.toMap()

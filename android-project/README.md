@@ -85,6 +85,24 @@ model too big for the GPU falls back to the CPU on its own.
   them, and the other side. It writes trade ideas as cards (entry, stop, target, horizon,
   thesis, wrong if) and plays clients for pitch practice, with feedback when the call ends.
   SlothDesk's **Ask about this** goes to it too. It never works out prices or P&L itself.
+- **SlothBooks and the Librarian.** Home → SlothBooks keeps your books and papers, with three
+  tabs: Shelf, Papers, Insights. **Bring in a spreadsheet** once (⋯ → Bring in a spreadsheet:
+  .xlsx or .csv, read on the tablet; a Title column is all it needs, and Author, Year, Form,
+  Genre, Written in, Reading in, Series and the rest are read by name; ISBNs and links are left
+  out), then **Add a book** from then on. Every book starts unread. Each book has a card: the
+  catalogue (fixable in Edit details), then **you** (status, dates, progress and where you're up
+  to, the language you're reading it in, your copy, rating, mood and pace tags, why now, your
+  verdict, quotes), a **gist** marked with where it came from (folded while you read a novel, so
+  nothing is spoiled), the books on your shelf it goes with, and recall questions. Series and
+  cycles keep their order. **Talk it through** opens the **Librarian**, a built-in persona: a
+  book-club partner that is told how far you are and keeps to it, drafts gists as cards you save
+  to the book with one tap, quizzes you, and recommends from your own unread books first (the
+  picks and every count are worked out in code). **Papers:** a PDF the Lobster fetches is kept
+  by itself in Documents/SlothBooks/Papers on the tablet (an EPUB in Documents/SlothBooks/Books)
+  and gets a card; **Add a PDF** or Share → **Keep in SlothBooks** does the same for a file you
+  have. PDFs open in SlothBooks' own viewer, and their text goes into the Library so the book
+  button finds it. **Insights:** what you've read, series progress, when your books were
+  written, in what languages and where from, all counted on the tablet.
 - **SlothDesk: Ideas and Calculators.** SlothDesk has three tabs: Strategies, Ideas, Calculators.
   **Ideas:** write an idea before it
   plays out (instrument, direction, entry, stop, target, horizon, thesis, what would prove it
@@ -143,12 +161,13 @@ model too big for the GPU falls back to the CPU on its own.
   one page; sideways (the tablet in landscape, an open foldable) it's two, each one screen
   tall. The left page is now: the time, today in Chinese, a hello, Continue and New chat,
   **Today** (flashcards due, what the Lobster brought back, SlothDesk's tickets, the weekly
-  backup) and the day's Chinese. The right page is places: **Favourites**, Learn, Know (Library,
+  backup) and the day's Chinese. The right page is places: **Favourites**, Learn, Know (SlothBooks,
   Notes, Later) and Do (SlothDesk, the Lobster, Ourjong). OLED black with a moss-green accent,
-  kept for the main action and live numbers; coral is the Lobster's.
+  kept for the main action and live numbers; coral is the Lobster's. The Library (what SlothLlama
+  searches: files and Wikipedia) sits in the bottom row with Models.
 - **Favourites.** Star a persona in Personas (☆ beside ⋯) and it gets a chip on Home and leads
-  the Personas page. The Trader, the Mandarin and Cantonese partners and the General Assistant
-  are starred to begin with. Long-press a tutor's chip for a five-minute drill.
+  the Personas page. The Trader, the Librarian, the Mandarin and Cantonese partners and the
+  General Assistant are starred to begin with. Long-press a tutor's chip for a five-minute drill.
 - **Arrange.** Home → Arrange, then tap a tile and the one to swap it with (Favourites, Know or
   Do). Done saves the order.
   Back returns to where you came from; Home is in the menu.
@@ -206,13 +225,15 @@ model too big for the GPU falls back to the CPU on its own.
   your message. Settings → Assistant → Offline tools; tutors don't use them unless you allow it.
 - **Share to SlothLlama.** Share text, a link, a photo, a PDF or a book from any app: a small
   sheet offers what fits (explain, summarize, translate, read a photo's text, save to Notes,
-  add to the Library, or send a link to the Lobster). Chats open with it attached and the
+  add to the Library, keep a PDF or EPUB in SlothBooks, or send a link to the Lobster). Chats
+  open with it attached and the
   request in the box; nothing is sent until you tap send.
 - **SlothLobster mailbox.** SlothLlama stays offline; the SlothLobster, a separate app, goes
   online for you. They share only an encrypted mailbox folder (same tablet, or synced to a phone
   with Syncthing). The Lobster page (Settings → SlothLobster) sets it up, sends orders
   (research, fetch, watch, brief), shows whether the Lobster is awake, and lists what it brought
-  back for you to file in the Library, Notes or a chat. In a chat, "ask the lobster to …" sends
+  back for you to file in the Library, Notes or a chat (a fetched PDF or EPUB goes straight to
+  SlothBooks and Documents/SlothBooks instead). In a chat, "ask the lobster to …" sends
   an order too. The format is in [docs/LOBSTER_MAILBOX.md](docs/LOBSTER_MAILBOX.md). **How to ask** (under the order box)
   explains how the Lobster works, with examples for each kind, and **Draft it in a chat** has
   SlothLlama shape a rough idea into a well-formed order. Old orders fold away after a day;
@@ -237,7 +258,7 @@ model too big for the GPU falls back to the CPU on its own.
   opens a link. Press and hold a paragraph to save it to Notes or ask a new chat to explain,
   simplify, translate or sum it up (the passage goes along as an attachment). Share sends the
   text as Markdown. On a tablet held sideways the catch, the Library and Notes sit beside it.
-- **Backups.** Settings → Backup: one file with chats, custom personas, flashcards, notes and settings,
+- **Backups.** Settings → Backup: one file with chats, custom personas, flashcards, notes, the SlothBooks shelf and settings,
   optionally AES-256 encrypted with a password. Restore adds it back. Models aren't included, but
   a backup lists their names (and the Library's), so a restore shows what to import again.
   **Back up every week** saves an encrypted backup into a folder you choose (an SD card or USB

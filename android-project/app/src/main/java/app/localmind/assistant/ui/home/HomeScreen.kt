@@ -192,7 +192,7 @@ fun HomeScreen(
     today: List<TodayItem>,
     /** Learn: word tools shown under the tutors (Core words, Flashcards, Dictionary). */
     learn: List<HomeTile>,
-    /** Know: Library, Notes, Later. */
+    /** Know: SlothBooks, Notes, Later. */
     know: List<HomeTile>,
     /** Do: SlothDesk, the Lobster, Ourjong. */
     act: List<HomeTile>,

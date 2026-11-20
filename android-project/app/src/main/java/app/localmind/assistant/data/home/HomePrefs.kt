@@ -49,7 +49,7 @@ data class HomeSettings(
 
     companion object {
         val DEFAULT_FAVOURITES = listOf(
-            "persona-trader", "persona-mandarin-partner", "persona-cantonese-partner", "persona-general-assistant"
+            "persona-trader", "persona-librarian", "persona-mandarin-partner", "persona-cantonese-partner", "persona-general-assistant"
         )
 
         /** [items] in [order] (by [key]); anything the order doesn't name keeps its place after. */
