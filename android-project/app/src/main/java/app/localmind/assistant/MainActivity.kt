@@ -317,6 +317,10 @@ private fun SlothRoot(
                     onLibrary = { navigate(Destination.LIBRARY) },
                     onNotes = { navigate(Destination.NOTES) },
                     onDesk = { navigate(Destination.DESK) },
+                    onLater = {
+                        reader.close()
+                        navigate(Destination.READER)
+                    },
                     onLobster = openLobster,
                     lobster = lobsterState.takeIf { it.enabled }
                 )

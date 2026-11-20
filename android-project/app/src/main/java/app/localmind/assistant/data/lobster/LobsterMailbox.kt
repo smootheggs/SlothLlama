@@ -59,7 +59,10 @@ enum class OrderState(val label: String) {
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
-class LobsterMailbox @Inject constructor(@ApplicationContext private val context: Context) {
+class LobsterMailbox @Inject constructor(
+    @ApplicationContext private val context: Context,
+    private val later: app.localmind.assistant.data.later.ReadingList
+) {
 
     // Not in SlothLlama's backups: the key stays on this tablet (pair again after a restore).
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -203,6 +206,7 @@ class LobsterMailbox @Inject constructor(@ApplicationContext private val context
             // A file still being synced fails to open; only call it unreadable once it's had time.
             CaughtItem(f.name.orEmpty(), item, unreadable = item == null && now - f.lastModified() > UNREADABLE_AFTER_MS)
         }.filter { it.item != null || it.unreadable }
+            .filterNot { shelvedForLater(root, it) }
         val waiting = dir(root, ORDERS).listFiles().mapNotNull { it.name }.toSet()
         val answered = catch.mapNotNull { it.item?.orderId }.toSet() + prefs.getStringSet(KEY_DONE, emptySet()).orEmpty()
         _state.value = MailboxState(
@@ -214,6 +218,24 @@ class LobsterMailbox @Inject constructor(@ApplicationContext private val context
             orders = orderViews(waiting, answered),
             lastChecked = now
         )
+    }
+
+    /**
+     * A page saved for later goes straight to the Later shelf and out of the mailbox, so it never
+     * sits in the catch. True when [ci] was one (even if its file couldn't be deleted this time).
+     */
+    private fun shelvedForLater(root: DocumentFile, ci: CaughtItem): Boolean {
+        val c = ci.item ?: return false
+        if (c.kind != LATER) return false
+        return runCatching {
+            later.importCatch(c)
+            dir(root, CATCH).findFile(ci.fileName)?.delete()
+            c.orderId?.let { id -> prefs.edit().putStringSet(KEY_DONE, (prefs.getStringSet(KEY_DONE, emptySet()).orEmpty() + id).toSet()).apply() }
+            true
+        }.getOrElse { e ->
+            Log.w(TAG, "Couldn't shelve a page for later", e)
+            false
+        }
     }
 
     private fun orderViews(waiting: Set<String>, answered: Set<String>): List<OrderView> =
@@ -271,6 +293,8 @@ class LobsterMailbox @Inject constructor(@ApplicationContext private val context
         private const val KEY_NOTIFIED = "notified"
         const val ORDERS = "orders"
         const val CATCH = "catch"
+        /** The catch kind the Lobster gives a page saved for later. */
+        const val LATER = "later"
         const val STATUS = "status.lobster"
         const val STOP = "STOP"
         private const val MAX_ORDER_CHARS = 4_000

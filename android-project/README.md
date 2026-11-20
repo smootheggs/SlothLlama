@@ -118,6 +118,12 @@ model too big for the GPU falls back to the CPU on its own.
   practice and "last practised" on each tutor; long-press a tutor for a five-minute drill.
   SlothDesk's fresh tickets in Today, the Lobster's top headline on its tile, and an Ourjong
   tile that opens the mahjong app if it's installed. All offline, from short lists in the app.
+- **Later, a read-it-later shelf.** In any app, share a link and pick **Save for later**: the
+  SlothLobster fetches a clean copy and SlothLlama shelves it under Later in the Reader, with
+  minutes to read, a progress bar, Done to archive, favourites and a copy to the Library. Any
+  text in the Reader can be **read aloud** with the tablet's own voices (Chinese and Japanese
+  paragraphs get their own), with speed and pause; the page follows along. Nothing leaves the
+  tablet except the Lobster's fetch, and the shelf is in your backups.
 - **One design kit.** Personas is a grid of tiles grouped by language (tap to chat, ⋯ to
   customize or give one its own model); the Lobster page leads with a slim status line, a calm
   order box and the newest catch as a card, the rest as rows; SlothDesk shows tonight's tickets

@@ -358,7 +358,9 @@ private fun OrderBox(enabled: Boolean, onSend: (OrderKind, String, Boolean, Stri
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
-            listOf("library" to "To Library", "notes" to "To Notes").forEach { (id, label) ->
+            val places = listOf("library" to "To Library", "notes" to "To Notes") +
+                if (kind == OrderKind.FETCH) listOf("later" to "To Later") else emptyList()
+            places.forEach { (id, label) ->
                 Chip(label, deliver == id, small = true) { deliver = id }
             }
             if (kind == OrderKind.RESEARCH) Chip("Deep · overnight", deep, small = true) { deep = !deep }
@@ -388,7 +390,7 @@ private fun OrderBox(enabled: Boolean, onSend: (OrderKind, String, Boolean, Stri
             Link("Draft it in a chat") { onDraft(LobsterTips.draftPrompt(kind, text)) }
             Spacer(Modifier.weight(1f))
             SendButton(enabled = enabled && text.isNotBlank()) {
-                onSend(kind, text, deep && kind == OrderKind.RESEARCH, deliver)
+                onSend(kind, text, deep && kind == OrderKind.RESEARCH, if (deliver == "later" && kind != OrderKind.FETCH) "library" else deliver)
                 text = ""
             }
         }

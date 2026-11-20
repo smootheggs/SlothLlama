@@ -6,6 +6,8 @@ import androidx.lifecycle.viewModelScope
 import app.localmind.assistant.data.ask.AskInbox
 import app.localmind.assistant.data.ask.LaunchRequest
 import app.localmind.assistant.data.attachments.AttachmentStore
+import app.localmind.assistant.data.later.LaterItem
+import app.localmind.assistant.data.later.ReadingList
 import app.localmind.assistant.data.library.LibraryItem
 import app.localmind.assistant.data.library.LibraryStore
 import app.localmind.assistant.data.lobster.LobsterMailbox
@@ -27,13 +29,13 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /** Where a text in the reader came from. */
-enum class ReaderSource { CATCH, LIBRARY, NOTE }
+enum class ReaderSource { CATCH, LIBRARY, NOTE, LATER }
 
 /** A text open in the reader. [key] names it for the saved reading position. */
 data class ReaderDoc(
     val key: String,
     val source: ReaderSource,
-    /** The catch's file name, the library item's id, or the note's id. */
+    /** The catch's file name, the library item's id, the note's id, or the Later item's id. */
     val ref: String,
     val title: String,
     val meta: String,
@@ -63,7 +65,8 @@ class ReaderViewModel @Inject constructor(
     private val library: LibraryStore,
     private val notes: NotesStore,
     private val attachments: AttachmentStore,
-    private val askInbox: AskInbox
+    private val askInbox: AskInbox,
+    private val later: ReadingList
 ) : ViewModel() {
 
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -71,6 +74,8 @@ class ReaderViewModel @Inject constructor(
     val mailboxState: StateFlow<MailboxState> = mailbox.state
     val libraryItems: StateFlow<List<LibraryItem>?> = library.items
     val noteList: StateFlow<List<Note>> = notes.notes
+    /** The Later shelf, newest first. */
+    val laterItems: StateFlow<List<LaterItem>> = later.items
 
     private val _doc = MutableStateFlow<ReaderDoc?>(null)
     val doc: StateFlow<ReaderDoc?> = _doc.asStateFlow()
@@ -140,6 +145,18 @@ class ReaderViewModel @Inject constructor(
                 ReaderDoc(key = "lib:$id", source = source, ref = ref, title = name, meta = "Library", text = text)
             }
         }
+        ReaderSource.LATER -> later.items.value.firstOrNull { it.id == ref }?.let { item ->
+            val text = withContext(Dispatchers.IO) { later.text(item.id) } ?: return null
+            ReaderDoc(
+                key = "later:${item.id}",
+                source = source,
+                ref = ref,
+                title = item.title,
+                meta = listOf(item.site, "Later").filter { it.isNotBlank() }.joinToString(" · "),
+                text = text,
+                sources = if (item.url.isBlank()) emptyList() else listOf(LobsterSource(item.site, item.url))
+            )
+        }
         ReaderSource.NOTE -> notes.notes.value.firstOrNull { it.id == ref }?.let { n ->
             val (title, body) = splitNote(n.text)
             ReaderDoc(key = "note:${n.id}", source = source, ref = ref, title = title, meta = "Note", text = body)
@@ -172,6 +189,45 @@ class ReaderViewModel @Inject constructor(
         e.apply()
     }
 
+    // --- the Later shelf ---
+
+    /** How far a Later article has been read (0 to 1), as the page scrolls. */
+    fun laterProgress(id: String, progress: Float) = act {
+        withContext(Dispatchers.IO) { later.setProgress(id, progress) }
+        null
+    }
+
+    /** Finished: off the to-read list, kept in the archive. */
+    fun finishLater(id: String) = act {
+        withContext(Dispatchers.IO) { later.setArchived(id, true) }
+        close()
+        "Archived. It's under Archive on the Later shelf."
+    }
+
+    fun restoreLater(id: String) = act {
+        withContext(Dispatchers.IO) { later.setArchived(id, false) }
+        "Back on your Later list"
+    }
+
+    fun favouriteLater(id: String, on: Boolean) = act {
+        withContext(Dispatchers.IO) { later.setFavourite(id, on) }
+        if (on) "Kept as a favourite ★" else "No longer a favourite"
+    }
+
+    fun removeLater(id: String) = act {
+        withContext(Dispatchers.IO) { later.remove(id) }
+        if (_doc.value?.ref == id) close()
+        "Deleted from Later"
+    }
+
+    /** A copy goes to the Library, where it's searchable by meaning and usable in chats. */
+    fun laterToLibrary(id: String) = act {
+        val item = later.items.value.firstOrNull { it.id == id } ?: return@act null
+        val text = withContext(Dispatchers.IO) { later.text(id) } ?: return@act null
+        library.addText(item.title, if (item.url.isBlank()) text else "$text\n\nSource: ${item.url}")
+        "Added to your library 📚"
+    }
+
     // --- links: the Lobster fetches them ---
 
     fun togglePick(url: String) = _picked.update { if (url in it) it - url else it + url }
@@ -183,6 +239,12 @@ class ReaderViewModel @Inject constructor(
     fun fetch(url: String) = sendFetches(listOf(url))
 
     fun fetchPicked() = sendFetches(_picked.value.toList())
+
+    /** The Lobster fetches the page onto the Later shelf. */
+    fun saveForLater(url: String) = act {
+        mailbox.send(OrderKind.FETCH, url, deep = false, deliver = "later")
+        "Saved for later 🦞 It will appear on the Later shelf."
+    }
 
     private fun sendFetches(urls: List<String>) = act {
         if (urls.isEmpty()) return@act null

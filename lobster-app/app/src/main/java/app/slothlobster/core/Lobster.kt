@@ -112,8 +112,11 @@ class Lobster private constructor(val context: Context) {
 
     // --- orders ---
 
-    /** A new order given here. With [repeat], it runs now and then again on that schedule. */
-    fun newOrder(kind: OrderKind, text: String, deep: Boolean, repeat: RepeatRule? = null) {
+    /**
+     * A new order given here. With [repeat], it runs now and then again on that schedule.
+     * [deliver] "later" files a fetched page on SlothLlama's Later shelf instead of the catch.
+     */
+    fun newOrder(kind: OrderKind, text: String, deep: Boolean, repeat: RepeatRule? = null, deliver: String = "library") {
         val now = System.currentTimeMillis()
         val repeatId = repeat?.let { UUID.randomUUID().toString() }
         val job = Job(
@@ -122,6 +125,7 @@ class Lobster private constructor(val context: Context) {
             kind = kind.id,
             text = text.trim().take(4_000),
             deep = deep,
+            deliver = deliver,
             createdAt = now,
             repeatId = repeatId
         )

@@ -35,6 +35,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.material.icons.outlined.ExpandLess
 import androidx.compose.material.icons.outlined.ExpandMore
+import androidx.compose.material.icons.outlined.Headphones
+import androidx.compose.material.icons.outlined.Pause
+import androidx.compose.material.icons.outlined.PlayArrow
 import androidx.compose.material.icons.outlined.Search
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material3.AlertDialog
@@ -144,7 +147,7 @@ fun ReaderScreen(
             }
             Column(Modifier.fillMaxSize()) {
                 if (current == null) {
-                    SlothTopBar(title = "Reader", subtitle = "Catch, library and notes · offline", onBack = leave)
+                    SlothTopBar(title = "Reader", subtitle = "Later, catch, library and notes · offline", onBack = leave)
                 }
                 if (wide) {
                     Row(Modifier.fillMaxSize()) {
@@ -192,20 +195,50 @@ fun ReaderScreen(
 
 // --- the shelf ---
 
-private enum class ShelfTab(val label: String) { CATCH("Catch"), LIBRARY("Library"), NOTES("Notes") }
+private enum class ShelfTab(val label: String) { LATER("Later"), CATCH("Catch"), LIBRARY("Library"), NOTES("Notes") }
 
-private data class ShelfRow(val source: ReaderSource, val ref: String, val key: String, val title: String, val detail: String)
+private data class ShelfRow(
+    val source: ReaderSource,
+    val ref: String,
+    val key: String,
+    val title: String,
+    val detail: String,
+    /** How far it's been read (Later only); null hides the bar. */
+    val progress: Float? = null
+)
 
 @Composable
 private fun Shelf(viewModel: ReaderViewModel, selectedKey: String?, onOpen: (ReaderSource, String) -> Unit) {
     val mailbox by viewModel.mailboxState.collectAsStateWithLifecycle()
     val library by viewModel.libraryItems.collectAsStateWithLifecycle()
     val notes by viewModel.noteList.collectAsStateWithLifecycle()
-    var tabName by rememberSaveable { mutableStateOf(if (mailbox.enabled && mailbox.catch.isNotEmpty()) ShelfTab.CATCH.name else ShelfTab.LIBRARY.name) }
+    val later by viewModel.laterItems.collectAsStateWithLifecycle()
+    val toRead = later.filter { !it.archived }
+    var tabName by rememberSaveable {
+        mutableStateOf(
+            when {
+                toRead.isNotEmpty() -> ShelfTab.LATER.name
+                mailbox.enabled && mailbox.catch.isNotEmpty() -> ShelfTab.CATCH.name
+                else -> ShelfTab.LIBRARY.name
+            }
+        )
+    }
     val tab = ShelfTab.valueOf(tabName)
     var filter by rememberSaveable { mutableStateOf("") }
+    var archive by rememberSaveable { mutableStateOf(false) }
 
     val rows = when (tab) {
+        ShelfTab.LATER -> later.filter { it.archived == archive }.map { item ->
+            ShelfRow(
+                ReaderSource.LATER, item.id, "later:${item.id}",
+                (if (item.favourite) "★ " else "") + item.title,
+                listOfNotNull(
+                    item.site.takeIf { it.isNotBlank() },
+                    if (!item.readable) "no readable copy" else if (item.progress > 0f && !item.archived) "${item.minutesLeft} min left" else "${item.minutes} min"
+                ).joinToString(" · "),
+                progress = item.progress.takeIf { !item.archived && it > 0f }
+            )
+        }
         ShelfTab.CATCH -> mailbox.catch.mapNotNull { ci ->
             ci.item?.takeIf { it.kind != "prices" }?.let { c -> ShelfRow(ReaderSource.CATCH, ci.fileName, "catch:${c.id}", c.title, c.kind.replaceFirstChar { it.uppercase() }) }
         }
@@ -222,11 +255,19 @@ private fun Shelf(viewModel: ReaderViewModel, selectedKey: String?, onOpen: (Rea
         Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             ShelfTab.entries.forEach { t ->
                 val count = when (t) {
+                    ShelfTab.LATER -> toRead.size
                     ShelfTab.CATCH -> mailbox.catch.count { it.item != null && it.item.kind != "prices" }
                     ShelfTab.LIBRARY -> library.orEmpty().count { it.kind == LibraryKind.DOCUMENT }
                     ShelfTab.NOTES -> notes.size
                 }
-                Chip(if (count > 0) "${t.label} · $count" else t.label, t == tab) { tabName = t.name }
+                Chip(if (count > 0) "${t.label} · $count" else t.label, t == tab) { tabName = t.name; archive = false }
+            }
+        }
+        if (tab == ShelfTab.LATER) {
+            val archived = later.count { it.archived }
+            Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Chip(if (toRead.isEmpty()) "To read" else "To read · ${toRead.size} · ${toRead.sumOf { it.minutesLeft }} min", !archive) { archive = false }
+                Chip(if (archived > 0) "Archive · $archived" else "Archive", archive) { archive = true }
             }
         }
         Field(
@@ -237,6 +278,9 @@ private fun Shelf(viewModel: ReaderViewModel, selectedKey: String?, onOpen: (Rea
             Text(
                 when {
                     filter.isNotBlank() -> "Nothing matches."
+                    tab == ShelfTab.LATER && archive -> "Nothing archived yet. Finish an article and it lands here."
+                    tab == ShelfTab.LATER -> "Nothing saved yet. In any app, share a link and pick \"Save for later\": " +
+                        "the Lobster brings back a clean copy to read here, offline."
                     tab == ShelfTab.CATCH && !mailbox.enabled -> "The Lobster is off. Turn it on from its page to have it fetch things for you."
                     tab == ShelfTab.CATCH -> "Nothing brought back yet. Briefs and fetched pages land here."
                     tab == ShelfTab.LIBRARY -> "No documents yet. Add them on the Library page."
@@ -261,6 +305,7 @@ private fun Shelf(viewModel: ReaderViewModel, selectedKey: String?, onOpen: (Rea
                     if (r.detail.isNotBlank()) {
                         Text(r.detail, color = P.Faint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
+                    r.progress?.let { p -> ProgressLine(p, Modifier.padding(top = 6.dp)) }
                 }
             }
         }
@@ -297,10 +342,35 @@ private fun Reading(
     var linkMenu by remember { mutableStateOf<String?>(null) }
     var passageMenu by remember { mutableStateOf<String?>(null) }
     val extraSources = remember(doc) { doc.sources.filter { s -> s.url.isNotBlank() && !doc.text.contains(s.url) } }
+    val laterItems by viewModel.laterItems.collectAsStateWithLifecycle()
+    val laterItem = if (doc.source == ReaderSource.LATER) laterItems.firstOrNull { it.id == doc.ref } else null
 
-    // Remembers where reading stopped, a moment after scrolling settles and on leaving.
+    // Read aloud: the page follows the paragraph being read.
+    var listening by remember(doc.key) { mutableStateOf(false) }
+    var playing by remember { mutableStateOf(false) }
+    var spokenBlock by remember { mutableStateOf(-1) }
+    var rateIndex by rememberSaveable { mutableStateOf(1) }
+    // The speech engine starts only when you first ask to listen.
+    val voiceHolder = remember(doc.key) { arrayOfNulls<ReadAloud>(1) }
+    fun voice(): ReadAloud = voiceHolder[0]
+        ?: ReadAloud(context, onBlock = { spokenBlock = it }, onEnd = { playing = false; spokenBlock = -1 }).also { voiceHolder[0] = it }
+    DisposableEffect(doc.key) { onDispose { voiceHolder[0]?.shutdown() } }
+    LaunchedEffect(spokenBlock) {
+        if (spokenBlock >= 0) {
+            val visible = list.layoutInfo.visibleItemsInfo.map { it.index }
+            if (spokenBlock + 1 !in visible.drop(1).dropLast(1)) list.animateScrollToItem(spokenBlock + 1)
+        }
+    }
+
+    // Remembers where reading stopped, a moment after scrolling settles and on leaving. A Later
+    // article also keeps how far through it you are.
     LaunchedEffect(doc.key) {
-        snapshotFlow { list.firstVisibleItemIndex }.debounce(800).collect { viewModel.savePosition(doc.key, it) }
+        snapshotFlow { list.firstVisibleItemIndex to list.canScrollForward }.debounce(800).collect { (first, more) ->
+            viewModel.savePosition(doc.key, first)
+            if (doc.source == ReaderSource.LATER && blocks.isNotEmpty()) {
+                viewModel.laterProgress(doc.ref, if (!more) 1f else first.toFloat() / blocks.size)
+            }
+        }
     }
     DisposableEffect(doc.key) {
         onDispose { viewModel.savePosition(doc.key, list.firstVisibleItemIndex) }
@@ -321,6 +391,16 @@ private fun Reading(
             subtitle = doc.meta,
             onBack = onBack,
             actions = {
+                IconButton(onClick = {
+                    if (listening) {
+                        voiceHolder[0]?.pause(); playing = false; listening = false; spokenBlock = -1
+                    } else {
+                        listening = true; playing = true
+                        voice().apply { setRate(ReadAloud.RATES[rateIndex]) }.play(blocks.map { it.text }, (list.firstVisibleItemIndex - 1).coerceAtLeast(0))
+                    }
+                }) {
+                    Icon(Icons.Outlined.Headphones, contentDescription = if (listening) "Stop reading aloud" else "Read aloud", tint = if (listening) P.Accent else P.Muted)
+                }
                 SizeButton("A−", enabled = scale > ReaderViewModel.MIN_SCALE) { viewModel.smaller() }
                 SizeButton("A+", enabled = scale < ReaderViewModel.MAX_SCALE) { viewModel.bigger() }
                 IconButton(onClick = { finding = !finding }) {
@@ -384,16 +464,37 @@ private fun Reading(
                     }
                 }
                 itemsIndexed(blocks) { i, b ->
-                    BlockView(
-                        block = b,
-                        scale = scale,
-                        query = if (finding) query else "",
-                        current = finding && matches.getOrNull(hit) == i,
-                        picked = picked,
-                        onLink = { linkMenu = it },
-                        onPick = viewModel::togglePick,
-                        onHold = { passageMenu = b.text }
-                    )
+                    Box(
+                        Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(if (listening && spokenBlock == i) P.AccentSoft else Color.Transparent)
+                    ) {
+                        BlockView(
+                            block = b,
+                            scale = scale,
+                            query = if (finding) query else "",
+                            current = finding && matches.getOrNull(hit) == i,
+                            picked = picked,
+                            onLink = { linkMenu = it },
+                            onPick = viewModel::togglePick,
+                            onHold = { passageMenu = b.text }
+                        )
+                    }
+                }
+                if (laterItem != null && blocks.isNotEmpty()) {
+                    item(key = "finished") {
+                        Column(Modifier.fillMaxWidth().padding(top = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            HorizontalDivider(color = P.Border, modifier = Modifier.padding(bottom = 20.dp))
+                            if (laterItem.archived) {
+                                Text("In your archive", color = P.Faint, fontSize = 13.sp)
+                                Action("Put it back on the list", muted = true) { viewModel.restoreLater(laterItem.id) }
+                            } else {
+                                Text("The end", color = P.Faint, fontSize = 13.sp)
+                                Action("Finished · archive it") { viewModel.finishLater(laterItem.id) }
+                            }
+                        }
+                    }
                 }
                 if (extraSources.isNotEmpty()) {
                     item(key = "sources") {
@@ -416,7 +517,29 @@ private fun Reading(
         }
 
         HorizontalDivider(color = P.Border)
-        if (picked.isNotEmpty()) {
+        if (listening) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = {
+                    if (playing) { voiceHolder[0]?.pause(); playing = false } else { voice().resume(); playing = true }
+                }) {
+                    Icon(
+                        if (playing) Icons.Outlined.Pause else Icons.Outlined.PlayArrow,
+                        contentDescription = if (playing) "Pause" else "Play", tint = P.Accent
+                    )
+                }
+                Text(
+                    if (spokenBlock >= 0) "Reading aloud · ${spokenBlock + 1} of ${blocks.size}" else if (playing) "Starting…" else "Paused",
+                    color = P.Muted, fontSize = 13.sp, modifier = Modifier.weight(1f).padding(start = 4.dp)
+                )
+                Action("${ReadAloud.RATES[rateIndex].let { if (it % 1f == 0f) it.toInt().toString() else it.toString() }}×", muted = true) {
+                    rateIndex = (rateIndex + 1) % ReadAloud.RATES.size
+                    voice().setRate(ReadAloud.RATES[rateIndex])
+                }
+                IconButton(onClick = { voiceHolder[0]?.pause(); playing = false; listening = false; spokenBlock = -1 }) {
+                    Icon(Icons.Outlined.Close, contentDescription = "Stop reading aloud", tint = P.Muted)
+                }
+            }
+        } else if (picked.isNotEmpty()) {
             Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
                     "${picked.size} link${if (picked.size == 1) "" else "s"} picked",
@@ -432,6 +555,15 @@ private fun Reading(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Action("Ask about this") { viewModel.askAboutAll() }
+                if (laterItem != null) {
+                    if (!laterItem.archived) Action("Done") { viewModel.finishLater(laterItem.id) }
+                    Action(if (laterItem.favourite) "★ Favourite" else "☆ Favourite", muted = !laterItem.favourite) {
+                        viewModel.favouriteLater(laterItem.id, !laterItem.favourite)
+                    }
+                    Action("To Library", muted = true) { viewModel.laterToLibrary(laterItem.id) }
+                    Spacer(Modifier.width(12.dp))
+                    Action("Delete", muted = true) { viewModel.removeLater(laterItem.id) }
+                }
                 if (doc.source == ReaderSource.CATCH) {
                     Action("Library") { onCatchToLibrary(doc.ref) }
                     Action("Notes") { onCatchToNotes(doc.ref) }
@@ -450,6 +582,7 @@ private fun Reading(
             else "SlothLlama stays offline. Turn on the Lobster (its page) to have it fetch links for you.",
             options = buildList<Pair<String, () -> Unit>> {
                 if (lobsterOn) add("Fetch with the Lobster" to { viewModel.fetch(url) })
+                if (lobsterOn) add("Save for later" to { viewModel.saveForLater(url) })
                 add((if (url in picked) "Unpick" else "Pick, to fetch with others") to { viewModel.togglePick(url) })
                 add("Copy link" to { copy(context, "Link", url) })
             }
@@ -671,6 +804,14 @@ private fun Action(label: String, muted: Boolean = false, onClick: () -> Unit) {
             .clickable(onClick = onClick)
             .padding(horizontal = 10.dp, vertical = 8.dp)
     )
+}
+
+/** A thin bar: how far through an article you are. */
+@Composable
+private fun ProgressLine(progress: Float, modifier: Modifier = Modifier) {
+    Box(modifier.fillMaxWidth().height(3.dp).clip(RoundedCornerShape(2.dp)).background(P.Border)) {
+        Box(Modifier.fillMaxWidth(progress.coerceIn(0.02f, 1f)).height(3.dp).background(P.Accent))
+    }
 }
 
 @Composable

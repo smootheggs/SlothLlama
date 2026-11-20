@@ -137,6 +137,7 @@ private fun kindName(kind: String) = when (kind) {
     "alert" -> "Alert"
     "message" -> "Message"
     "note" -> "Note"
+    "later" -> "Saved for later"
     else -> "Document"
 }
 

@@ -4,6 +4,7 @@ import android.content.Intent
 import android.text.format.DateUtils
 import android.widget.Toast
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.LocalLibrary
 import androidx.compose.material.icons.outlined.Memory
@@ -58,6 +59,8 @@ fun HomeRoute(
     onLibrary: () -> Unit,
     onNotes: () -> Unit,
     onDesk: () -> Unit = {},
+    /** The Later shelf (in the Reader). */
+    onLater: () -> Unit = {},
     onLobster: (() -> Unit)? = null,
     /** The Lobster's mailbox, when the Lobster is switched on. */
     lobster: MailboxState? = null
@@ -79,6 +82,7 @@ fun HomeRoute(
     val lastByPersona by home.lastByPersona.collectAsStateWithLifecycle()
     val reviews by home.reviews.collectAsStateWithLifecycle()
     val message by home.message.collectAsStateWithLifecycle()
+    val laterItems by home.laterItems.collectAsStateWithLifecycle()
     val speaker = rememberTutorSpeaker()
     val now = System.currentTimeMillis()
     val zone = ZoneId.systemDefault()
@@ -148,7 +152,14 @@ fun HomeRoute(
                 onNotes
             )
         )
-        add(HomeTile(Icons.Outlined.Translate, "Dictionary", "", onDictionary))
+        val toRead = laterItems.filter { !it.archived }
+        add(
+            HomeTile(
+                Icons.Outlined.BookmarkBorder, "Later",
+                if (toRead.isEmpty()) "" else "${toRead.size} to read · ${toRead.sumOf { it.minutesLeft }} min",
+                onLater
+            )
+        )
         if (onLobster != null && lobsterLine != null) {
             add(HomeTile(Icons.Outlined.Sailing, "SlothLobster", lobsterLine, onLobster, Tone.LOBSTER))
         }
@@ -178,6 +189,7 @@ fun HomeRoute(
     val more = listOf(
         HomeTile(Icons.Outlined.ChatBubbleOutline, "Chats", "", onOpenChats),
         HomeTile(Icons.Outlined.PersonOutline, "Personas", "", onPersonas),
+        HomeTile(Icons.Outlined.Translate, "Dictionary", "", onDictionary),
         HomeTile(Icons.Outlined.Memory, "Models", ui.activeModelName.ifBlank { "choose one" }, onModels)
     )
 

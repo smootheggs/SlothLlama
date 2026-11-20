@@ -34,8 +34,12 @@ class HomeViewModel @Inject constructor(
     private val prefs: HomePrefs,
     private val desk: DeskStore,
     private val flashcards: FlashcardRepository,
-    dao: LocalMindDao
+    dao: LocalMindDao,
+    later: app.localmind.assistant.data.later.ReadingList
 ) : ViewModel() {
+    /** The Later shelf, for its tile. */
+    val laterItems: StateFlow<List<app.localmind.assistant.data.later.LaterItem>> = later.items
+
     val backup: StateFlow<AutoBackupState> = autoBackup.state
 
     val meaningOn: StateFlow<Boolean> = meaning.state

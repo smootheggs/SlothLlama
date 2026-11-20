@@ -48,6 +48,8 @@ Because the type is authenticated, a catch can't be passed off as an order or th
   `prices` (1.4: daily prices for SlothDesk; see below)
 - `depth`: `quick`, or `deep` (may run overnight)
 - `deliver`: where the user wants the catch filed: `library`, `notes` or `chat` (a hint; the user decides)
+  - `later` (1.6, fetch orders only): the page comes back as a catch of kind `later`, which
+    SlothLlama files straight onto its Later shelf instead of showing it in the catch
 - `queries` (optional, since 1.1): for `research`, up to 5 searches to run instead of the question
   itself, e.g. planned by SlothLlama. A Lobster that doesn't know the field ignores it.
 
@@ -64,7 +66,8 @@ remote" become the words to watch for.
   "createdAt": 1763452800000, "fileName": "paper.pdf", "fileBase64": "…" }
 ```
 
-- `kind`: `document`, `note`, `message`, `alert` or `prices` (1.4)
+- `kind`: `document`, `note`, `message`, `alert`, `prices` (1.4) or `later` (1.6: an article saved
+  for later; when the page couldn't be read, its text says why and gives the link)
 - `orderId`: the order it answers; leave it out for things the Lobster sends on its own (a brief, an alert)
 - `fileName` / `fileBase64`: optional, for a fetched PDF, EPUB or HTML page (keep files under 15 MB)
 - Research should list its **sources**; claims should rest on at least three of them.

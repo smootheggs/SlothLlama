@@ -43,6 +43,9 @@ private class Stopped(val requeue: Boolean) : Exception()
 /** What a job brings back. */
 private class Outcome(val catch: LobsterCatch, val preview: String, val subtitle: String)
 
+/** Where a page saved for later goes, and the catch kind SlothLlama shelves under Later. */
+private const val LATER = "later"
+
 /**
  * The Lobster's work: take orders from the mailbox, run them one at a time, check watched pages,
  * make the daily brief and keep the heartbeat going. Every job is one SlothLlama could name;
@@ -226,7 +229,8 @@ class Engine(private val lobster: Lobster) {
                 OrderKind.PRICES -> prices(job)
             }
             checkpoint(job.id)
-            val sent = deliver(outcome.catch, job.id, outcome.subtitle)
+            val catch = forLater(job, outcome.catch)
+            val sent = deliver(catch, job.id, outcome.subtitle)
             store.updateJob(job.id) {
                 it.copy(
                     state = JobState.DONE,
@@ -236,7 +240,8 @@ class Engine(private val lobster: Lobster) {
                     note = if (sent) null else "Kept here: there's no mailbox to send it to yet"
                 )
             }
-            notify(outcome.catch.title, outcome.subtitle)
+            // Saving for later is meant to be quiet: no notification for each article.
+            if (catch.kind != LATER) notify(outcome.catch.title, outcome.subtitle)
         } catch (e: Stopped) {
             if (e.requeue) store.updateJob(job.id) { it.copy(state = JobState.QUEUED, sources = emptyList()) }
         } catch (e: CancellationException) {
@@ -246,7 +251,8 @@ class Engine(private val lobster: Lobster) {
             val why = friendly(e)
             store.updateJob(job.id) { it.copy(state = JobState.STOPPED, note = why, finishedAt = System.currentTimeMillis()) }
             store.log("problem", "Couldn't finish: ${verb(job.kind)}", why)
-            if (job.from == From.TABLET) tellSlothLlama(job, "The Lobster couldn't do this", why)
+            if (job.deliver == LATER) saveUnreadable(job, why)
+            else if (job.from == From.TABLET) tellSlothLlama(job, "The Lobster couldn't do this", why)
         } finally {
             workingId = null
             lobster.setLive { it.copy(workingId = null) }
@@ -710,6 +716,29 @@ class Engine(private val lobster: Lobster) {
         lobster.shelf.prune(store.value.delivered.map { it.id }.toSet())
         lobster.refreshLive()
         return name != null
+    }
+
+    /**
+     * A page saved for later goes to SlothLlama's Later shelf rather than the catch. Files (PDFs,
+     * books) stay ordinary catches: the Later shelf is for articles.
+     */
+    private fun forLater(job: Job, catch: LobsterCatch): LobsterCatch =
+        if (job.deliver == LATER && job.kind == OrderKind.FETCH.id && catch.kind == "document" && catch.fileBase64 == null) catch.copy(kind = LATER) else catch
+
+    /** A link saved for later that couldn't be read still reaches the shelf, with why and the link. */
+    private fun saveUnreadable(job: Job, why: String) {
+        val link = Web.firstLink(job.text).orEmpty()
+        val catch = LobsterCatch(
+            id = UUID.randomUUID().toString(),
+            orderId = job.orderId,
+            kind = LATER,
+            title = Web.site(link).ifBlank { "A saved link" },
+            text = "The Lobster couldn't bring back a readable copy of this page ($why). " +
+                "Some sites need a sign-in or only work in a browser.\n\nThe link: $link",
+            sources = if (link.isBlank()) emptyList() else listOf(LobsterSource(Web.site(link), link)),
+            createdAt = System.currentTimeMillis()
+        )
+        deliver(catch, job.id, "Saved for later · no readable copy")
     }
 
     /** A short message back to SlothLlama about one of its orders (so it doesn't wait forever). */

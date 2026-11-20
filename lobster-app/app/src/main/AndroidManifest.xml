@@ -42,6 +42,22 @@
             </intent-filter>
         </activity>
 
+        <!-- "Save for later" in the share sheet: one tap, no screen; the page goes to SlothLlama's Later shelf. -->
+        <activity
+            android:name=".SaveForLaterActivity"
+            android:exported="true"
+            android:label="Save for later"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity="">
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
         <service
             android:name=".run.LobsterService"
             android:exported="false"

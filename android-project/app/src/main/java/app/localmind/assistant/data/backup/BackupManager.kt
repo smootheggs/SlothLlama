@@ -47,7 +47,9 @@ data class BackupContents(
     /** Memory of you (Settings → Memory). */
     val memories: List<UserMemoryEntity> = emptyList(),
     /** SlothDesk's settings, trial log and paper journal (desk/state.json); prices are fetched again. */
-    val desk: String? = null
+    val desk: String? = null,
+    /** The Later shelf: saved articles and how far you'd read them. */
+    val later: String? = null
 )
 
 /** Names of the models and Library files, which are too large to go into a backup. */
@@ -89,7 +91,8 @@ class BackupManager @Inject constructor(
     private val desk: app.localmind.assistant.data.desk.DeskStore,
     private val models: app.localmind.assistant.data.models.ModelLibrary,
     private val library: app.localmind.assistant.data.library.LibraryStore,
-    private val home: app.localmind.assistant.data.home.HomePrefs
+    private val home: app.localmind.assistant.data.home.HomePrefs,
+    private val later: app.localmind.assistant.data.later.ReadingList
 ) {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
@@ -104,7 +107,8 @@ class BackupManager @Inject constructor(
             settings = readSettings(),
             inventory = inventory(),
             memories = dao.getAllMemories(),
-            desk = desk.backupText()
+            desk = desk.backupText(),
+            later = runCatching { later.backupText() }.getOrNull()
         )
         val payload = gzip(json.encodeToString(BackupContents.serializer(), contents).toByteArray())
         val bytes = if (password.isNullOrEmpty()) header(encrypted = false) + payload else seal(payload, password)
@@ -148,6 +152,7 @@ class BackupManager @Inject constructor(
         notes.reload()
         home.reload()
         contents.desk?.let { runCatching { desk.mergeBackup(it) } }
+        contents.later?.let { runCatching { later.mergeBackup(it) } }
         val here = inventory()
         contents.summary().copy(
             missingModels = contents.inventory.models - here.models.toSet(),
