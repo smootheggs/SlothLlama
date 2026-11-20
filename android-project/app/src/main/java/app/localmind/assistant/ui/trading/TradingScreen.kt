@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -42,6 +43,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
@@ -55,7 +59,6 @@ import app.localmind.assistant.domain.trading.Idea
 import app.localmind.assistant.domain.trading.IdeaDraft
 import app.localmind.assistant.domain.trading.IdeaStats
 import app.localmind.assistant.domain.trading.MetalsMath
-import app.localmind.assistant.ui.common.SlothTopBar
 import app.localmind.assistant.ui.theme.SlothPalette as P
 import java.time.Instant
 import java.time.LocalDate
@@ -63,21 +66,47 @@ import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
-private enum class Tab(val label: String) { IDEAS("Ideas"), SUMS("Calculators") }
+/** SlothDesk's three tabs: the strategies, the idea book, the desk's sums. */
+enum class DeskTab(val label: String) { STRATEGIES("Strategies"), IDEAS("Ideas"), SUMS("Calculators") }
+
+/** Plain text tabs with a moss underline: navigation, so quieter than any button. */
+@Composable
+fun DeskTabs(tab: DeskTab, onTab: (DeskTab) -> Unit, modifier: Modifier = Modifier) {
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+        DeskTab.entries.forEach { t ->
+            val selected = t == tab
+            Column(
+                Modifier
+                    .heightIn(min = 44.dp)
+                    .clip(RoundedCornerShape(8.dp))
+                    .clickable(role = Role.Tab, onClick = { onTab(t) })
+                    .semantics { this.selected = selected },
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Bottom
+            ) {
+                Text(
+                    t.label, fontSize = 15.sp,
+                    color = if (selected) P.Text else P.Muted,
+                    fontWeight = if (selected) FontWeight.Medium else FontWeight.Normal,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                Box(Modifier.width(28.dp).height(2.dp).clip(CircleShape).background(if (selected) P.Accent else Color.Transparent))
+            }
+        }
+    }
+}
 
 /**
- * The Trading book: an idea book that keeps what you thought before you knew how it went,
- * and the desk's sums (forwards, other currencies, local against London, weights, positions).
- * Paper only; nothing here reaches a broker.
+ * The Ideas or Calculators tab of SlothDesk: an idea book that keeps what you thought before
+ * you knew how it went, and the desk's sums. Paper only; nothing here reaches a broker.
  */
 @Composable
-fun TradingScreen(viewModel: TradingViewModel, onBack: () -> Unit) {
+fun TradingPane(viewModel: TradingViewModel, tab: DeskTab, wide: Boolean, snackbar: SnackbarHostState) {
     val ideas by viewModel.ideas.collectAsStateWithLifecycle()
     val stats by viewModel.stats.collectAsStateWithLifecycle()
     val draft by viewModel.draft.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
-    val snackbar = remember { SnackbarHostState() }
-    var tab by rememberSaveable { mutableStateOf(Tab.IDEAS) }
+    val facts by viewModel.deskFacts.collectAsStateWithLifecycle()
     var shownId by rememberSaveable { mutableStateOf<String?>(null) }
 
     LaunchedEffect(message) {
@@ -86,28 +115,21 @@ fun TradingScreen(viewModel: TradingViewModel, onBack: () -> Unit) {
             viewModel.clearMessage()
         }
     }
-    // A Trader card arriving from a chat opens on the Ideas tab.
-    LaunchedEffect(draft != null) { if (draft != null) tab = Tab.IDEAS }
 
-    Box(Modifier.fillMaxSize().background(P.Canvas)) {
-        Column(Modifier.fillMaxSize()) {
-            SlothTopBar(title = "Trading book", subtitle = "Ideas and desk sums · paper only", onBack = onBack)
-            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                Column(
-                    Modifier.widthIn(max = 760.dp).fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp)
-                ) {
-                    Row(Modifier.padding(top = 12.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Tab.entries.forEach { t -> Pill(t.label, selected = t == tab) { tab = t } }
-                    }
-                    when (tab) {
-                        Tab.IDEAS -> IdeasTab(ideas, stats, onNew = viewModel::newIdea, onOpen = { shownId = it.id })
-                        Tab.SUMS -> Calculators(onAsk = viewModel::askAboutNumbers)
-                    }
-                    Spacer(Modifier.height(48.dp))
-                }
+    Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+        Column(
+            Modifier
+                .widthIn(max = if (tab == DeskTab.SUMS && wide) 1200.dp else 760.dp)
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 24.dp)
+        ) {
+            when (tab) {
+                DeskTab.SUMS -> Calculators(viewModel.inputs, facts, wide, onAsk = viewModel::askAboutNumbers)
+                else -> IdeasTab(ideas, stats, onNew = viewModel::newIdea, onOpen = { shownId = it.id })
             }
+            Spacer(Modifier.height(48.dp))
         }
-        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
     }
 
     draft?.let { d ->
@@ -134,7 +156,7 @@ fun TradingScreen(viewModel: TradingViewModel, onBack: () -> Unit) {
 @Composable
 private fun IdeasTab(ideas: List<Idea>, stats: IdeaStats, onNew: () -> Unit, onOpen: (Idea) -> Unit) {
     val today = LocalDate.now()
-    Row(Modifier.padding(top = 20.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(Modifier.padding(top = 16.dp), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(summary(stats), color = P.Muted, fontSize = 13.sp, style = TextStyle(fontFeatureSettings = "tnum"))
         }
@@ -451,6 +473,8 @@ internal fun SectionLabel(label: String) {
 internal fun Field(label: String, value: String, hint: String, number: Boolean = false, lines: Int = 1, onChange: (String) -> Unit) {
     Column(Modifier.padding(top = 12.dp)) {
         Text(label, color = P.Faint, fontSize = 12.sp)
+        // One line: a fixed height, so fields side by side line up whatever their hint.
+        val box = if (lines == 1) Modifier.height(48.dp) else Modifier.heightIn(min = 48.dp)
         BasicTextField(
             value = value,
             onValueChange = onChange,
@@ -462,12 +486,16 @@ internal fun Field(label: String, value: String, hint: String, number: Boolean =
             modifier = Modifier
                 .padding(top = 4.dp)
                 .fillMaxWidth()
+                .then(box)
                 .clip(RoundedCornerShape(10.dp))
                 .background(P.Elevated)
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = 12.dp, vertical = if (lines == 1) 0.dp else 10.dp),
             decorationBox = { inner ->
-                Box {
-                    if (value.isEmpty() && hint.isNotEmpty()) Text(hint, color = P.Faint, fontSize = 15.sp)
+                Box(
+                    if (lines == 1) Modifier.fillMaxHeight() else Modifier,
+                    contentAlignment = if (lines == 1) Alignment.CenterStart else Alignment.TopStart
+                ) {
+                    if (value.isEmpty() && hint.isNotEmpty()) Text(hint, color = P.Faint, fontSize = 14.sp, maxLines = lines)
                     inner()
                 }
             }

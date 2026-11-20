@@ -5,7 +5,13 @@ import androidx.lifecycle.viewModelScope
 import app.localmind.assistant.data.ask.AskInbox
 import app.localmind.assistant.data.ask.LaunchRequest
 import app.localmind.assistant.data.attachments.AttachmentStore
+import android.content.Context
+import android.content.SharedPreferences
+import androidx.compose.runtime.mutableStateMapOf
+import app.localmind.assistant.data.desk.DeskStore
+import app.localmind.assistant.data.desk.PriceBundle
 import app.localmind.assistant.data.trading.IdeaBook
+import dagger.hilt.android.qualifiers.ApplicationContext
 import app.localmind.assistant.domain.persona.BuiltInPersonas
 import app.localmind.assistant.domain.trading.Idea
 import app.localmind.assistant.domain.trading.IdeaCard
@@ -22,13 +28,23 @@ import kotlinx.coroutines.launch
 import java.time.LocalDate
 import javax.inject.Inject
 
-/** The Trading book: the idea book and the desk calculators. */
+/** SlothDesk's Ideas and Calculators tabs: the idea book and the desk calculators. */
 @HiltViewModel
 class TradingViewModel @Inject constructor(
+    @ApplicationContext context: Context,
     private val book: IdeaBook,
     private val askInbox: AskInbox,
-    private val attachments: AttachmentStore
+    private val attachments: AttachmentStore,
+    private val desk: DeskStore
 ) : ViewModel() {
+
+    /** The calculators' last inputs, kept between visits (on this tablet only, not in backups). */
+    val inputs = CalcInputs(context.getSharedPreferences("trading_inputs", Context.MODE_PRIVATE))
+
+    /** The latest numbers SlothDesk has that the calculators can start from. */
+    val deskFacts: StateFlow<DeskFacts?> = desk.prices
+        .map { b -> b?.let { DeskFacts.from(it) } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     val ideas: StateFlow<List<Idea>> = book.ideas
     val stats: StateFlow<IdeaStats> = book.ideas
@@ -41,6 +57,7 @@ class TradingViewModel @Inject constructor(
 
     init {
         viewModelScope.launch { book.load() }
+        viewModelScope.launch { runCatching { desk.load() } }
     }
 
     fun newIdea() = book.setDraft(IdeaDraft(reviewOn = LocalDate.now().plusMonths(1).toString()))
@@ -120,4 +137,42 @@ class TradingViewModel @Inject constructor(
         /** An idea needs what it's on, why, and what would prove it wrong. */
         fun canSave(d: IdeaDraft) = d.instrument.isNotBlank() && d.thesis.isNotBlank() && d.wrongIf.isNotBlank()
     }
+}
+
+/** A latest value from SlothDesk's prices, with its date. */
+data class DeskFact(val value: Double, val date: String)
+
+/** What the calculators can borrow from SlothDesk: the 3-month T-bill and USD/JPY. */
+data class DeskFacts(val usdRate: DeskFact?, val usdJpy: DeskFact?) {
+    companion object {
+        fun from(b: PriceBundle): DeskFacts {
+            fun last(name: String, closes: Boolean): DeskFact? {
+                val s = b.series[name] ?: return null
+                val v = (if (closes) s.closes else s.values).lastOrNull() ?: return null
+                val d = s.dates.lastOrNull() ?: return null
+                return DeskFact(v, d)
+            }
+            return DeskFacts(usdRate = last("DTB3", closes = false), usdJpy = last("USDJPY", closes = true))
+        }
+    }
+}
+
+/**
+ * The calculators' inputs as text, kept in a small settings file so the numbers are still there
+ * next time. Reading one inside a composable follows its changes.
+ */
+class CalcInputs(private val prefs: SharedPreferences) {
+    private val values = mutableStateMapOf<String, String>().apply {
+        prefs.all.forEach { (k, v) -> (v as? String)?.let { put(k, it) } }
+    }
+
+    fun get(key: String, default: String = ""): String = values[key] ?: default
+
+    fun set(key: String, value: String) {
+        values[key] = value
+        prefs.edit().putString(key, value).apply()
+    }
+
+    /** True once you've typed something for [key] (so a borrowed number doesn't overwrite it). */
+    fun has(key: String): Boolean = key in values
 }

@@ -103,7 +103,7 @@ fun ChatScreen(
     onOpenLibrary: () -> Unit = {},
     onOpenNotes: () -> Unit = {},
     onOpenLobster: (() -> Unit)? = null,
-    /** An idea card from a Trader reply, to the Trading book. */
+    /** An idea card from a Trader reply, to SlothDesk's idea book. */
     onSaveIdea: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {

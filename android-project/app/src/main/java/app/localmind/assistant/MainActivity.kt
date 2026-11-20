@@ -40,7 +40,6 @@ import app.localmind.assistant.data.attachments.AttachmentStore
 import kotlinx.coroutines.launch
 import app.localmind.assistant.ui.dictionary.DictionaryScreen
 import app.localmind.assistant.ui.core.CoreWordsScreen
-import app.localmind.assistant.ui.trading.TradingScreen
 import app.localmind.assistant.ui.trading.TradingViewModel
 import app.localmind.assistant.ui.core.CoreWordsViewModel
 import app.localmind.assistant.ui.home.drillTutor
@@ -211,7 +210,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES, LOBSTER, READER, DESK, CORE, TRADING }
+private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES, LOBSTER, READER, DESK, CORE }
 
 /**
  * Home (or the last chat, per Settings) on a fresh start. Screens open on top of each other and
@@ -292,7 +291,7 @@ private fun SlothRoot(
     LaunchedEffect(lobsterState.enabled) {
         if (lobsterState.enabled) lobster.refresh()
     }
-    // The Trading book: one for the whole app, so a Trader card saved from a chat lands in its editor.
+    // SlothDesk's ideas and calculators: one for the whole app, so a Trader card saved from a chat lands in its editor.
     val trading: TradingViewModel = hiltViewModel()
     // The reader: one for the whole app, so Back from a chat it opened returns to the same text.
     val reader: ReaderViewModel = hiltViewModel()
@@ -320,7 +319,6 @@ private fun SlothRoot(
                     onFlashcards = { navigate(Destination.FLASHCARDS) },
                     onDictionary = { navigate(Destination.DICTIONARY) },
                     onCoreWords = { navigate(Destination.CORE) },
-                    onTrading = { navigate(Destination.TRADING) },
                     onPersonas = { navigate(Destination.PERSONAS) },
                     onModels = { navigate(Destination.MODELS) },
                     onSettings = { navigate(Destination.SETTINGS) },
@@ -345,7 +343,7 @@ private fun SlothRoot(
                     onOpenLibrary = { navigate(Destination.LIBRARY) },
                     onOpenNotes = { navigate(Destination.NOTES) },
                     onOpenLobster = openLobster,
-                    onSaveIdea = { reply -> if (trading.draftFrom(reply)) navigate(Destination.TRADING) }
+                    onSaveIdea = { reply -> if (trading.draftFrom(reply)) navigate(Destination.DESK) }
                 )
                 Destination.PERSONAS -> PersonasScreen(
                     viewModel = hiltViewModel<PersonasViewModel>(),
@@ -392,11 +390,10 @@ private fun SlothRoot(
                 )
                 Destination.DESK -> DeskScreen(
                     viewModel = hiltViewModel<DeskViewModel>(),
+                    trading = trading,
                     onBack = goHome,
-                    onOpenLobster = { navigate(Destination.LOBSTER) },
-                    onOpenTrading = { navigate(Destination.TRADING) }
+                    onOpenLobster = { navigate(Destination.LOBSTER) }
                 )
-                Destination.TRADING -> TradingScreen(viewModel = trading, onBack = goHome)
                 Destination.READER -> ReaderScreen(
                     viewModel = reader,
                     onBack = goHome,

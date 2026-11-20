@@ -15,7 +15,6 @@ import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.StickyNote2
 import androidx.compose.material.icons.outlined.Style
 import androidx.compose.material.icons.outlined.FormatListNumbered
-import androidx.compose.material.icons.outlined.Insights
 import app.localmind.assistant.ui.trading.TradingViewModel
 import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.runtime.Composable
@@ -58,8 +57,6 @@ fun HomeRoute(
     onDictionary: () -> Unit,
     /** The Core words lists. */
     onCoreWords: () -> Unit = {},
-    /** The Trading book (ideas and desk sums). */
-    onTrading: () -> Unit = {},
     onPersonas: () -> Unit,
     onModels: () -> Unit,
     onSettings: () -> Unit,
@@ -137,7 +134,15 @@ fun HomeRoute(
         add(backupItem(backup, now, onSettings))
     }
 
-    val things = buildList {
+    // Learn: the word tools beside the tutors (the tutors themselves are their own row).
+    val learn = listOf(
+        HomeTile(Icons.Outlined.FormatListNumbered, "Core words", "", onCoreWords),
+        HomeTile(Icons.Outlined.Style, "Flashcards", cards.dueCount.takeIf { it > 0 }?.let { "$it due" } ?: "", onFlashcards),
+        HomeTile(Icons.Outlined.Translate, "Dictionary", "", onDictionary)
+    )
+
+    // Know: what you keep and read.
+    val know = buildList {
         val items = shelf?.size ?: 0
         add(
             HomeTile(
@@ -169,16 +174,26 @@ fun HomeRoute(
                 onLater
             )
         )
-        if (onLobster != null && lobsterLine != null) {
-            add(HomeTile(Icons.Outlined.Sailing, "SlothLobster", lobsterLine, onLobster, Tone.LOBSTER))
-        }
+    }
+
+    // Do: SlothDesk (strategies, ideas, sums), the Lobster, and a game of mahjong.
+    val act = buildList {
+        val ideasDue = tradingStats.due
         add(
             HomeTile(
                 Icons.Outlined.ShowChart, "SlothDesk",
-                glance?.let { "Prices to ${shortDate(it.dataDate.toString())}" } ?: "",
-                onDesk
+                when {
+                    ideasDue == 1 -> "1 idea to review"
+                    ideasDue > 1 -> "$ideasDue ideas to review"
+                    else -> glance?.let { "Prices to ${shortDate(it.dataDate.toString())}" } ?: ""
+                },
+                onDesk,
+                if (ideasDue > 0) Tone.ACCENT else Tone.QUIET
             )
         )
+        if (onLobster != null && lobsterLine != null) {
+            add(HomeTile(Icons.Outlined.Sailing, "SlothLobster", lobsterLine, onLobster, Tone.LOBSTER))
+        }
         if (settings.ourjongTile) {
             val intent = ourjong
             add(
@@ -198,9 +213,6 @@ fun HomeRoute(
     val more = listOf(
         HomeTile(Icons.Outlined.ChatBubbleOutline, "Chats", "", onOpenChats),
         HomeTile(Icons.Outlined.PersonOutline, "Personas", "", onPersonas),
-        HomeTile(Icons.Outlined.Translate, "Dictionary", "", onDictionary),
-        HomeTile(Icons.Outlined.FormatListNumbered, "Core words", "", onCoreWords),
-        HomeTile(Icons.Outlined.Insights, "Trading book", tradingStats.due.takeIf { it > 0 }?.let { "$it to review" } ?: "", onTrading),
         HomeTile(Icons.Outlined.Memory, "Models", ui.activeModelName.ifBlank { "choose one" }, onModels)
     )
 
@@ -231,7 +243,9 @@ fun HomeRoute(
         conversations = ui.conversations,
         personas = ui.personas,
         today = today,
-        things = things,
+        learn = learn,
+        know = know,
+        act = act,
         more = more,
         onSearch = onOpenChats,
         onSettings = onSettings,

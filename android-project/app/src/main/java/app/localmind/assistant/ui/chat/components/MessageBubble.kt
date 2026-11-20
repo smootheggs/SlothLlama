@@ -196,7 +196,7 @@ fun AssistantMessageBubble(
                     ActionIcon(Icons.Outlined.RecordVoiceOver, "Practise saying it") { practise(message.content) }
                 }
                 if (saveIdea != null && hasIdea) {
-                    ActionIcon(Icons.Outlined.BookmarkAdd, "Save the idea to the Trading book") { saveIdea(message.content) }
+                    ActionIcon(Icons.Outlined.BookmarkAdd, "Save the idea to SlothDesk") { saveIdea(message.content) }
                 }
                 ActionIcon(Icons.Outlined.Share, "Share") {
                     val send = Intent(Intent.ACTION_SEND).apply {

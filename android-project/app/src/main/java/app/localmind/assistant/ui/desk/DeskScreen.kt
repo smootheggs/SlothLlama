@@ -76,6 +76,10 @@ import app.localmind.assistant.domain.desk.Metrics
 import app.localmind.assistant.domain.desk.StrategyReport
 import app.localmind.assistant.ui.common.SlothTopBar
 import app.localmind.assistant.ui.home.WIDE
+import app.localmind.assistant.ui.trading.DeskTab
+import app.localmind.assistant.ui.trading.DeskTabs
+import app.localmind.assistant.ui.trading.TradingPane
+import app.localmind.assistant.ui.trading.TradingViewModel
 import app.localmind.assistant.ui.theme.SlothPalette as P
 import kotlinx.coroutines.delay
 import java.time.temporal.ChronoUnit
@@ -87,7 +91,7 @@ import kotlin.math.ln
  * paper journal. Paper trading only; nothing here reaches a broker.
  */
 @Composable
-fun DeskScreen(viewModel: DeskViewModel, onBack: () -> Unit, onOpenLobster: () -> Unit, onOpenTrading: () -> Unit = {}) {
+fun DeskScreen(viewModel: DeskViewModel, trading: TradingViewModel, onBack: () -> Unit, onOpenLobster: () -> Unit) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val lobster by viewModel.lobster.collectAsStateWithLifecycle()
@@ -96,6 +100,10 @@ fun DeskScreen(viewModel: DeskViewModel, onBack: () -> Unit, onOpenLobster: () -
         uri?.let(viewModel::importFile)
     }
     var marking by remember { mutableStateOf<JournalEntry?>(null) }
+    var tab by rememberSaveable { mutableStateOf(DeskTab.STRATEGIES) }
+    // An idea card saved from a Trader chat opens on the Ideas tab, in the editor.
+    val draft by trading.draft.collectAsStateWithLifecycle()
+    LaunchedEffect(draft != null) { if (draft != null) tab = DeskTab.IDEAS }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -136,7 +144,6 @@ fun DeskScreen(viewModel: DeskViewModel, onBack: () -> Unit, onOpenLobster: () -
                                 DropdownMenuItem(text = { Text("Set up the Lobster", color = P.Text) }, onClick = { menu = false; onOpenLobster() })
                             }
                             DropdownMenuItem(text = { Text("Import a prices file", color = P.Text) }, onClick = { menu = false; pick() })
-                            DropdownMenuItem(text = { Text("Trading book: ideas and desk sums", color = P.Text) }, onClick = { menu = false; onOpenTrading() })
                             if (ui.state.hidden.isNotEmpty()) {
                                 DropdownMenuItem(
                                     text = { Text("Show hidden strategies (${ui.state.hidden.size})", color = P.Text) },
@@ -154,7 +161,10 @@ fun DeskScreen(viewModel: DeskViewModel, onBack: () -> Unit, onOpenLobster: () -
                     Text(w, color = P.Accent, fontSize = 13.sp)
                 }
             }
-            BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+            DeskTabs(tab, onTab = { tab = it }, modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 4.dp))
+            if (tab != DeskTab.STRATEGIES) {
+                BoxWithConstraints(Modifier.fillMaxSize()) { TradingPane(trading, tab, maxWidth >= WIDE, snackbar) }
+            } else BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                 val wide = maxWidth >= WIDE
                 val left: @Composable (Modifier) -> Unit = { m ->
                     Column(m) {

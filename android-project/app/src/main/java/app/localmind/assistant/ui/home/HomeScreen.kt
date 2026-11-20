@@ -166,8 +166,8 @@ data class HomeActions(
 /**
  * The main page. Top: the date, today in Chinese and the almanac line, with search and settings.
  * Then a hello, the two main actions (continue the last chat, start a new one), Today (what's due
- * or new), a word and an idiom for the day, the tutors one chip per language with the week's
- * practice, your things with live status, and a quiet row for the rest.
+ * or new), a word and an idiom for the day, then the three pillars: Learn (the tutors, one chip per
+ * language with the week's practice, and the word tools), Know and Do, and a quiet row for the rest.
  * Colour is kept for the one main action and live numbers; icons stay neutral.
  * Everything fits on one screen: two columns in landscape, one spread over the height in portrait.
  */
@@ -178,7 +178,12 @@ fun HomeScreen(
     conversations: List<Conversation>,
     personas: List<Persona>,
     today: List<TodayItem>,
-    things: List<HomeTile>,
+    /** Learn: word tools shown under the tutors (Core words, Flashcards, Dictionary). */
+    learn: List<HomeTile>,
+    /** Know: Library, Notes, Later. */
+    know: List<HomeTile>,
+    /** Do: SlothDesk, the Lobster, Ourjong. */
+    act: List<HomeTile>,
     more: List<HomeTile>,
     onSearch: () -> Unit,
     onSettings: () -> Unit,
@@ -308,8 +313,8 @@ fun HomeScreen(
             }
         }
     }
-    val tutorSection: @Composable () -> Unit = {
-        if (tutorGroups.isNotEmpty()) {
+    val learnSection: @Composable () -> Unit = {
+        if (tutorGroups.isNotEmpty() || learn.isNotEmpty()) {
             var allLanguages by remember { mutableStateOf(false) }
             // Languages practised lately; with none yet, the first two.
             val recent = tutorGroups.filter { it.language in extras.recentLanguages }.ifEmpty { tutorGroups.take(2) }
@@ -317,7 +322,7 @@ fun HomeScreen(
             val hidden = tutorGroups.size - recent.size
             Column {
                 Row(Modifier.padding(bottom = SECTION_LABEL_GAP), verticalAlignment = Alignment.CenterVertically) {
-                    SectionLabel("Tutors", gap = 0.dp)
+                    SectionLabel("Learn", gap = 0.dp)
                     extras.practice?.takeIf { s.practiceWeek }?.let { week ->
                         Spacer(Modifier.width(16.dp))
                         PracticeDots(week)
@@ -342,19 +347,29 @@ fun HomeScreen(
                         }
                     }
                 }
+                if (learn.isNotEmpty()) {
+                    FlowRow(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        learn.forEach { tile -> MoreButton(tile) }
+                    }
+                }
             }
         }
     }
-    val thingsGrid: @Composable () -> Unit = {
-        if (things.isNotEmpty()) {
+    // Know and Do: three tiles a row when there's room (a tablet), two on a phone.
+    val pillar: @Composable (String, List<HomeTile>) -> Unit = { label, tiles ->
+        if (tiles.isNotEmpty()) {
             Column {
-                SectionLabel("Your things")
-                things.chunked(2).forEach { row ->
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        row.forEach { tile -> ThingTile(tile, Modifier.weight(1f)) }
-                        if (row.size == 1) Spacer(Modifier.weight(1f))
+                SectionLabel(label)
+                BoxWithConstraints {
+                    val perRow = if ((maxWidth - 24.dp) / 3 >= 170.dp) 3 else 2
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        tiles.chunked(perRow).forEach { row ->
+                            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                row.forEach { tile -> ThingTile(tile, Modifier.weight(1f).fillMaxHeight()) }
+                                repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
+                            }
+                        }
                     }
-                    Spacer(Modifier.height(12.dp))
                 }
             }
         }
@@ -375,8 +390,8 @@ fun HomeScreen(
             .navigationBarsPadding()
     ) {
         if (maxWidth >= WIDE) {
-            // Landscape: hello, main actions, Today and the day's Chinese on the left; tutors and
-            // your things on the right.
+            // Landscape: hello, main actions, Today and the day's Chinese on the left; Learn (the
+            // tutors and word tools), Know and Do on the right.
             Column(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 16.dp)) {
                 top()
                 Row(Modifier.weight(1f).padding(top = 24.dp), horizontalArrangement = Arrangement.spacedBy(48.dp)) {
@@ -393,8 +408,9 @@ fun HomeScreen(
                         Modifier.weight(1f).verticalScroll(rememberScrollState()),
                         verticalArrangement = Arrangement.spacedBy(SECTION_GAP)
                     ) {
-                        tutorSection()
-                        thingsGrid()
+                        learnSection()
+                        pillar("Know", know)
+                        pillar("Do", act)
                         moreRow()
                     }
                 }
@@ -418,8 +434,9 @@ fun HomeScreen(
                     mainActions()
                     todayStrip()
                     daily()
-                    tutorSection()
-                    thingsGrid()
+                    learnSection()
+                    pillar("Know", know)
+                    pillar("Do", act)
                     moreRow()
                 }
             }

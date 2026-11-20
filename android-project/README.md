@@ -85,7 +85,8 @@ model too big for the GPU falls back to the CPU on its own.
   them, and the other side. It writes trade ideas as cards (entry, stop, target, horizon,
   thesis, wrong if) and plays clients for pitch practice, with feedback when the call ends.
   SlothDesk's **Ask about this** goes to it too. It never works out prices or P&L itself.
-- **Trading book.** Home → Trading book (or SlothDesk's ⋯). **Ideas:** write an idea before it
+- **SlothDesk: Ideas and Calculators.** SlothDesk has three tabs: Strategies, Ideas, Calculators.
+  **Ideas:** write an idea before it
   plays out (instrument, direction, entry, stop, target, horizon, thesis, what would prove it
   wrong, how sure you are) or save the Trader's card with the bookmark under its reply. Once
   saved, the thesis, levels and conviction are fixed; you add dated notes, and at the review
@@ -95,6 +96,9 @@ model too big for the GPU falls back to the CPU on its own.
   lease rates (and the rate a quoted forward or EFP implies); metal in EUR, CHF, JPY, CNH, HKD,
   GBP or AUD through the FX swap, with the metal's swap rate in that currency; local prices per
   gram, tael or tola against London; weights and fineness; positions, P&L and contract counts.
+  Tenor buttons (1W–1Y) fill the days, the USD rate starts from the 3-month T-bill (and USD/JPY
+  from its close) in SlothDesk's prices until you type your own, and inputs are kept between
+  visits. On a wide screen the results sit beside the inputs.
   **Ask the Trader** sends an idea (to be challenged or reviewed) or a calculator's numbers (to be
   explained, never recalculated). In backups. Paper only.
 - **Voices.** Each language is read by a voice installed on the tablet (never one that sends the

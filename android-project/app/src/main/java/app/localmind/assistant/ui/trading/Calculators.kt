@@ -10,10 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
@@ -21,6 +17,8 @@ import androidx.compose.ui.unit.sp
 import app.localmind.assistant.domain.trading.MetalsMath
 import app.localmind.assistant.domain.trading.MetalsMath.WeightUnit
 import app.localmind.assistant.ui.theme.SlothPalette as P
+import java.time.LocalDate
+import java.time.temporal.ChronoUnit
 import java.util.Locale
 
 private enum class Calc(val label: String) {
@@ -39,28 +37,50 @@ private class Sheet(val title: String, val inputs: List<Pair<String, String>>, v
     }.trimEnd()
 }
 
-/** The desk's sums. Every result is worked out in code; "Ask the Trader" sends them as they are. */
+/**
+ * The desk's sums. Every result is worked out in code; "Ask the Trader" sends them as they are.
+ * On a wide screen the inputs sit on the left and the results, live, on the right.
+ */
 @Composable
-internal fun Calculators(onAsk: (String, String) -> Unit) {
-    var calc by rememberSaveable { mutableStateOf(Calc.FORWARD) }
-    Row(Modifier.padding(top = 18.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Calc.entries.forEach { c -> Pill(c.label, selected = c == calc, quiet = true, small = true) { calc = c } }
+internal fun Calculators(inputs: CalcInputs, facts: DeskFacts?, wide: Boolean, onAsk: (String, String) -> Unit) {
+    val calc = Calc.entries.firstOrNull { it.name == inputs.get("calc") } ?: Calc.FORWARD
+    Row(Modifier.padding(top = 16.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        Calc.entries.forEach { c -> Pill(c.label, selected = c == calc, quiet = true, small = true) { inputs.set("calc", c.name) } }
     }
-    val sheet: Sheet? = when (calc) {
-        Calc.FORWARD -> ForwardCalc()
-        Calc.CURRENCY -> CurrencyCalc()
-        Calc.LOCAL -> LocalCalc()
-        Calc.WEIGHTS -> WeightsCalc()
-        Calc.POSITION -> PositionCalc()
-    }
-    if (sheet != null && sheet.results.isNotEmpty()) {
-        SectionLabel("Results")
-        sheet.results.forEach { (k, v) -> ResultRow(k, v) }
-        if (sheet.note.isNotBlank()) Text(sheet.note, color = P.Faint, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 10.dp))
-        Row(Modifier.padding(top = 14.dp)) { QuietButton("Ask the Trader") { onAsk(sheet.title, sheet.text()) } }
+    var sheet: Sheet? = null
+    if (wide) {
+        Row(horizontalArrangement = Arrangement.spacedBy(48.dp)) {
+            Column(Modifier.weight(1f)) { sheet = calcInputs(calc, inputs, facts) }
+            Column(Modifier.weight(1f).padding(top = 12.dp)) { Results(sheet, onAsk, first = true) }
+        }
     } else {
-        Text("Fill in the numbers above to see the results.", color = P.Faint, fontSize = 13.sp, modifier = Modifier.padding(top = 20.dp))
+        sheet = calcInputs(calc, inputs, facts)
+        Results(sheet, onAsk, first = false)
     }
+}
+
+@Composable
+private fun calcInputs(calc: Calc, inputs: CalcInputs, facts: DeskFacts?): Sheet? = when (calc) {
+    Calc.FORWARD -> ForwardCalc(inputs, facts)
+    Calc.CURRENCY -> CurrencyCalc(inputs, facts)
+    Calc.LOCAL -> LocalCalc(inputs)
+    Calc.WEIGHTS -> WeightsCalc(inputs)
+    Calc.POSITION -> PositionCalc(inputs)
+}
+
+@Composable
+private fun Results(sheet: Sheet?, onAsk: (String, String) -> Unit, first: Boolean) {
+    Text(
+        "RESULTS", color = P.Faint, fontSize = 12.sp, letterSpacing = 1.4.sp,
+        modifier = Modifier.padding(top = if (first) 12.dp else 32.dp, bottom = 10.dp)
+    )
+    if (sheet == null || sheet.results.isEmpty()) {
+        Text("Fill in the numbers to see the results.", color = P.Faint, fontSize = 13.sp)
+        return
+    }
+    sheet.results.forEach { (k, v) -> ResultRow(k, v) }
+    if (sheet.note.isNotBlank()) Text(sheet.note, color = P.Faint, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 10.dp))
+    Row(Modifier.padding(top = 10.dp)) { QuietButton("Ask the Trader") { onAsk(sheet.title, sheet.text()) } }
 }
 
 @Composable
@@ -79,6 +99,11 @@ private fun TwoFields(content1: @Composable () -> Unit, content2: @Composable ()
     }
 }
 
+@Composable
+private fun About(text: String) {
+    Text(text, color = P.Faint, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 12.dp))
+}
+
 private fun money(v: Double) = "%,.2f".format(Locale.US, v)
 private fun signed(v: Double) = "%+,.2f".format(Locale.US, v)
 private fun pct(v: Double) = "%.3f%%".format(Locale.US, v * 100)
@@ -88,112 +113,139 @@ private fun plain(v: Double, dp: Int = 4) = "%,.${dp}f".format(Locale.US, v)
 /** "4.5" (percent, as typed) → 0.045. */
 private fun String.rate(): Double? = num()?.div(100)
 
+/**
+ * A field that can start from a SlothDesk number. Until you type, it shows the borrowed value
+ * and says where it came from; once you type, yours is kept.
+ */
 @Composable
-private fun BasisChips(basis: Int, onPick: (Int) -> Unit) {
-    Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        listOf(360, 365).forEach { b -> Pill("ACT/$b", selected = basis == b, quiet = true, small = true) { onPick(b) } }
+private fun BorrowedField(label: String, inputs: CalcInputs, key: String, borrowed: String?, from: String?) {
+    val mine = inputs.has(key)
+    Field(label, if (mine) inputs.get(key) else borrowed.orEmpty(), "", number = true) { inputs.set(key, it) }
+    if (!mine && borrowed != null && from != null) {
+        Text(from, color = P.Faint, fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+    }
+}
+
+/** 1W, 1M, 3M, 6M, 1Y from today, as calendar days. */
+@Composable
+private fun TenorChips(days: String, onPick: (String) -> Unit) {
+    val today = LocalDate.now()
+    val tenors = listOf(
+        "1W" to today.plusWeeks(1), "1M" to today.plusMonths(1), "3M" to today.plusMonths(3),
+        "6M" to today.plusMonths(6), "1Y" to today.plusYears(1)
+    )
+    Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        tenors.forEach { (label, date) ->
+            val d = ChronoUnit.DAYS.between(today, date).toString()
+            Pill(label, selected = days == d, quiet = true, small = true) { onPick(d) }
+        }
     }
 }
 
 @Composable
-private fun ForwardCalc(): Sheet? {
-    var spot by rememberSaveable { mutableStateOf("") }
-    var rate by rememberSaveable { mutableStateOf("") }
-    var lease by rememberSaveable { mutableStateOf("") }
-    var days by rememberSaveable { mutableStateOf("90") }
-    var basis by rememberSaveable { mutableStateOf(360) }
-    var quoted by rememberSaveable { mutableStateOf("") }
-    Text(
-        "A metal forward from spot, the money rate and the lease rate. Add a quoted forward or a futures price to read the rate it implies (an EFP).",
-        color = P.Faint, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 12.dp)
-    )
-    TwoFields({ Field("Spot (USD/oz)", spot, "", number = true) { spot = it } }, { Field("Days", days, "", number = true) { days = it } })
-    TwoFields({ Field("USD rate %", rate, "SOFR term, say", number = true) { rate = it } }, { Field("Lease rate %", lease, "", number = true) { lease = it } })
-    BasisChips(basis) { basis = it }
-    Field("Quoted forward or futures (optional)", quoted, "", number = true) { quoted = it }
+private fun BasisChips(basis: String, onPick: (String) -> Unit) {
+    Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        listOf("360", "365").forEach { b -> Pill("ACT/$b", selected = basis == b, quiet = true, small = true) { onPick(b) } }
+    }
+}
 
-    val s = spot.num() ?: return null
+private fun rateFrom(f: DeskFact?): String? = f?.let { "%.3f".format(Locale.US, it.value * 100) }
+
+@Composable
+private fun ForwardCalc(inputs: CalcInputs, facts: DeskFacts?): Sheet? {
+    val days = inputs.get("fwd.days", "91")
+    val basis = inputs.get("fwd.basis", "360")
+    About("A metal forward from spot, the money rate and the lease rate. Add a quoted forward or a futures price to read the rate it implies (an EFP).")
+    Field("Spot (USD/oz)", inputs.get("fwd.spot"), "", number = true) { inputs.set("fwd.spot", it) }
+    Field("Days", days, "", number = true) { inputs.set("fwd.days", it) }
+    TenorChips(days) { inputs.set("fwd.days", it) }
+    TwoFields(
+        { BorrowedField("USD rate %", inputs, "fwd.rate", rateFrom(facts?.usdRate), facts?.usdRate?.let { "3-month T-bill on ${it.date}, from SlothDesk" }) },
+        { Field("Lease rate %", inputs.get("fwd.lease"), "", number = true) { inputs.set("fwd.lease", it) } }
+    )
+    BasisChips(basis) { inputs.set("fwd.basis", it) }
+    Field("Quoted forward or futures (optional)", inputs.get("fwd.quoted"), "", number = true) { inputs.set("fwd.quoted", it) }
+
+    val s = inputs.get("fwd.spot").num() ?: return null
     val d = days.num()?.toInt()?.takeIf { it > 0 } ?: return null
-    val inputs = mutableListOf("Spot" to money(s), "Days" to "$d", "Day count" to "ACT/$basis")
+    val b = basis.toIntOrNull() ?: 360
+    val rateText = if (inputs.has("fwd.rate")) inputs.get("fwd.rate") else rateFrom(facts?.usdRate).orEmpty()
+    val inputsOut = mutableListOf("Spot" to money(s), "Days" to "$d", "Day count" to "ACT/$b")
     val results = mutableListOf<Pair<String, String>>()
-    val r = rate.rate()
-    val l = lease.rate()
+    val r = rateText.rate()
+    val l = inputs.get("fwd.lease").rate()
     if (r != null && l != null) {
-        inputs += "USD rate" to pct(r)
-        inputs += "Lease rate" to pct(l)
+        inputsOut += "USD rate" to pct(r)
+        inputsOut += "Lease rate" to pct(l)
         val swap = MetalsMath.swapRate(r, l)
-        val f = MetalsMath.forward(s, swap, d, basis)
+        val f = MetalsMath.forward(s, swap, d, b)
         results += "Swap rate (rate − lease)" to pct(swap)
         results += "Forward" to money(f)
         results += "Forward points (USD/oz)" to signed(f - s)
     }
-    quoted.num()?.let { q ->
-        inputs += "Quoted forward" to money(q)
-        val implied = MetalsMath.impliedSwapRate(s, q, d, basis)
-        results += "Implied swap rate" to pct(implied)
+    inputs.get("fwd.quoted").num()?.let { q ->
+        inputsOut += "Quoted forward" to money(q)
+        results += "Implied swap rate" to pct(MetalsMath.impliedSwapRate(s, q, d, b))
         results += "Forward − spot (EFP)" to signed(q - s)
-        r?.let { results += "Implied lease rate" to pct(MetalsMath.impliedLease(s, q, it, d, basis)) }
+        r?.let { results += "Implied lease rate" to pct(MetalsMath.impliedLease(s, q, it, d, b)) }
     }
     return Sheet(
-        "Metal forward", inputs, results,
-        "Forward = spot × (1 + (rate − lease) × days / $basis). A negative swap rate (lease above the money rate) means backwardation: metal is scarce to borrow."
+        "Metal forward", inputsOut, results,
+        "Forward = spot × (1 + (rate − lease) × days / $b). A negative swap rate (lease above the money rate) means backwardation: metal is scarce to borrow."
     )
 }
 
 private val CURRENCIES = listOf("EUR", "CHF", "JPY", "CNH", "HKD", "GBP", "AUD")
 
 @Composable
-private fun CurrencyCalc(): Sheet? {
-    var ccy by rememberSaveable { mutableStateOf("EUR") }
-    var spot by rememberSaveable { mutableStateOf("") }
-    var rate by rememberSaveable { mutableStateOf("") }
-    var lease by rememberSaveable { mutableStateOf("") }
-    var days by rememberSaveable { mutableStateOf("90") }
-    var fxSpot by rememberSaveable { mutableStateOf("") }
-    var fromPoints by rememberSaveable { mutableStateOf(false) }
-    var localRate by rememberSaveable { mutableStateOf("") }
-    var points by rememberSaveable { mutableStateOf("") }
+private fun CurrencyCalc(inputs: CalcInputs, facts: DeskFacts?): Sheet? {
+    val ccy = inputs.get("ccy.ccy", "EUR")
+    val days = inputs.get("ccy.days", "91")
+    val fromPoints = inputs.get("ccy.mode") == "points"
     val usdBase = MetalsMath.usdIsBase(ccy)
     val pair = if (usdBase) "USD/$ccy" else "$ccy/USD"
     val basis = MetalsMath.basisFor(ccy)
-    Text(
-        "Metal priced in another currency, spot and forward, through the FX swap: and the metal's own swap rate in that currency.",
-        color = P.Faint, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 12.dp)
-    )
+    About("Metal priced in another currency, spot and forward, through the FX swap, and the metal's own swap rate in that currency.")
     Row(Modifier.padding(top = 10.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        CURRENCIES.forEach { c -> Pill(c, selected = c == ccy, quiet = true, small = true) { ccy = c } }
+        CURRENCIES.forEach { c -> Pill(c, selected = c == ccy, quiet = true, small = true) { inputs.set("ccy.ccy", c) } }
     }
-    TwoFields({ Field("Metal spot (USD/oz)", spot, "", number = true) { spot = it } }, { Field("Days", days, "", number = true) { days = it } })
-    TwoFields({ Field("USD rate %", rate, "", number = true) { rate = it } }, { Field("Lease rate %", lease, "", number = true) { lease = it } })
-    Field("$pair spot", fxSpot, "", number = true) { fxSpot = it }
+    Field("Metal spot (USD/oz)", inputs.get("ccy.spot"), "", number = true) { inputs.set("ccy.spot", it) }
+    Field("Days", days, "", number = true) { inputs.set("ccy.days", it) }
+    TenorChips(days) { inputs.set("ccy.days", it) }
+    TwoFields(
+        { BorrowedField("USD rate %", inputs, "ccy.rate", rateFrom(facts?.usdRate), facts?.usdRate?.let { "3-month T-bill on ${it.date}" }) },
+        { Field("Lease rate %", inputs.get("ccy.lease"), "", number = true) { inputs.set("ccy.lease", it) } }
+    )
+    val jpy = facts?.usdJpy?.takeIf { ccy == "JPY" }
+    BorrowedField("$pair spot", inputs, "ccy.fx.$ccy", jpy?.let { "%.3f".format(Locale.US, it.value) }, jpy?.let { "USD/JPY close on ${it.date}, from SlothDesk" })
     Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Pill("FX from rates", selected = !fromPoints, quiet = true, small = true) { fromPoints = false }
-        Pill("FX from swap points", selected = fromPoints, quiet = true, small = true) { fromPoints = true }
+        Pill("FX from rates", selected = !fromPoints, quiet = true, small = true) { inputs.set("ccy.mode", "rates") }
+        Pill("FX from swap points", selected = fromPoints, quiet = true, small = true) { inputs.set("ccy.mode", "points") }
     }
-    if (fromPoints) Field("$pair swap points (pips)", points, "", number = true) { points = it }
-    else Field("$ccy rate %", localRate, "", number = true) { localRate = it }
+    if (fromPoints) Field("$pair swap points (pips)", inputs.get("ccy.points.$ccy"), "", number = true) { inputs.set("ccy.points.$ccy", it) }
+    else Field("$ccy rate %", inputs.get("ccy.local.$ccy"), "", number = true) { inputs.set("ccy.local.$ccy", it) }
 
-    val s = spot.num() ?: return null
+    val s = inputs.get("ccy.spot").num() ?: return null
     val d = days.num()?.toInt()?.takeIf { it > 0 } ?: return null
-    val r = rate.rate() ?: return null
-    val l = lease.rate() ?: return null
-    val x = fxSpot.num()?.takeIf { it > 0 } ?: return null
+    val r = (if (inputs.has("ccy.rate")) inputs.get("ccy.rate") else rateFrom(facts?.usdRate).orEmpty()).rate() ?: return null
+    val l = inputs.get("ccy.lease").rate() ?: return null
+    val fxText = if (inputs.has("ccy.fx.$ccy")) inputs.get("ccy.fx.$ccy") else jpy?.let { "%.3f".format(Locale.US, it.value) }.orEmpty()
+    val x = fxText.num()?.takeIf { it > 0 } ?: return null
     val pip = MetalsMath.pipFor(ccy)
-    val rl = localRate.rate()
+    val rl = inputs.get("ccy.local.$ccy").rate()
+    val pts = inputs.get("ccy.points.$ccy").num()
     val outright = if (fromPoints) {
-        val p = points.num() ?: return null
-        MetalsMath.fxFromPoints(x, p, pip)
+        MetalsMath.fxFromPoints(x, pts ?: return null, pip)
     } else {
         val local = rl ?: return null
         if (usdBase) MetalsMath.fxForward(x, r, 360, local, basis, d) else MetalsMath.fxForward(x, local, basis, r, 360, d)
     }
     val fUsd = MetalsMath.forward(s, MetalsMath.swapRate(r, l), d, 360)
     val c = MetalsMath.crossForward(s, fUsd, x, outright, usdBase, d, basis)
-    val inputs = mutableListOf(
-        "Metal spot" to "${money(s)} USD/oz", "Days" to "$d", "USD rate" to pct(r), "Lease rate" to pct(l),
-        "$pair spot" to fx(x, ccy)
+    val inputsOut = mutableListOf(
+        "Metal spot" to "${money(s)} USD/oz", "Days" to "$d", "USD rate" to pct(r), "Lease rate" to pct(l), "$pair spot" to fx(x, ccy)
     )
-    if (fromPoints) inputs += "$pair swap points" to (points.num()?.let { plain(it, 2) } ?: "") else inputs += "$ccy rate" to pct(rl ?: 0.0)
+    if (fromPoints) inputsOut += "$pair swap points" to plain(pts ?: 0.0, 2) else inputsOut += "$ccy rate" to pct(rl ?: 0.0)
     val results = mutableListOf(
         "Metal forward in USD" to money(fUsd),
         "$pair outright" to fx(outright, ccy),
@@ -204,7 +256,7 @@ private fun CurrencyCalc(): Sheet? {
     )
     if (!fromPoints && rl != null) results += "$ccy rate − that swap (the lease, from $ccy)" to pct(rl - c.localSwapRate)
     return Sheet(
-        "Metal in $ccy through the FX swap", inputs, results,
+        "Metal in $ccy through the FX swap", inputsOut, results,
         "USD legs on ACT/360, $ccy on ACT/$basis (check your desk's convention). The metal's swap rate in $ccy is roughly the $ccy rate minus the lease rate: when the two currencies' rates differ, so does the cost of carrying metal in each."
     )
 }
@@ -212,29 +264,28 @@ private fun CurrencyCalc(): Sheet? {
 private val LOCAL_CCY = listOf("CNY", "HKD", "INR", "JPY", "EUR")
 private val LOCAL_UNITS = listOf(WeightUnit.GRAM, WeightUnit.KILOGRAM, WeightUnit.HK_TAEL, WeightUnit.TOLA, WeightUnit.TROY_OUNCE)
 
+private fun unitOf(name: String, default: WeightUnit) = WeightUnit.entries.firstOrNull { it.name == name } ?: default
+
 @Composable
-private fun LocalCalc(): Sheet? {
-    var ccy by rememberSaveable { mutableStateOf("CNY") }
-    var unit by rememberSaveable { mutableStateOf(WeightUnit.GRAM) }
-    var local by rememberSaveable { mutableStateOf("") }
-    var usdLocal by rememberSaveable { mutableStateOf("") }
-    var xau by rememberSaveable { mutableStateOf("") }
-    Text(
-        "A local price (Shanghai per gram, Hong Kong per tael, India per gram…) against London: the premium or discount, in USD per ounce.",
-        color = P.Faint, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(top = 12.dp)
-    )
+private fun LocalCalc(inputs: CalcInputs): Sheet? {
+    val ccy = inputs.get("loc.ccy", "CNY")
+    val unit = unitOf(inputs.get("loc.unit"), WeightUnit.GRAM)
+    About("A local price (Shanghai per gram, Hong Kong per tael, India per gram…) against London: the premium or discount, in USD per ounce.")
     Row(Modifier.padding(top = 10.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        LOCAL_CCY.forEach { c -> Pill(c, selected = c == ccy, quiet = true, small = true) { ccy = c } }
+        LOCAL_CCY.forEach { c -> Pill(c, selected = c == ccy, quiet = true, small = true) { inputs.set("loc.ccy", c) } }
     }
     Row(Modifier.padding(top = 8.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        LOCAL_UNITS.forEach { u -> Pill("per ${u.label}", selected = u == unit, quiet = true, small = true) { unit = u } }
+        LOCAL_UNITS.forEach { u -> Pill("per ${u.label}", selected = u == unit, quiet = true, small = true) { inputs.set("loc.unit", u.name) } }
     }
-    Field("Local price ($ccy per ${unit.label})", local, "", number = true) { local = it }
-    TwoFields({ Field("USD/$ccy", usdLocal, "", number = true) { usdLocal = it } }, { Field("London (USD/oz)", xau, "", number = true) { xau = it } })
+    Field("Local price ($ccy per ${unit.label})", inputs.get("loc.price"), "", number = true) { inputs.set("loc.price", it) }
+    TwoFields(
+        { Field("USD/$ccy", inputs.get("loc.fx.$ccy"), "", number = true) { inputs.set("loc.fx.$ccy", it) } },
+        { Field("London (USD/oz)", inputs.get("loc.xau"), "", number = true) { inputs.set("loc.xau", it) } }
+    )
 
-    val p = local.num() ?: return null
-    val fx = usdLocal.num()?.takeIf { it > 0 } ?: return null
-    val london = xau.num()?.takeIf { it > 0 } ?: return null
+    val p = inputs.get("loc.price").num() ?: return null
+    val fx = inputs.get("loc.fx.$ccy").num()?.takeIf { it > 0 } ?: return null
+    val london = inputs.get("loc.xau").num()?.takeIf { it > 0 } ?: return null
     val perGram = p / unit.grams
     val londonLocal = MetalsMath.londonPerGram(london, fx) * unit.grams
     val premium = MetalsMath.localPremium(perGram, fx, london)
@@ -252,17 +303,15 @@ private fun LocalCalc(): Sheet? {
 }
 
 @Composable
-private fun WeightsCalc(): Sheet? {
-    var amount by rememberSaveable { mutableStateOf("") }
-    var unit by rememberSaveable { mutableStateOf(WeightUnit.KILOGRAM) }
-    var fineness by rememberSaveable { mutableStateOf("") }
-    Field("Amount", amount, "", number = true) { amount = it }
+private fun WeightsCalc(inputs: CalcInputs): Sheet? {
+    val unit = unitOf(inputs.get("wt.unit"), WeightUnit.KILOGRAM)
+    Field("Amount", inputs.get("wt.amount"), "", number = true) { inputs.set("wt.amount", it) }
     Row(Modifier.padding(top = 10.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        WeightUnit.entries.forEach { u -> Pill(u.label, selected = u == unit, quiet = true, small = true) { unit = u } }
+        WeightUnit.entries.forEach { u -> Pill(u.label, selected = u == unit, quiet = true, small = true) { inputs.set("wt.unit", u.name) } }
     }
-    Field("Fineness (optional)", fineness, "0.9999, 0.995…", number = true) { fineness = it }
-    val a = amount.num() ?: return null
-    val fine = fineness.num()?.takeIf { it in 0.0..1.0 }
+    Field("Fineness (optional)", inputs.get("wt.fine"), "0.9999, 0.995…", number = true) { inputs.set("wt.fine", it) }
+    val a = inputs.get("wt.amount").num() ?: return null
+    val fine = inputs.get("wt.fine").num()?.takeIf { it > 0 && it <= 1 }
     val results = WeightUnit.entries.filter { it != unit }.map { u -> u.label to plain(MetalsMath.convert(a, unit, u), 4) }.toMutableList()
     fine?.let {
         val oz = MetalsMath.convert(MetalsMath.fineWeight(a, it), unit, WeightUnit.TROY_OUNCE)
@@ -279,31 +328,32 @@ private fun WeightsCalc(): Sheet? {
 private val METALS = listOf("Gold", "Silver", "Platinum", "Palladium")
 
 @Composable
-private fun PositionCalc(): Sheet? {
-    var metal by rememberSaveable { mutableStateOf("Gold") }
-    var amount by rememberSaveable { mutableStateOf("") }
-    var unit by rememberSaveable { mutableStateOf(WeightUnit.TROY_OUNCE) }
-    var entry by rememberSaveable { mutableStateOf("") }
-    var now by rememberSaveable { mutableStateOf("") }
-    var long by rememberSaveable { mutableStateOf(true) }
+private fun PositionCalc(inputs: CalcInputs): Sheet? {
+    val metal = inputs.get("pos.metal", "Gold")
+    val unit = unitOf(inputs.get("pos.unit"), WeightUnit.TROY_OUNCE)
+    val long = inputs.get("pos.side", "long") == "long"
     Row(Modifier.padding(top = 14.dp).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        METALS.forEach { m -> Pill(m, selected = m == metal, quiet = true, small = true) { metal = m } }
+        METALS.forEach { m -> Pill(m, selected = m == metal, quiet = true, small = true) { inputs.set("pos.metal", m) } }
     }
     Row(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Pill("Long", selected = long, quiet = true, small = true) { long = true }
-        Pill("Short", selected = !long, quiet = true, small = true) { long = false }
+        Pill("Long", selected = long, quiet = true, small = true) { inputs.set("pos.side", "long") }
+        Pill("Short", selected = !long, quiet = true, small = true) { inputs.set("pos.side", "short") }
     }
-    Field("Amount", amount, "", number = true) { amount = it }
+    Field("Amount", inputs.get("pos.amount"), "", number = true) { inputs.set("pos.amount", it) }
     Row(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         listOf(WeightUnit.TROY_OUNCE, WeightUnit.KILOGRAM, WeightUnit.GRAM).forEach { u ->
-            Pill(u.label, selected = u == unit, quiet = true, small = true) { unit = u }
+            Pill(u.label, selected = u == unit, quiet = true, small = true) { inputs.set("pos.unit", u.name) }
         }
     }
-    TwoFields({ Field("Entry (USD/oz)", entry, "", number = true) { entry = it } }, { Field("Price now (USD/oz)", now, "", number = true) { now = it } })
+    TwoFields(
+        { Field("Entry (USD/oz)", inputs.get("pos.entry"), "", number = true) { inputs.set("pos.entry", it) } },
+        { Field("Price now (USD/oz)", inputs.get("pos.now"), "", number = true) { inputs.set("pos.now", it) } }
+    )
 
-    val a = amount.num() ?: return null
+    val a = inputs.get("pos.amount").num() ?: return null
     val oz = MetalsMath.convert(a, unit, WeightUnit.TROY_OUNCE)
-    val e = entry.num() ?: return null
+    val e = inputs.get("pos.entry").num() ?: return null
+    val now = inputs.get("pos.now").num()
     val contracts = when (metal) {
         "Gold" -> listOf(MetalsMath.Contract.GC, MetalsMath.Contract.MGC)
         "Silver" -> listOf(MetalsMath.Contract.SI, MetalsMath.Contract.SIL)
@@ -315,7 +365,7 @@ private fun PositionCalc(): Sheet? {
         "Notional at entry" to "${money(MetalsMath.notional(oz, e))} USD",
         "P&L per 1 USD move" to "${money(oz)} USD"
     )
-    now.num()?.let { p ->
+    now?.let { p ->
         results += "Notional now" to "${money(MetalsMath.notional(oz, p))} USD"
         results += "P&L" to "${signed(MetalsMath.pnl(oz, e, p, long))} USD"
     }
@@ -323,8 +373,8 @@ private fun PositionCalc(): Sheet? {
     return Sheet(
         "$metal position",
         listOfNotNull(
-            "Direction" to if (long) "long" else "short", "Amount" to "${plain(a, 4)} ${unit.label}", "Entry" to money(e),
-            now.num()?.let { "Price now" to money(it) }
+            "Direction" to (if (long) "long" else "short"), "Amount" to "${plain(a, 4)} ${unit.label}", "Entry" to money(e),
+            now?.let { "Price now" to money(it) }
         ),
         results
     )

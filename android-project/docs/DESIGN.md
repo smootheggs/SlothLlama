@@ -21,6 +21,23 @@ The rules the Home, Personas, Lobster and SlothDesk pages follow. Keep new scree
   is taller than the screen it scrolls; gaps never shrink to fit.
 - Touch targets are at least 44–48 dp, even when the mark inside is small.
 
+## Navigation and chips
+
+- Tabs (SlothDesk's Strategies / Ideas / Calculators) are plain text with a short moss underline:
+  navigation is quieter than any button.
+- Two chip styles only: quiet chips (outlined, soft moss when picked) for filters and choices,
+  and the one filled moss button per card for the main action. A filled pill is never a tab.
+- Text fields on one line have a fixed height (48 dp) and a hint smaller than typed text, so
+  fields side by side line up.
+
+## Home
+
+Home follows the three pillars: Today (what's due or new), then **Learn** (a chip per tutor
+language with the week's practice, and the word tools as quiet links), **Know** (Library, Notes,
+Later) and **Do** (SlothDesk, the Lobster, Ourjong) as tiles, three a row on a tablet, and a last
+quiet row for Chats, Personas and Models. On the Y700 in portrait it fits one screen; a longer
+page scrolls rather than squeezing the gaps.
+
 ## Colour
 
 | Role | Where |
