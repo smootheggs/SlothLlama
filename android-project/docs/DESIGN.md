@@ -92,8 +92,8 @@ sleepy z's) are decoration: hidden from TalkBack and switchable in Settings → 
   calm things are one line under the hello.
 - Know and Do are one row each: up to four tiles when each still gets 120 dp. The icon sits beside
   the name whenever every name fits, at equal widths or, failing that, widths that follow the
-  names; only then does it go above. Know: SlothBooks, The Sloth Express (its line is the motto,
-  "Slowly digesting a rapidly changing world"), Atlas, Later. Notes joined Chats, Personas,
+  names; only then does it go above. Know: SlothBooks, The Sloth Express (no line under it: its
+  unread count rides on the icon), Atlas, Later. Notes joined Chats, Personas,
   Models and the Library in the quiet row at the bottom. The day's Chinese may still scroll;
   that's allowed.
 

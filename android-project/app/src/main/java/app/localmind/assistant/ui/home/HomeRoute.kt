@@ -172,7 +172,7 @@ fun HomeRoute(
         if (onLobster != null || paper != null) {
             add(
                 HomeTile(
-                    Icons.Outlined.Newspaper, "The Sloth Express", app.localmind.assistant.domain.edition.Editions.MOTTO, onEdition,
+                    Icons.Outlined.Newspaper, "The Sloth Express", "", onEdition,
                     if (unreadNews != null) Tone.ACCENT else Tone.QUIET,
                     key = "edition",
                     badge = unreadNews?.let(::badgeCount)

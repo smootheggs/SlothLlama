@@ -111,6 +111,7 @@ fun AtlasScreen(viewModel: AtlasViewModel, onBack: () -> Unit) {
 private fun AtlasContent(vm: AtlasViewModel, onBack: () -> Unit, mapColors: MapColors) {
     val prefs by vm.prefs.collectAsStateWithLifecycle()
     val world by vm.world.collectAsStateWithLifecycle()
+    val failed by vm.failed.collectAsStateWithLifecycle()
     val paths by vm.paths.collectAsStateWithLifecycle()
     val picked by vm.picked.collectAsStateWithLifecycle()
     val regions by vm.regions.collectAsStateWithLifecycle()
@@ -166,7 +167,10 @@ private fun AtlasContent(vm: AtlasViewModel, onBack: () -> Unit, mapColors: MapC
                     AtlasFacts.REGIONS.forEach { r -> Pill(r, selected = region == r, quiet = true, small = true) { vm.showRegion(r) } }
                 }
                 if (w == null) {
-                    Text("Opening the map…", color = P.Faint, fontSize = 14.sp, modifier = Modifier.padding(24.dp))
+                    Text(
+                        failed?.let { "The map's data didn't open: $it" } ?: "Opening the map…",
+                        color = if (failed != null) P.Danger else P.Faint, fontSize = 14.sp, modifier = Modifier.padding(24.dp)
+                    )
                 } else {
                     BoxWithConstraints(Modifier.fillMaxSize().padding(horizontal = 20.dp).padding(top = 8.dp, bottom = 16.dp)) {
                         val wide = maxWidth >= WIDE

@@ -129,9 +129,18 @@ class AtlasViewModel @Inject constructor(
     private var storiesBy: Map<String, List<String>> = emptyMap()
     private var booksBy: Map<String, List<String>> = emptyMap()
 
+    private val _failed = MutableStateFlow<String?>(null)
+    /** Why the map couldn't open, if it couldn't: shown instead of waiting forever. */
+    val failed: StateFlow<String?> = _failed.asStateFlow()
+
     init {
         viewModelScope.launch {
-            val w = runCatching { repo.world() }.getOrNull() ?: return@launch
+            val w = runCatching { repo.world() }
+                .onFailure { e ->
+                    android.util.Log.e("Atlas", "The map's data didn't open", e)
+                    _failed.value = e.message?.take(200) ?: e.javaClass.simpleName
+                }
+                .getOrNull() ?: return@launch
             _paths.value = withContext(Dispatchers.Default) { w.outlines.map(::pathOf) }
             _world.value = w
             _picked.value?.let { describe(it) }

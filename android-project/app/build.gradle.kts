@@ -16,8 +16,8 @@ android {
         applicationId = "app.localmind.assistant"
         minSdk = 33 // required by the llama.cpp module
         targetSdk = 35
-        versionCode = 41
-        versionName = "1.34.0"
+        versionCode = 42
+        versionName = "1.34.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
