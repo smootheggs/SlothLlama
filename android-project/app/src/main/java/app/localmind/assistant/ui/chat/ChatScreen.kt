@@ -103,6 +103,8 @@ fun ChatScreen(
     onOpenLibrary: () -> Unit = {},
     onOpenNotes: () -> Unit = {},
     onOpenLobster: (() -> Unit)? = null,
+    /** An idea card from a Trader reply, to the Trading book. */
+    onSaveIdea: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     // Landscape on a tablet: the chat list stays open on the left instead of sliding over.
@@ -245,7 +247,8 @@ fun ChatScreen(
             LocalChatActions provides ChatActions(
                 contextSize = uiState.contextSize,
                 onContinue = viewModel::continueReply,
-                onPractise = if (persona.speech != null) openPractice else null
+                onPractise = if (persona.speech != null) openPractice else null,
+                onSaveIdea = if (persona.id == BuiltInPersonas.TRADER.id) onSaveIdea else null
             ),
             LocalWordTapAction provides wordTap,
             LocalPhotoFile provides viewModel::photoFile

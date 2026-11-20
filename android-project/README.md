@@ -85,6 +85,18 @@ model too big for the GPU falls back to the CPU on its own.
   them, and the other side. It writes trade ideas as cards (entry, stop, target, horizon,
   thesis, wrong if) and plays clients for pitch practice, with feedback when the call ends.
   SlothDesk's **Ask about this** goes to it too. It never works out prices or P&L itself.
+- **Trading book.** Home → Trading book (or SlothDesk's ⋯). **Ideas:** write an idea before it
+  plays out (instrument, direction, entry, stop, target, horizon, thesis, what would prove it
+  wrong, how sure you are) or save the Trader's card with the bookmark under its reply. Once
+  saved, the thesis, levels and conviction are fixed; you add dated notes, and at the review
+  date you close it: right, wrong or mixed, right for the reason you gave or not, the exit
+  (its result in R), what happened and the lesson. The page shows your hit rate, average R, and
+  how often each level of conviction came true. **Calculators:** metal forwards from rates and
+  lease rates (and the rate a quoted forward or EFP implies); metal in EUR, CHF, JPY, CNH, HKD,
+  GBP or AUD through the FX swap, with the metal's swap rate in that currency; local prices per
+  gram, tael or tola against London; weights and fineness; positions, P&L and contract counts.
+  **Ask the Trader** sends an idea (to be challenged or reviewed) or a calculator's numbers (to be
+  explained, never recalculated). In backups. Paper only.
 - **Voices.** Each language is read by a voice installed on the tablet (never one that sends the
   text online). Cantonese is only read by a real Cantonese voice: without one, it says so instead
   of reading in Mandarin. To add one: Speech Services by Google → Install voice data →

@@ -87,7 +87,7 @@ import kotlin.math.ln
  * paper journal. Paper trading only; nothing here reaches a broker.
  */
 @Composable
-fun DeskScreen(viewModel: DeskViewModel, onBack: () -> Unit, onOpenLobster: () -> Unit) {
+fun DeskScreen(viewModel: DeskViewModel, onBack: () -> Unit, onOpenLobster: () -> Unit, onOpenTrading: () -> Unit = {}) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val lobster by viewModel.lobster.collectAsStateWithLifecycle()
@@ -136,6 +136,7 @@ fun DeskScreen(viewModel: DeskViewModel, onBack: () -> Unit, onOpenLobster: () -
                                 DropdownMenuItem(text = { Text("Set up the Lobster", color = P.Text) }, onClick = { menu = false; onOpenLobster() })
                             }
                             DropdownMenuItem(text = { Text("Import a prices file", color = P.Text) }, onClick = { menu = false; pick() })
+                            DropdownMenuItem(text = { Text("Trading book: ideas and desk sums", color = P.Text) }, onClick = { menu = false; onOpenTrading() })
                             if (ui.state.hidden.isNotEmpty()) {
                                 DropdownMenuItem(
                                     text = { Text("Show hidden strategies (${ui.state.hidden.size})", color = P.Text) },

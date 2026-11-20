@@ -15,6 +15,8 @@ import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.StickyNote2
 import androidx.compose.material.icons.outlined.Style
 import androidx.compose.material.icons.outlined.FormatListNumbered
+import androidx.compose.material.icons.outlined.Insights
+import app.localmind.assistant.ui.trading.TradingViewModel
 import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -56,6 +58,8 @@ fun HomeRoute(
     onDictionary: () -> Unit,
     /** The Core words lists. */
     onCoreWords: () -> Unit = {},
+    /** The Trading book (ideas and desk sums). */
+    onTrading: () -> Unit = {},
     onPersonas: () -> Unit,
     onModels: () -> Unit,
     onSettings: () -> Unit,
@@ -77,6 +81,8 @@ fun HomeRoute(
     val notesVm: NotesViewModel = hiltViewModel()
     val notes by notesVm.notes.collectAsStateWithLifecycle()
     val home: HomeViewModel = hiltViewModel()
+    val trading: TradingViewModel = hiltViewModel()
+    val tradingStats by trading.stats.collectAsStateWithLifecycle()
     val backup by home.backup.collectAsStateWithLifecycle()
     val meaningOn by home.meaningOn.collectAsStateWithLifecycle()
     val settings by home.settings.collectAsStateWithLifecycle()
@@ -194,6 +200,7 @@ fun HomeRoute(
         HomeTile(Icons.Outlined.PersonOutline, "Personas", "", onPersonas),
         HomeTile(Icons.Outlined.Translate, "Dictionary", "", onDictionary),
         HomeTile(Icons.Outlined.FormatListNumbered, "Core words", "", onCoreWords),
+        HomeTile(Icons.Outlined.Insights, "Trading book", tradingStats.due.takeIf { it > 0 }?.let { "$it to review" } ?: "", onTrading),
         HomeTile(Icons.Outlined.Memory, "Models", ui.activeModelName.ifBlank { "choose one" }, onModels)
     )
 

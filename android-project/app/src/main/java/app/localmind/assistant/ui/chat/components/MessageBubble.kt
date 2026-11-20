@@ -34,6 +34,8 @@ import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.StarOutline
+import app.localmind.assistant.domain.trading.IdeaCard
+import androidx.compose.material.icons.outlined.BookmarkAdd
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -135,6 +137,8 @@ fun AssistantMessageBubble(
     val speak = LocalSpeakAction.current
     val saveWord = LocalSaveWordAction.current
     val practise = LocalChatActions.current.onPractise
+    val saveIdea = LocalChatActions.current.onSaveIdea
+    val hasIdea = remember(message.content, saveIdea != null) { saveIdea != null && IdeaCard.has(message.content) }
 
     Column(modifier.fillMaxWidth().padding(top = 8.dp, bottom = 8.dp)) {
         when (message.status) {
@@ -190,6 +194,9 @@ fun AssistantMessageBubble(
                 }
                 if (practise != null) {
                     ActionIcon(Icons.Outlined.RecordVoiceOver, "Practise saying it") { practise(message.content) }
+                }
+                if (saveIdea != null && hasIdea) {
+                    ActionIcon(Icons.Outlined.BookmarkAdd, "Save the idea to the Trading book") { saveIdea(message.content) }
                 }
                 ActionIcon(Icons.Outlined.Share, "Share") {
                     val send = Intent(Intent.ACTION_SEND).apply {

@@ -12,7 +12,9 @@ data class ChatActions(
     /** Continue a reply that stopped at the length limit. */
     val onContinue: (() -> Unit)? = null,
     /** Repeat-after-me with a sentence from this reply (tutors only). */
-    val onPractise: ((String) -> Unit)? = null
+    val onPractise: ((String) -> Unit)? = null,
+    /** Save the idea card in this reply to the idea book (the Trader only). */
+    val onSaveIdea: ((String) -> Unit)? = null
 )
 
 val LocalChatActions = compositionLocalOf { ChatActions() }
