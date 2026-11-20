@@ -74,6 +74,12 @@ class BookShelf @Inject constructor(@ApplicationContext context: Context) {
         }
     }
 
+    /** The shelf as it stands, loading it first if need be. Blocking. */
+    fun snapshotBlocking(): List<Book> {
+        loadBlocking()
+        return _books.value
+    }
+
     /** Applies [edit] to the whole shelf and saves it. Blocking. */
     fun changeBlocking(edit: (List<Book>) -> List<Book>) {
         loadBlocking()

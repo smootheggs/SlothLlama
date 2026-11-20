@@ -55,7 +55,8 @@ class BooksViewModel @Inject constructor(
     private val covers: CoverStore,
     private val library: LibraryStore,
     private val askInbox: AskInbox,
-    private val attachments: AttachmentStore
+    private val attachments: AttachmentStore,
+    private val mailbox: app.localmind.assistant.data.lobster.LobsterMailbox
 ) : ViewModel() {
 
     val books: StateFlow<List<Book>> = shelf.books
@@ -109,6 +110,79 @@ class BooksViewModel @Inject constructor(
     fun setOnShelf(book: Book, s: UserShelf, on: Boolean) = act { shelf.setOnShelf(book.id, s.id, on); null }
 
     // --- covers ---
+
+    /** True when the Lobster is set up to take orders (covers come through it). */
+    val lobsterReady: Boolean get() = mailbox.isReady
+
+    /**
+     * Asks the Lobster for covers for every book that has only a made one (photos you chose and
+     * covers from a book's own file stay). Sent as a few orders of up to about 70 books each.
+     */
+    fun fetchCovers() = act("Asking the Lobster for covers…") {
+        if (!mailbox.isReady) return@act "Switch the SlothLobster on first (Settings → SlothLobster). Covers need SlothLobster 1.7."
+        val want = shelf.books.value.filter { !it.isPaper && it.cover.isBlank() && !CoverSource.keeps(it.coverSource) }
+        if (want.isEmpty()) return@act "Every book has a cover."
+        val orders = coverOrders(want, choices = 1)
+        orders.forEach { mailbox.send(app.localmind.assistant.data.lobster.OrderKind.COVERS, it, deliver = "books") }
+        "Asked the Lobster for ${want.size} covers 🦞 They arrive in batches of 20, a few minutes per batch."
+    }
+
+    /** Asks the Lobster for up to three covers to choose from for [book]. */
+    fun findCovers(book: Book) = act("Asking the Lobster…") {
+        if (!mailbox.isReady) return@act "Switch the SlothLobster on first (Settings → SlothLobster)."
+        withContext(Dispatchers.IO) { covers.dropChoices(book.id, 3) }
+        shelf.update(book.id) { it.copy(coverChoices = 0) }
+        mailbox.send(app.localmind.assistant.data.lobster.OrderKind.COVERS, coverOrders(listOf(book), choices = 3).first(), deliver = "books")
+        "Asked the Lobster for covers for ${book.title} 🦞"
+    }
+
+    /** The Lobster's candidate files for [book] (1-based), for the cover sheet. */
+    fun candidates(book: Book): List<Int> = if (book.coverChoices > 0) (1..book.coverChoices).filter { covers.file(CoverStore.nameFor(book.id, it)) != null } else emptyList()
+
+    fun candidateBitmap(book: Book, choice: Int, widthPx: Int): android.graphics.Bitmap? = covers.load(CoverStore.nameFor(book.id, choice), widthPx)
+
+    fun chooseCandidate(book: Book, choice: Int) = act {
+        val name = withContext(Dispatchers.IO) { covers.promote(book.id, choice, book.coverChoices) } ?: return@act "That cover is gone; ask again."
+        shelf.update(book.id) { it.copy(cover = name, coverSource = CoverSource.LOBSTER, coverChoices = 0) }
+        null
+    }
+
+    /** A photo you picked (of your own copy, say): cropped to a book's shape and kept. */
+    fun usePhoto(book: Book, uri: Uri) = act("Keeping the photo…") {
+        val name = withContext(Dispatchers.IO) { covers.keepPhoto(CoverStore.nameFor(book.id), uri) } ?: return@act "That photo couldn't be read."
+        shelf.update(book.id) { it.copy(cover = name, coverSource = CoverSource.PHOTO) }
+        null
+    }
+
+    /** Back to the made cover (and the Lobster won't replace it on a shelf-wide fetch until you ask). */
+    fun useMadeCover(book: Book) = act {
+        withContext(Dispatchers.IO) {
+            if (book.cover.isNotBlank()) covers.delete(book.cover)
+            covers.dropChoices(book.id, 3)
+        }
+        shelf.update(book.id) { it.copy(cover = "", coverSource = "", coverChoices = 0) }
+        null
+    }
+
+    /** "SlothBooks covers / choices: n / id<tab>title<tab>author", split to fit an order. */
+    private fun coverOrders(books: List<Book>, choices: Int): List<String> {
+        val head = "SlothBooks covers\nchoices: $choices\n"
+        val out = mutableListOf<String>()
+        val sb = StringBuilder(head)
+        books.forEach { b ->
+            val line = "${b.id.take(SHORT_ID)}\t${clean(b.title, 90)}\t${clean(b.author, 60)}\n"
+            if (sb.length + line.length > MAX_ORDER) {
+                out += sb.toString()
+                sb.setLength(0)
+                sb.append(head)
+            }
+            sb.append(line)
+        }
+        if (sb.length > head.length) out += sb.toString()
+        return out
+    }
+
+    private fun clean(s: String, max: Int) = s.replace(Regex("[\\t\\r\\n]+"), " ").trim().take(max)
 
     /** The kept cover for [book] at about [widthPx] wide, or null for the made one. Blocking: call off the main thread. */
     fun coverBitmap(book: Book, widthPx: Int): android.graphics.Bitmap? =
@@ -338,6 +412,10 @@ class BooksViewModel @Inject constructor(
 
     companion object {
         private const val MAX_SHEET_BYTES = 30 * 1024 * 1024
+        /** Book ids are UUIDs: their first 12 characters are plenty to tell a shelf's books apart. */
+        private const val SHORT_ID = 12
+        /** An order's text is cut at 4,000 characters; stay under it. */
+        private const val MAX_ORDER = 3_800
         /** Marks a file the Library couldn't read, so it isn't tried on every visit. */
         const val NOT_INDEXED = -1L
     }

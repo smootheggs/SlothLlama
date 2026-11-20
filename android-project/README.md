@@ -113,6 +113,13 @@ model too big for the GPU falls back to the CPU on its own.
   Reference, out of To read. Show the shelf as a **list**, **small covers** or **large covers**.
   Every book has a cover: a PDF's first page or an EPUB's own cover when there's a file, else one
   made on the tablet from the title and genre.
+- **Real covers, through the Lobster.** SlothBooks ⋯ → **Find covers for the shelf** sends the
+  titles and authors of books with made covers to the SlothLobster (1.7 or newer), which looks them
+  up on Open Library and Google Books and sends small covers back in batches of 20; the shelf fills
+  in as they arrive. A book's **Change cover** shows where its cover came from and lets you ask the
+  Lobster for up to three to choose from, use a photo of your own copy, or go back to the made
+  cover. Photos you chose and covers from a book's own file are never replaced. Every picture is
+  re-drawn on the tablet before it's kept; covers stay on the tablet and aren't in backups.
 - **SlothDesk: Ideas and Calculators.** SlothDesk has three tabs: Strategies, Ideas, Calculators.
   **Ideas:** write an idea before it
   plays out (instrument, direction, entry, stop, target, horizon, thesis, what would prove it

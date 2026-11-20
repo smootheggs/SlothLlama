@@ -257,6 +257,7 @@ private fun placeholder(kind: OrderKind) = when (kind) {
     OrderKind.BRIEF -> "A topic, or feed links, for a round-up"
     OrderKind.ASK -> "Your question; it's researched like Research"
     OrderKind.PRICES -> "GLD SLV USDJPY DTB3 JP3M GVZ from 2008-01-01"
+    OrderKind.COVERS -> "Sent from SlothBooks"
 }
 
 private fun hint(kind: OrderKind) = when (kind) {
@@ -266,6 +267,7 @@ private fun hint(kind: OrderKind) = when (kind) {
     OrderKind.BRIEF -> "Two to four key words work best; \"updates\" and \"top news\" only narrow it."
     OrderKind.ASK -> "Runs as Research: SlothLlama answers from the sources."
     OrderKind.PRICES -> "Daily prices for SlothDesk; ETFs need a Tiingo key (Settings, Market data)."
+    OrderKind.COVERS -> "Book covers for SlothBooks, looked up on Open Library and Google Books."
 }
 
 private fun orderLine(job: Job, now: Long): String {

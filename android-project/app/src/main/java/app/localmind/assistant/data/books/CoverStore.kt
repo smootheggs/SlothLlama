@@ -142,6 +142,22 @@ class CoverStore @Inject constructor(@ApplicationContext private val context: Co
         keep(name, bytes)
     }.getOrNull()
 
+    /** Makes the Lobster's candidate [choice] the book's cover; the other candidates go. Returns the cover's name. Blocking. */
+    fun promote(bookId: String, choice: Int, choices: Int): String? {
+        val from = file(nameFor(bookId, choice)) ?: return null
+        val name = nameFor(bookId)
+        val to = File(dir, name)
+        to.delete()
+        if (!from.renameTo(to)) return null
+        (1..choices).forEach { if (it != choice) delete(nameFor(bookId, it)) }
+        return name
+    }
+
+    /** Drops the Lobster's candidates for a book. */
+    fun dropChoices(bookId: String, choices: Int) {
+        (1..choices).forEach { delete(nameFor(bookId, it)) }
+    }
+
     fun delete(name: String) {
         if (safe(name)) File(dir, name).delete()
     }

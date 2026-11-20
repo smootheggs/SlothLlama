@@ -140,7 +140,8 @@ class Engine(private val lobster: Lobster) {
                 continue
             }
             // "every Monday at 7 …" makes it a repeating order: it runs now, then on schedule.
-            val rule = if (OrderKind.of(order.kind) == OrderKind.WATCH) null else Repeats.parse(order.text)
+            // Watches repeat by themselves, and a covers order is a list of books ("every day" may be a title).
+            val rule = if (OrderKind.of(order.kind) in setOf(OrderKind.WATCH, OrderKind.COVERS)) null else Repeats.parse(order.text)
             val text = (if (rule != null) Repeats.strip(order.text) else order.text).take(4_000)
             val repeatId = rule?.let { UUID.randomUUID().toString() }
             val job = Job(
@@ -227,6 +228,7 @@ class Engine(private val lobster: Lobster) {
                 // No model here: a question is researched, and SlothLlama answers from what comes back.
                 OrderKind.ASK -> research(job)
                 OrderKind.PRICES -> prices(job)
+                OrderKind.COVERS -> covers(job)
             }
             checkpoint(job.id)
             val catch = forLater(job, outcome.catch)
@@ -469,6 +471,56 @@ class Engine(private val lobster: Lobster) {
         return Outcome(catch, summary, "${g.bundle.series.size} series for SlothDesk")
     }
 
+    /**
+     * Covers for SlothBooks: each book looked up by title and author, a second apart (Open Library
+     * asks apps to go gently), sent back in batches so the shelf fills in as it goes.
+     */
+    private suspend fun covers(job: Job): Outcome {
+        val (choices, asks) = Covers.parse(job.text)
+        if (asks.isEmpty()) throw WebException("The order doesn't list any books")
+        val mode = if (choices > 1) "pick" else "set"
+        setSources(job.id, listOf(SourceState("Open Library, then Google Books", "https://openlibrary.org", "${asks.size} books", "reading")))
+        var found = mutableListOf<CoverFound>()
+        var missing = mutableListOf<String>()
+        var foundAll = 0
+        var missingAll = 0
+        fun batch(): LobsterCatch = LobsterCatch(
+            id = UUID.randomUUID().toString(),
+            orderId = job.orderId,
+            kind = COVERS_KIND,
+            title = "Covers · ${found.size + missing.size} books",
+            text = "Covers for SlothBooks: ${found.size} found" + if (missing.isNotEmpty()) ", ${missing.size} not found." else ".",
+            createdAt = System.currentTimeMillis(),
+            fileName = "slothbooks-covers.json",
+            fileBase64 = Base64.getEncoder().encodeToString(Covers.encode(CoverBatch(mode = mode, covers = found, missing = missing)).toByteArray(Charsets.UTF_8))
+        )
+        for ((i, ask) in asks.withIndex()) {
+            checkpoint(job.id)
+            val f = try {
+                Covers.find(ask, choices)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                store.log("problem", "No cover for ${ask.title.take(60)}", friendly(e))
+                null
+            }
+            if (f != null) found += f else missing += ask.id
+            if (found.size + missing.size >= COVER_BATCH && i < asks.lastIndex) {
+                deliver(batch(), job.id, "covers")
+                foundAll += found.size
+                missingAll += missing.size
+                found = mutableListOf()
+                missing = mutableListOf()
+            }
+            kotlinx.coroutines.delay(COVER_PAUSE_MS)
+        }
+        foundAll += found.size
+        missingAll += missing.size
+        setSources(job.id, listOf(SourceState("Open Library, then Google Books", "https://openlibrary.org", "${asks.size} books", "done")))
+        val summary = "$foundAll covers found" + if (missingAll > 0) ", $missingAll not found" else ""
+        return Outcome(batch(), summary, "$foundAll covers for SlothBooks")
+    }
+
     private suspend fun briefOrder(job: Job): Outcome {
         val links = Regex("""https?://\S+""").findAll(job.text).map { it.value }.mapNotNull(Web::safeUrl).toList()
         val topic = job.text.replace(Regex("""https?://\S+"""), "")
@@ -704,7 +756,8 @@ class Engine(private val lobster: Lobster) {
 
     /** Puts the catch in the mailbox and remembers it. False if there's no mailbox to put it in. */
     private fun deliver(catch: LobsterCatch, jobId: String?, subtitle: String): Boolean {
-        lobster.shelf.keep(catch)
+        // Covers are for SlothBooks only: no copy is kept on the Lobster's own shelf.
+        if (catch.kind != COVERS_KIND) lobster.shelf.keep(catch)
         val name = runCatching { mailbox.deliver(catch) }.getOrElse {
             store.log("problem", "Couldn't write to the mailbox", it.message.orEmpty())
             null
@@ -784,6 +837,10 @@ class Engine(private val lobster: Lobster) {
     companion object {
         private const val PER_SOURCE = 6_000
         private const val MAX_ORDER_AGE_MS = 14 * Store.DAY_MS
+        private const val COVERS_KIND = "covers"
+        /** Books per covers catch: about 1 MB each. */
+        private const val COVER_BATCH = 20
+        private const val COVER_PAUSE_MS = 1_000L
         const val HOUR_MS = 60L * 60 * 1000
 
         fun verb(kind: String): String = when (OrderKind.of(kind)) {
@@ -793,6 +850,7 @@ class Engine(private val lobster: Lobster) {
             OrderKind.BRIEF -> "Making a brief"
             OrderKind.ASK -> "Researching"
             OrderKind.PRICES -> "Fetching prices"
+            OrderKind.COVERS -> "Finding book covers"
         }
     }
 }

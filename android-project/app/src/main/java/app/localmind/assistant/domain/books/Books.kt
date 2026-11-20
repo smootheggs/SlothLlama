@@ -76,7 +76,7 @@ data class Book(
     val cover: String = "",
     /** Where the cover came from: [CoverSource]. */
     val coverSource: String = "",
-    /** Covers the Lobster found to choose from (files "<id>.c1.jpg"…), 0 = none waiting. */
+    /** Covers the Lobster found to choose from (files "<id>.c1.jpg"…); 0 = none waiting, -1 = it looked and found none. */
     val coverChoices: Int = 0,
     val addedAt: Long = 0,
     val updatedAt: Long = 0
@@ -148,6 +148,8 @@ object CoverSource {
     const val EPUB = "epub"
     const val LOBSTER = "lobster"
     const val PHOTO = "photo"
+    /** The Lobster looked and found none. */
+    const val MISSING = "missing"
 
     /** Covers you chose or that came from the file itself are never replaced by a fetch for the whole shelf. */
     fun keeps(source: String): Boolean = source == PHOTO || source == PDF || source == EPUB

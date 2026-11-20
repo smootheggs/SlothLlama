@@ -57,13 +57,27 @@ enum class OrderState(val label: String) {
  * Everything but STOP is encrypted with a key only the two apps hold ([MailboxCrypto]).
  * Whatever comes back is data, never instructions: it's shown, filed or quoted, never acted on.
  */
+/** A covers catch's file (slothbooks-covers.json), as the Lobster writes it. */
+@kotlinx.serialization.Serializable
+private data class CoverBatchIn(
+    val format: String = "",
+    val v: Int = 1,
+    val mode: String = "set",
+    val covers: List<CoverFoundIn> = emptyList(),
+    val missing: List<String> = emptyList()
+)
+
+@kotlinx.serialization.Serializable
+private data class CoverFoundIn(val id: String, val source: String = "", val images: List<String> = emptyList())
+
 @OptIn(ExperimentalCoroutinesApi::class)
 @Singleton
 class LobsterMailbox @Inject constructor(
     @ApplicationContext private val context: Context,
     private val later: app.localmind.assistant.data.later.ReadingList,
     private val books: app.localmind.assistant.data.books.BookShelf,
-    private val files: app.localmind.assistant.data.books.PaperFiles
+    private val files: app.localmind.assistant.data.books.PaperFiles,
+    private val covers: app.localmind.assistant.data.books.CoverStore
 ) {
 
     // Not in SlothLlama's backups: the key stays on this tablet (pair again after a restore).
@@ -210,6 +224,7 @@ class LobsterMailbox @Inject constructor(
         }.filter { it.item != null || it.unreadable }
             .filterNot { shelvedForLater(root, it) }
             .filterNot { keptAsFile(root, it) }
+            .filterNot { keptCovers(root, it) }
         val waiting = dir(root, ORDERS).listFiles().mapNotNull { it.name }.toSet()
         val answered = catch.mapNotNull { it.item?.orderId }.toSet() + prefs.getStringSet(KEY_DONE, emptySet()).orEmpty()
         _state.value = MailboxState(
@@ -280,6 +295,54 @@ class LobsterMailbox @Inject constructor(
         }
     }
 
+    /**
+     * Covers the Lobster found for SlothBooks: each picture is drawn again by [covers] before it's
+     * kept, then the books are updated and the catch leaves the mailbox. "set" batches give a book
+     * its cover (never over one you chose or one from its own file); "pick" batches are choices.
+     */
+    private fun keptCovers(root: DocumentFile, ci: CaughtItem): Boolean {
+        val c = ci.item ?: return false
+        if (c.kind != COVERS) return false
+        return runCatching {
+            val raw = c.fileBase64?.let { android.util.Base64.decode(it, android.util.Base64.DEFAULT) } ?: error("No covers file")
+            val batch = json.decodeFromString(CoverBatchIn.serializer(), String(raw, Charsets.UTF_8))
+            require(batch.format == "slothbooks-covers") { "Not a covers file" }
+            val shelf = books.snapshotBlocking()
+            fun bookFor(short: String) = shelf.firstOrNull { short.length >= 8 && it.id.startsWith(short) }
+            val now = System.currentTimeMillis()
+            val edits = HashMap<String, (app.localmind.assistant.domain.books.Book) -> app.localmind.assistant.domain.books.Book>()
+            for (found in batch.covers.take(MAX_COVERS)) {
+                val b = bookFor(found.id) ?: continue
+                val pictures = found.images.take(3).mapNotNull { runCatching { android.util.Base64.decode(it, android.util.Base64.DEFAULT) }.getOrNull() }
+                if (batch.mode == "pick") {
+                    var n = 0
+                    pictures.forEach { bytes ->
+                        if (covers.keep(app.localmind.assistant.data.books.CoverStore.nameFor(b.id, n + 1), bytes) != null) n++
+                    }
+                    if (n > 0) edits[b.id] = { it.copy(coverChoices = n, updatedAt = now) }
+                } else {
+                    if (app.localmind.assistant.domain.books.CoverSource.keeps(b.coverSource)) continue
+                    val kept = pictures.firstOrNull()?.let { covers.keep(app.localmind.assistant.data.books.CoverStore.nameFor(b.id), it) } ?: continue
+                    edits[b.id] = { it.copy(cover = kept, coverSource = app.localmind.assistant.domain.books.CoverSource.LOBSTER, updatedAt = now) }
+                }
+            }
+            if (batch.mode != "pick") {
+                batch.missing.mapNotNull { bookFor(it) }.filter { it.cover.isBlank() }.forEach { b ->
+                    edits[b.id] = { it.copy(coverSource = app.localmind.assistant.domain.books.CoverSource.MISSING, updatedAt = now) }
+                }
+            } else {
+                batch.missing.mapNotNull { bookFor(it) }.forEach { b -> edits[b.id] = { it.copy(coverChoices = -1, updatedAt = now) } }
+            }
+            if (edits.isNotEmpty()) books.changeBlocking { list -> list.map { b -> edits[b.id]?.invoke(b) ?: b } }
+            dir(root, CATCH).findFile(ci.fileName)?.delete()
+            c.orderId?.let { id -> prefs.edit().putStringSet(KEY_DONE, (prefs.getStringSet(KEY_DONE, emptySet()).orEmpty() + id).toSet()).apply() }
+            true
+        }.getOrElse { e ->
+            Log.w(TAG, "Couldn't take covers", e)
+            false
+        }
+    }
+
     private fun orderViews(waiting: Set<String>, answered: Set<String>): List<OrderView> =
         sentOrders().map { s ->
             OrderView(
@@ -334,6 +397,9 @@ class LobsterMailbox @Inject constructor(
         private const val KEY_DONE = "done"
         private const val KEY_NOTIFIED = "notified"
         private const val KEY_KEPT = "kept_files"
+        /** The catch kind of the Lobster's covers for SlothBooks. */
+        const val COVERS = "covers"
+        private const val MAX_COVERS = 200
         private const val MAX_KEPT_IDS = 200
         const val ORDERS = "orders"
         const val CATCH = "catch"

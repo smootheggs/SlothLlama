@@ -68,13 +68,15 @@ enum class OrderKind(val id: String, val label: String, val hint: String) {
     BRIEF("brief", "Brief", "A short daily round-up"),
     ASK("ask", "Ask", "Anything else"),
     /** (1.4) Daily prices for SlothDesk; sent from the Desk, not the order box. */
-    PRICES("prices", "Prices", "Daily prices for SlothDesk");
+    PRICES("prices", "Prices", "Daily prices for SlothDesk"),
+    /** (1.31) Book covers for SlothBooks; sent from SlothBooks, not the order box. Needs SlothLobster 1.7. */
+    COVERS("covers", "Covers", "Book covers for SlothBooks");
 
     companion object {
         fun of(id: String) = entries.firstOrNull { it.id == id } ?: ASK
 
         /** The kinds you can pick in the Lobster page's order box (Ask now runs as Research, so it isn't offered). */
-        val forOrderBox: List<OrderKind> get() = entries.filter { it != PRICES && it != ASK }
+        val forOrderBox: List<OrderKind> get() = entries.filter { it != PRICES && it != ASK && it != COVERS }
     }
 }
 

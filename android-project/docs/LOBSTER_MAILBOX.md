@@ -96,6 +96,36 @@ as its text and `fileName` `slothdesk-prices.json`, whose content is:
 - SlothDesk checks every row (dates, positive prices, rates and vols in range, frozen feeds,
   40% one-day jumps), takes the series in and removes the catch. It never runs anything in it.
 
+## Covers for SlothBooks (SlothLlama 1.31, SlothLobster 1.7)
+
+SlothBooks sends `covers` orders (the order box never offers them). The text is a head and one
+line per book, tab-separated, under 4,000 characters (a big shelf goes as several orders):
+
+```
+SlothBooks covers
+choices: 1
+3f2a9c1e8b7d	The Count of Monte Cristo	Alexandre Dumas
+```
+
+`choices: 1` asks for one cover each (the whole shelf); `choices: 3` for up to three to choose
+from (one book). The id is the start of the book's id; titles and authors are all that's searched.
+The Lobster looks each book up on Open Library (search by title and author, then
+covers.openlibrary.org by cover id), then Google Books, one book a second, and answers in catches
+of kind `covers` with `fileName` `slothbooks-covers.json`, about 20 books each:
+
+```json
+{ "format": "slothbooks-covers", "v": 1, "mode": "set",
+  "covers": [ { "id": "3f2a9c1e8b7d", "source": "Open Library", "images": ["<base64 JPEG>"] } ],
+  "missing": ["9c0d…"] }
+```
+
+- Every picture is re-drawn by the Lobster (at most 300×450, JPEG) and again by SlothLlama before
+  it's kept; only JPEG, PNG or WebP of a sane size are taken. Covers are kept in SlothLlama's
+  private storage, not in backups, and the catch is removed.
+- `set` gives a book its cover, but never over a photo you chose or a cover from the book's own
+  file; `pick` keeps up to three for you to choose on the card. `missing` marks books with no cover found.
+- The Lobster keeps no copy of covers on its own shelf.
+
 ## Status (Lobster → SlothLlama), JSON
 
 ```json

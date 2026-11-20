@@ -1,5 +1,6 @@
 package app.localmind.assistant
 
+import app.localmind.assistant.data.books.CoverStore
 import app.localmind.assistant.data.books.PaperFiles
 import app.localmind.assistant.data.books.SheetReader
 import app.localmind.assistant.domain.books.Book
@@ -296,6 +297,19 @@ class SlothBooksUnitTests {
         assertEquals("evil.pdf", PaperFiles.safeName("../../evil.pdf"))
         assertEquals("organizing intelligence", PaperFiles.titleFrom("organizing-intelligence.pdf"))
         assertEquals("application/epub+zip", PaperFiles.mimeOf("a.EPUB"))
+    }
+
+    @Test
+    fun `cover files are plain names and only real pictures are taken`() {
+        assertEquals("abc-1.jpg", CoverStore.nameFor("abc-1"))
+        assertEquals("abc.c2.jpg", CoverStore.nameFor("abc", 2))
+        assertEquals("evilpath.jpg", CoverStore.nameFor("../evil/path"))
+        assertFalse(CoverStore.safe("../x.jpg"))
+        assertFalse(CoverStore.safe(".hidden"))
+        assertTrue(CoverStore.safe("abc.c1.jpg"))
+        val jpeg = ByteArray(16).also { it[0] = 0xFF.toByte(); it[1] = 0xD8.toByte() }
+        assertTrue(CoverStore.looksLikeImage(jpeg))
+        assertFalse(CoverStore.looksLikeImage("<svg>not a picture</svg>".toByteArray()))
     }
 
     private fun xlsx(sheets: List<Pair<String, String>>, strings: List<String>): ByteArray {

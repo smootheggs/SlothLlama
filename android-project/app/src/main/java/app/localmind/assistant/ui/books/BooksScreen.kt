@@ -63,6 +63,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.clearAndSetSemantics
@@ -77,6 +78,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import app.localmind.assistant.data.books.PaperFiles
 import app.localmind.assistant.domain.books.Book
+import app.localmind.assistant.domain.books.CoverSource
 import app.localmind.assistant.domain.books.FORMATS
 import app.localmind.assistant.domain.books.Forms
 import app.localmind.assistant.domain.books.GistSource
@@ -161,7 +163,7 @@ fun BooksScreen(viewModel: BooksViewModel, onBack: () -> Unit) {
                             BooksTab.PAPERS -> QuietButton("Add a PDF") { pdfPicker.launch(arrayOf("application/pdf")) }
                             else -> QuietButton("Add a book") { editing = viewModel.newBook() }
                         }
-                        ShelfMenu(onImport = pickSheet, onAskShelf = { viewModel.askShelf() })
+                        ShelfMenu(onImport = pickSheet, onAskShelf = { viewModel.askShelf() }, onCovers = viewModel::fetchCovers)
                     }
                 )
                 if (wide || selected == null) {
@@ -211,13 +213,14 @@ fun BooksScreen(viewModel: BooksViewModel, onBack: () -> Unit) {
 }
 
 @Composable
-private fun ShelfMenu(onImport: () -> Unit, onAskShelf: () -> Unit) {
+private fun ShelfMenu(onImport: () -> Unit, onAskShelf: () -> Unit, onCovers: () -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { expanded = true }) { Icon(Icons.Outlined.MoreHoriz, contentDescription = "More", tint = P.Muted) }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }, modifier = Modifier.background(P.Elevated)) {
             DropdownMenuItem(text = { Text("Bring in a spreadsheet", color = P.Text) }, onClick = { expanded = false; onImport() })
             DropdownMenuItem(text = { Text("Ask the Librarian about the shelf", color = P.Text) }, onClick = { expanded = false; onAskShelf() })
+            DropdownMenuItem(text = { Text("Find covers for the shelf (the Lobster)", color = P.Text) }, onClick = { expanded = false; onCovers() })
         }
     }
 }
@@ -317,6 +320,8 @@ private fun BookCard(
     val context = LocalContext.current
     var menu by remember { mutableStateOf(false) }
     var reveal by remember(book.id) { mutableStateOf(false) }
+    var coverSheet by remember(book.id) { mutableStateOf(false) }
+    if (coverSheet) CoverSheet(book, all, vm, onDismiss = { coverSheet = false })
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 18.dp, bottom = 48.dp)) {
         Row(verticalAlignment = Alignment.Top) {
             BookCover(book, 96.dp, Modifier.padding(end = 18.dp))
@@ -500,6 +505,7 @@ private fun BookCard(
             FilledButton("Talk it through") { vm.talk(book) }
             Spacer(Modifier.width(8.dp))
             if (book.hasFile && !book.fileName.endsWith(".epub", ignoreCase = true)) QuietButton("Open the PDF") { vm.open(book) }
+            if (!book.isPaper) QuietButton("Change cover") { coverSheet = true }
             Spacer(Modifier.weight(1f))
             Text(
                 when {
@@ -755,6 +761,77 @@ private fun BookEditor(start: Book, isNew: Boolean, onSave: (Book) -> Unit, onDi
                 QuietButton("Cancel", onClick = onDismiss)
             }
         }
+    }
+}
+
+/** Where a book's cover comes from, and choosing another: the Lobster's finds, a photo of your copy, or the made one. */
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@Composable
+private fun CoverSheet(book: Book, all: List<Book>, vm: BooksViewModel, onDismiss: () -> Unit) {
+    val sheet = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val photo = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri -> uri?.let { vm.usePhoto(book, it); onDismiss() } }
+    val current = all.firstOrNull { it.id == book.id } ?: book
+    ModalBottomSheet(onDismissRequest = onDismiss, sheetState = sheet, containerColor = P.Card) {
+        Column(Modifier.fillMaxWidth().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp).padding(bottom = 28.dp)) {
+            Text("Cover · ${current.title}", color = P.Text, fontSize = 20.sp, fontWeight = FontWeight.Medium)
+            Row(Modifier.padding(top = 16.dp), verticalAlignment = Alignment.Top) {
+                BookCover(current, 120.dp)
+                Column(Modifier.weight(1f).padding(start = 18.dp)) {
+                    Text(
+                        when (current.coverSource) {
+                            CoverSource.PDF -> "From the PDF's first page."
+                            CoverSource.EPUB -> "From the EPUB's own cover."
+                            CoverSource.LOBSTER -> "Found by the Lobster (Open Library or Google Books)."
+                            CoverSource.PHOTO -> "Your photo."
+                            CoverSource.MISSING -> "Made on the tablet: the Lobster found no cover for this title."
+                            else -> "Made on the tablet from the title and genre, until a real cover arrives or you pick one."
+                        },
+                        color = P.Muted, fontSize = 14.sp, lineHeight = 20.sp
+                    )
+                    Text("Covers stay on this tablet and aren't in backups.", color = P.Faint, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                }
+            }
+            Label("Found by the Lobster")
+            val choices = vm.candidates(current)
+            when {
+                choices.isNotEmpty() -> FlowRow(horizontalArrangement = Arrangement.spacedBy(14.dp), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    choices.forEach { n -> Candidate(current, n, vm) { vm.chooseCandidate(current, n); onDismiss() } }
+                }
+                current.coverChoices < 0 -> Text("It found none for this title and author. A photo of your copy works too.", color = P.Muted, fontSize = 14.sp)
+                else -> Text("Up to three covers to choose from, looked up by title and author.", color = P.Muted, fontSize = 14.sp)
+            }
+            Row(Modifier.padding(top = 6.dp)) { QuietButton(if (choices.isEmpty()) "Ask the Lobster" else "Ask again") { vm.findCovers(current) } }
+            Label("Or")
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                QuietButton("Choose a photo") { photo.launch(androidx.activity.result.PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }
+                if (current.cover.isNotBlank()) QuietButton("Use the made cover", muted = true) { vm.useMadeCover(current); onDismiss() }
+            }
+            val made = all.count { !it.isPaper && it.cover.isBlank() && !CoverSource.keeps(it.coverSource) }
+            if (made > 1) {
+                HorizontalDivider(color = P.Border, modifier = Modifier.padding(top = 20.dp, bottom = 12.dp))
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("Covers for the whole shelf", color = P.Text, fontSize = 15.sp)
+                        Text("$made books still have made covers. The Lobster looks them up a second apart.", color = P.Muted, fontSize = 13.sp, lineHeight = 19.sp)
+                    }
+                    QuietButton("Find them") { vm.fetchCovers(); onDismiss() }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Candidate(book: Book, choice: Int, vm: BooksViewModel, onClick: () -> Unit) {
+    val px = with(androidx.compose.ui.platform.LocalDensity.current) { 96.dp.roundToPx() }
+    val image by androidx.compose.runtime.produceState<androidx.compose.ui.graphics.ImageBitmap?>(null, book.id, choice, book.updatedAt) {
+        value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) { vm.candidateBitmap(book, choice, px)?.asImageBitmap() }
+    }
+    Box(
+        Modifier.size(width = 96.dp, height = 144.dp).clip(RoundedCornerShape(5.dp)).background(P.Elevated)
+            .clickable(role = Role.Button, onClick = onClick).semantics { contentDescription = "Use cover $choice" }
+    ) {
+        image?.let { androidx.compose.foundation.Image(it, contentDescription = null, contentScale = androidx.compose.ui.layout.ContentScale.Crop, modifier = Modifier.fillMaxSize()) }
     }
 }
 
