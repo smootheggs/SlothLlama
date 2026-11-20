@@ -115,6 +115,17 @@ model too big for the GPU falls back to the CPU on its own.
   Listen reads the edition aloud offline; past editions are kept 30 days with what you've read.
   Settings: times (morning, evening…), weekends, length, sections (tap to swap), top stories,
   words to lift or mute, corners with their sources, topics and story counts, and who sits on the desk.
+- **Atlas** (1.33). Home → Atlas: a world map kept on the tablet (Natural Earth, public domain;
+  flags from flag-icons, MIT). Pinch and drag; tap a country for its card: flag, its English name
+  always and its names in the tutors' languages, capital, subdivisions (provinces, states,
+  prefectures) drawn on its own map, neighbours, local time, Natural Earth's population estimate and
+  an area worked out from the borders. Borders are de facto, as held on the ground. Map labels can
+  be in English or a tutor's language; a white map is a tap away. Search finds countries, capitals,
+  cities and provinces in any of those languages; quizzes ask flags and capitals by region and the
+  subdivisions of a country. **Places in what you read:** the edition marks the place each story
+  names (tap it to see it on the map), the Reader lists the places an article names, and "Your
+  places" pins today's stories and the books on your shelf by country. Places are found on the
+  tablet, from the Atlas's own names.
 - **Organising SlothBooks.** The default shelves (All, Reading, Up next, To read, Read,
   Reference) are always there; make your own with **+ New shelf**, rename or remove them from
   their ⋯ (the books stay), and put a book on any of them from its card. **Group by** author,

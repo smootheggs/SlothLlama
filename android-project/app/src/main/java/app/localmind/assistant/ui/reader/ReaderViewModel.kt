@@ -67,7 +67,8 @@ class ReaderViewModel @Inject constructor(
     private val notes: NotesStore,
     private val attachments: AttachmentStore,
     private val askInbox: AskInbox,
-    private val later: ReadingList
+    private val later: ReadingList,
+    private val atlas: app.localmind.assistant.data.atlas.AtlasRepository
 ) : ViewModel() {
 
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
@@ -80,6 +81,10 @@ class ReaderViewModel @Inject constructor(
 
     private val _doc = MutableStateFlow<ReaderDoc?>(null)
     val doc: StateFlow<ReaderDoc?> = _doc.asStateFlow()
+
+    private val _places = MutableStateFlow<List<app.localmind.assistant.domain.atlas.PlaceHit>>(emptyList())
+    /** The places the open text names, most named first: found on the tablet with the Atlas's names. */
+    val places: StateFlow<List<app.localmind.assistant.domain.atlas.PlaceHit>> = _places.asStateFlow()
 
     private val _loading = MutableStateFlow(false)
     val loading: StateFlow<Boolean> = _loading.asStateFlow()
@@ -113,6 +118,7 @@ class ReaderViewModel @Inject constructor(
         viewModelScope.launch {
             _loading.value = true
             _doc.value = null
+            _places.value = emptyList()
             _picked.value = emptySet()
             try {
                 val loaded = load(source, ref)?.let { d ->
@@ -120,6 +126,12 @@ class ReaderViewModel @Inject constructor(
                 }
                 _doc.value = loaded
                 if (loaded == null) _message.value = "That isn't there any more."
+                loaded?.let { d ->
+                    _places.value = runCatching {
+                        val finder = atlas.finder()
+                        withContext(Dispatchers.Default) { finder.find(d.title + "\n" + d.text.take(40_000), 4) }
+                    }.getOrDefault(emptyList())
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Throwable) {
@@ -132,6 +144,7 @@ class ReaderViewModel @Inject constructor(
 
     fun close() {
         _doc.value = null
+        _places.value = emptyList()
         _picked.value = emptySet()
     }
 

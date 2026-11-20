@@ -210,7 +210,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES, LOBSTER, READER, DESK, CORE, BOOKS, EDITION }
+private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES, LOBSTER, READER, DESK, CORE, BOOKS, EDITION, ATLAS }
 
 /**
  * Home (or the last chat, per Settings) on a fresh start. Screens open on top of each other and
@@ -298,6 +298,12 @@ private fun SlothRoot(
     // The edition: one for the whole app, so a desk persona's reply from a chat lands on its edition.
     val edition: app.localmind.assistant.ui.edition.EditionViewModel = hiltViewModel()
     val deskAsk by edition.pendingDesk.collectAsStateWithLifecycle()
+    // The Atlas: one for the whole app, so a place in a story or an article opens on its map.
+    val atlas: app.localmind.assistant.ui.atlas.AtlasViewModel = hiltViewModel()
+    val showPlace: (String) -> Unit = { a3 ->
+        atlas.focus(a3)
+        navigate(Destination.ATLAS)
+    }
     val rootScope = androidx.compose.runtime.rememberCoroutineScope()
     val rootContext = androidx.compose.ui.platform.LocalContext.current
     // The reader: one for the whole app, so Back from a chat it opened returns to the same text.
@@ -332,6 +338,7 @@ private fun SlothRoot(
                     onLibrary = { navigate(Destination.LIBRARY) },
                     onBooks = { navigate(Destination.BOOKS) },
                     onEdition = { navigate(Destination.EDITION) },
+                    onAtlas = { navigate(Destination.ATLAS) },
                     onNotes = { navigate(Destination.NOTES) },
                     onDesk = { navigate(Destination.DESK) },
                     onLater = {
@@ -415,13 +422,15 @@ private fun SlothRoot(
                     onOpenLobster = { navigate(Destination.LOBSTER) }
                 )
                 Destination.BOOKS -> app.localmind.assistant.ui.books.BooksScreen(viewModel = books, onBack = goHome)
-                Destination.EDITION -> app.localmind.assistant.ui.edition.EditionScreen(viewModel = edition, onBack = goHome)
+                Destination.EDITION -> app.localmind.assistant.ui.edition.EditionScreen(viewModel = edition, onBack = goHome, onPlace = showPlace)
+                Destination.ATLAS -> app.localmind.assistant.ui.atlas.AtlasScreen(viewModel = atlas, onBack = goHome)
                 Destination.READER -> ReaderScreen(
                     viewModel = reader,
                     onBack = goHome,
                     onCatchToLibrary = { f -> withCatch(f, lobster::toLibrary) },
                     onCatchToNotes = { f -> withCatch(f, lobster::toNotes) },
-                    onCatchDismiss = { f -> withCatch(f, lobster::dismiss) }
+                    onCatchDismiss = { f -> withCatch(f, lobster::dismiss) },
+                    onPlace = showPlace
                 )
                 Destination.SETTINGS -> SettingsScreen(
                     themeMode = themeMode,

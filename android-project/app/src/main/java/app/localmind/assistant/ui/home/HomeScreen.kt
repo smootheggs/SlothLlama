@@ -319,20 +319,25 @@ fun HomeScreen(
         if (today.isNotEmpty()) {
             Column {
                 SectionLabel("Today")
-                if (today.none { it.tone.needsYou }) {
+                // Only what needs you gets a tile; what's calm (backup saved, nothing new from the
+                // Lobster) shares one quiet line under them, so Today stays one or two rows.
+                val busy = today.filter { it.tone.needsYou }
+                val calm = today.filterNot { it.tone.needsYou }
+                if (busy.isEmpty()) {
                     CaughtUp(today)
                 } else {
                     BoxWithConstraints {
                         // Portrait: all in one row, value over name, when each gets room; landscape: two by two.
-                        val oneRow = portrait && (maxWidth - 12.dp * (today.size - 1)) / today.size >= 150.dp
-                        val perRow = if (oneRow) today.size else 2
+                        val oneRow = portrait && busy.size > 1 && (maxWidth - 12.dp * (busy.size - 1)) / busy.size >= 150.dp
+                        val perRow = if (oneRow) busy.size else 2
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            today.chunked(perRow).forEach { row ->
+                            busy.chunked(perRow).forEach { row ->
                                 Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                     row.forEach { item -> TodayTile(item, stacked = oneRow, modifier = Modifier.weight(1f).fillMaxHeight()) }
                                     repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
                                 }
                             }
+                            if (calm.any { it.calm != null }) CaughtUp(calm, lead = null)
                         }
                     }
                 }
@@ -397,22 +402,29 @@ fun HomeScreen(
             }
         }
     }
-    // Know and Do: three tiles a row; narrow tiles put the icon above the name.
+    // Know and Do: one row each, three or four tiles (four when each still gets 120 dp); narrow
+    // tiles put the icon above the name. More than fits wraps, rather than any being left out.
     val pillar: @Composable (String, String, List<HomeTile>) -> Unit = { label, section, tiles ->
         if (tiles.isNotEmpty()) {
             Column {
                 SectionLabel(label)
                 BoxWithConstraints {
-                    val stacked = (maxWidth - 24.dp) / 3 < 170.dp
-                    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        tiles.take(3).forEachIndexed { i, tile ->
-                            ThingTile(
-                                tile, stacked = stacked, arranging = arranging, picked = isPicked(section, i),
-                                modifier = Modifier.weight(1f).fillMaxHeight(),
-                                onClick = { tap(section, i, tile.onClick) }
-                            )
+                    val perRow = if (tiles.size >= 4 && (maxWidth - 36.dp) / 4 >= 120.dp) 4 else 3
+                    val stacked = (maxWidth - 12.dp * (perRow - 1)) / perRow < 170.dp
+                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                        tiles.chunked(perRow).forEachIndexed { r, row ->
+                            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                                row.forEachIndexed { j, tile ->
+                                    val i = r * perRow + j
+                                    ThingTile(
+                                        tile, stacked = stacked, arranging = arranging, picked = isPicked(section, i),
+                                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                                        onClick = { tap(section, i, tile.onClick) }
+                                    )
+                                }
+                                repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
+                            }
                         }
-                        repeat(3 - tiles.take(3).size) { Spacer(Modifier.weight(1f)) }
                     }
                 }
             }
@@ -950,7 +962,7 @@ private fun TodayTile(item: TodayItem, stacked: Boolean, modifier: Modifier) {
 
 /** Nothing needs you: one quiet line instead of the tiles. A tap opens the first thing it names. */
 @Composable
-private fun CaughtUp(items: List<TodayItem>) {
+private fun CaughtUp(items: List<TodayItem>, lead: String? = "All caught up") {
     val calm = items.filter { it.calm != null }
     Row(
         Modifier
@@ -963,8 +975,8 @@ private fun CaughtUp(items: List<TodayItem>) {
         Box(Modifier.size(8.dp).clip(CircleShape).background(P.Success))
         Spacer(Modifier.width(12.dp))
         Text(
-            (listOf("All caught up") + calm.mapNotNull { it.calm }).joinToString(" · "),
-            color = P.Muted, fontSize = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis
+            (listOfNotNull(lead) + calm.mapNotNull { it.calm }).joinToString(" · ").replaceFirstChar { it.uppercase() },
+            color = P.Muted, fontSize = if (lead == null) 14.sp else 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis
         )
     }
 }

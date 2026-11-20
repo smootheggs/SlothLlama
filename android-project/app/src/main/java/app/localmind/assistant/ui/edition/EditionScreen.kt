@@ -80,7 +80,7 @@ private enum class EditionPage { PAPER, ARCHIVE, SETTINGS }
  * the settings that are sent to the Lobster.
  */
 @Composable
-fun EditionScreen(viewModel: EditionViewModel, onBack: () -> Unit) {
+fun EditionScreen(viewModel: EditionViewModel, onBack: () -> Unit, onPlace: (String) -> Unit = {}) {
     val shown by viewModel.shown.collectAsStateWithLifecycle()
     val latest by viewModel.latest.collectAsStateWithLifecycle()
     val setup by viewModel.setup.collectAsStateWithLifecycle()
@@ -168,7 +168,7 @@ fun EditionScreen(viewModel: EditionViewModel, onBack: () -> Unit) {
                     if (e == null) {
                         NoEdition(setup, onSend = { viewModel.send(now = true) }, onSettings = { page = EditionPage.SETTINGS })
                     } else {
-                        Paper(e, tiles, setup, personas, viewModel, onSettings = { page = EditionPage.SETTINGS })
+                        Paper(e, tiles, setup, personas, viewModel, onSettings = { page = EditionPage.SETTINGS }, onPlace = onPlace)
                     }
                 }
                 EditionPage.ARCHIVE -> {
@@ -217,8 +217,10 @@ private fun Paper(
     setup: EditionSetup,
     personas: List<Persona>,
     vm: EditionViewModel,
-    onSettings: () -> Unit
+    onSettings: () -> Unit,
+    onPlace: (String) -> Unit
 ) {
+    val places by vm.places.collectAsStateWithLifecycle()
     val e = s.edition
     val now = remember(e.id) { System.currentTimeMillis() }
     val read = s.read.toSet()
@@ -234,8 +236,10 @@ private fun Paper(
                 if (e.top.isNotEmpty()) {
                     SectionHead("Top stories", "carried by several of your feeds")
                     e.top.forEachIndexed { i, st ->
+                        val at = places[Editions.storyKey(st)]
                         StoryRow(st, big = i == 0, read = Editions.storyKey(st) in read, now = now,
-                            onRead = { vm.setRead(st, Editions.storyKey(st) !in read) }, onLater = { vm.keepForLater(st) })
+                            onRead = { vm.setRead(st, Editions.storyKey(st) !in read) }, onLater = { vm.keepForLater(st) },
+                            place = at?.named, onPlace = { at?.let { onPlace(it.a3) } })
                     }
                 }
             }
@@ -243,14 +247,16 @@ private fun Paper(
                 e.sections.filter { it.stories.isNotEmpty() }.forEach { sec ->
                     SectionHead(sec.name)
                     sec.stories.forEach { st ->
+                        val at = places[Editions.storyKey(st)]
                         StoryRow(st, big = false, read = Editions.storyKey(st) in read, now = now,
-                            onRead = { vm.setRead(st, Editions.storyKey(st) !in read) }, onLater = { vm.keepForLater(st) })
+                            onRead = { vm.setRead(st, Editions.storyKey(st) !in read) }, onLater = { vm.keepForLater(st) },
+                            place = at?.named, onPlace = { at?.let { onPlace(it.a3) } })
                     }
                 }
                 if (e.notes.isNotEmpty()) Notes(e.notes)
             }
             val desk: @Composable () -> Unit = { Desk(s, setup, personas, vm, onSettings) }
-            val corners: @Composable () -> Unit = { Corners(e.corners, vm, now) }
+            val corners: @Composable () -> Unit = { Corners(e.corners, vm, now, places, onPlace) }
             if (wide) {
                 Row(Modifier.fillMaxWidth()) {
                     Column(Modifier.weight(1f)) {
@@ -332,7 +338,13 @@ private fun Desk(s: SavedEdition, setup: EditionSetup, personas: List<Persona>, 
 
 /** The language corners: one tab per language, the day's biggest stories in it. */
 @Composable
-private fun Corners(corners: List<EdCorner>, vm: EditionViewModel, now: Long) {
+private fun Corners(
+    corners: List<EdCorner>,
+    vm: EditionViewModel,
+    now: Long,
+    places: Map<String, app.localmind.assistant.domain.atlas.PlaceHit>,
+    onPlace: (String) -> Unit
+) {
     val filled = corners.filter { it.stories.isNotEmpty() }
     if (filled.isEmpty()) return
     var pick by rememberSaveable { mutableStateOf(filled.first().lang) }
@@ -372,7 +384,10 @@ private fun Corners(corners: List<EdCorner>, vm: EditionViewModel, now: Long) {
             else Text(st.title, color = P.Text, fontSize = 18.sp, lineHeight = 24.sp, fontFamily = SERIF)
             if (st.summary.isNotBlank()) Text(st.summary, color = P.Muted, fontSize = 14.sp, lineHeight = 20.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
             val small = listOf(Editions.smallPrint(st, now), if (st.paras.isNotEmpty()) "read it here ›" else "headline only").filter { it.isNotBlank() }.joinToString(" · ")
-            Text(small, color = P.Faint, fontSize = 12.sp)
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(small, color = P.Faint, fontSize = 12.sp)
+                places[Editions.storyKey(st)]?.let { hit -> PlaceLink(hit.named) { onPlace(hit.a3) } }
+            }
         }
     }
 }

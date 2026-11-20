@@ -111,7 +111,9 @@ fun ReaderScreen(
     onBack: () -> Unit,
     onCatchToLibrary: (String) -> Unit,
     onCatchToNotes: (String) -> Unit,
-    onCatchDismiss: (String) -> Unit
+    onCatchDismiss: (String) -> Unit,
+    /** A place the text names, opened in the Atlas (by its country). */
+    onPlace: (String) -> Unit = {}
 ) {
     val doc by viewModel.doc.collectAsStateWithLifecycle()
     val loading by viewModel.loading.collectAsStateWithLifecycle()
@@ -184,7 +186,8 @@ fun ReaderScreen(
                                         viewModel, current, onBack = { viewModel.close() },
                                         onCatchToLibrary = { onCatchToLibrary(it); filed(it) },
                                         onCatchToNotes = { onCatchToNotes(it); filed(it) },
-                                        onCatchDismiss = { onCatchDismiss(it); filed(it) }
+                                        onCatchDismiss = { onCatchDismiss(it); filed(it) },
+                                        onPlace = onPlace
                                     )
                                 }
                             } else {
@@ -198,7 +201,8 @@ fun ReaderScreen(
                             viewModel, current, onBack = leave,
                             onCatchToLibrary = { onCatchToLibrary(it); filed(it) },
                             onCatchToNotes = { onCatchToNotes(it); filed(it) },
-                            onCatchDismiss = { onCatchDismiss(it); filed(it) }
+                            onCatchDismiss = { onCatchDismiss(it); filed(it) },
+                            onPlace = onPlace
                         )
                     }
                 } else if (loading) {
@@ -352,10 +356,12 @@ private fun Reading(
     onBack: () -> Unit,
     onCatchToLibrary: (String) -> Unit,
     onCatchToNotes: (String) -> Unit,
-    onCatchDismiss: (String) -> Unit
+    onCatchDismiss: (String) -> Unit,
+    onPlace: (String) -> Unit
 ) {
     val context = LocalContext.current
     val scale by viewModel.scale.collectAsStateWithLifecycle()
+    val places by viewModel.places.collectAsStateWithLifecycle()
     val picked by viewModel.picked.collectAsStateWithLifecycle()
     val mailbox by viewModel.mailboxState.collectAsStateWithLifecycle()
     val lobsterOn = mailbox.enabled && mailbox.folderName != null
@@ -495,6 +501,18 @@ private fun Reading(
                     Column {
                         Text(doc.title, color = P.Text, fontSize = (24 * scale).sp, lineHeight = (31 * scale).sp, fontWeight = FontWeight.SemiBold)
                         Text("${doc.meta} · about ${readingMinutes(doc.text)} min", color = P.Faint, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+                        if (places.isNotEmpty()) {
+                            Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Text("Places", color = P.Faint, fontSize = 12.sp, modifier = Modifier.padding(end = 4.dp))
+                                places.forEach { hit ->
+                                    Text(
+                                        hit.named + " ›", color = P.Accent, fontSize = 13.sp,
+                                        modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable(onClickLabel = "Show ${hit.named} in the Atlas") { onPlace(hit.a3) }
+                                            .padding(horizontal = 6.dp, vertical = 6.dp)
+                                    )
+                                }
+                            }
+                        }
                         if (blocks.isEmpty()) {
                             Text("This one has no text to show.", color = P.Muted, fontSize = 15.sp, modifier = Modifier.padding(top = 16.dp))
                         }

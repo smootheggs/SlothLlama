@@ -83,6 +83,30 @@ description of what the tile is.
 The sloth on its llama for SlothLlama; coral for the Lobster. Small touches (a coffee, a lantern,
 sleepy z's) are decoration: hidden from TalkBack and switchable in Settings → Home.
 
+## Home, kept to one screen
+
+- Today shows tiles only for what needs you (cards due, unread edition, a new catch, tickets to
+  mark, a backup problem). Calm things (backup saved, nothing new from the Lobster) share one quiet
+  line under them.
+- Know and Do are one row each: up to four tiles when each still gets 120 dp (icon above the name
+  when narrow). Know: SlothBooks, The Sloth Express, Atlas, Later. Notes joined Chats, Personas,
+  Models and the Library in the quiet row at the bottom. A longer Today, or the day's Chinese, may
+  still scroll; that's allowed.
+
+## Atlas
+
+- A map, not a street map: Equal Earth (equal-area, so areas measured on it are true), Natural
+  Earth's seven map colours so neighbours never match, muted on black or soft on the white map.
+  The picked country is moss-outlined; its subdivisions draw inside it.
+- Labels thin out as you zoom out (Natural Earth's label rank decides) and never overlap; capitals
+  appear from a little closer. English is always there: the card's title, the list's first column.
+  The map's labels can switch to a tutor's language.
+- Sideways, the card sits beside the map; upright, under it. "Open" gives the country its page:
+  its own map of subdivisions, facts each with where they come from, neighbours to hop to, today's
+  stories and your books set there, and the tutor of its language to talk about it with.
+- Places in the edition and the Reader are quiet accent links ("Guangdong ›"); they open the
+  Atlas on that country.
+
 ## The Sloth Express (the edition)
 
 - A paper, not a feed: the masthead's serif name over a small-capitals line (edition, day,

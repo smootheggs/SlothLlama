@@ -77,6 +77,7 @@ class EditionViewModel @Inject constructor(
     private val style: ChineseStyleStore,
     private val askInbox: AskInbox,
     private val attachments: AttachmentStore,
+    private val atlas: app.localmind.assistant.data.atlas.AtlasRepository,
     personas: PersonaRepository
 ) : ViewModel() {
 
@@ -101,6 +102,10 @@ class EditionViewModel @Inject constructor(
     val story: StateFlow<StoryView?> = _story.asStateFlow()
 
     /** Corner headlines split into words with readings, by story key (filled as they're worked out). */
+    private val _places = MutableStateFlow<Map<String, app.localmind.assistant.domain.atlas.PlaceHit>>(emptyMap())
+    /** The place each story names most, by story key: found on the tablet with the Atlas's names. */
+    val places: StateFlow<Map<String, app.localmind.assistant.domain.atlas.PlaceHit>> = _places.asStateFlow()
+
     private val _heads = MutableStateFlow<Map<String, List<Segment>>>(emptyMap())
     val heads: StateFlow<Map<String, List<Segment>>> = _heads.asStateFlow()
 
@@ -133,7 +138,12 @@ class EditionViewModel @Inject constructor(
         if (started) return
         started = true
         viewModelScope.launch {
-            shown.collect { s -> s?.let { headsFor(it) } }
+            shown.collect { s ->
+                s?.let {
+                    placesFor(it)
+                    headsFor(it)
+                }
+            }
         }
     }
 
@@ -172,6 +182,16 @@ class EditionViewModel @Inject constructor(
             mailbox.send(OrderKind.FETCH, story.url, deliver = "later")
             "The Lobster will fetch it to Later"
         }.getOrElse { it.message ?: "Couldn't send the order" }
+    }
+
+    private suspend fun placesFor(s: SavedEdition) {
+        val finder = runCatching { atlas.finder() }.getOrNull() ?: return
+        _places.value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+            s.stories.mapNotNull { st ->
+                val text = st.title + "\n" + st.summary + "\n" + st.paras.joinToString("\n") { it.t }
+                finder.find(text, 1).firstOrNull()?.let { Editions.storyKey(st) to it }
+            }.toMap()
+        }
     }
 
     private suspend fun headsFor(s: SavedEdition) {

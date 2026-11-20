@@ -11,6 +11,7 @@ import androidx.compose.material.icons.outlined.LocalLibrary
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.Newspaper
+import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material.icons.outlined.Sailing
 import androidx.compose.material.icons.outlined.ShowChart
@@ -67,6 +68,8 @@ fun HomeRoute(
     onBooks: () -> Unit = {},
     /** The Sloth Express: the edition the Lobster makes. */
     onEdition: () -> Unit = {},
+    /** The Atlas: the world map on the tablet. */
+    onAtlas: () -> Unit = {},
     onNotes: () -> Unit,
     onDesk: () -> Unit = {},
     /** The Later shelf (in the Reader). */
@@ -133,7 +136,7 @@ fun HomeRoute(
                     Icons.Outlined.Sailing, "$caught new", "From the Lobster",
                     headline ?: "Brought back · file it", Tone.LOBSTER, onLobster
                 )
-                else TodayItem(Icons.Outlined.Sailing, "Nothing new", "From the Lobster", lobsterLine.orEmpty(), Tone.QUIET, onLobster)
+                else TodayItem(Icons.Outlined.Sailing, "Nothing new", "From the Lobster", lobsterLine.orEmpty(), Tone.QUIET, onLobster, calm = "nothing new from the Lobster")
             )
         }
         // Today's edition, until it's a day old: what's unread and its lead story.
@@ -179,18 +182,6 @@ fun HomeRoute(
                 key = "books"
             )
         )
-        add(
-            HomeTile(
-                Icons.Outlined.StickyNote2, "Notes",
-                when (notes.size) {
-                    0 -> ""
-                    1 -> "1 note"
-                    else -> "${notes.size} notes"
-                },
-                onNotes,
-                key = "notes"
-            )
-        )
         if (onLobster != null || paper != null) {
             add(
                 HomeTile(
@@ -201,6 +192,7 @@ fun HomeRoute(
                 )
             )
         }
+        add(HomeTile(Icons.Outlined.Public, "Atlas", "", onAtlas, key = "atlas"))
         val toRead = laterItems.filter { !it.archived }
         add(
             HomeTile(
@@ -253,7 +245,9 @@ fun HomeRoute(
         HomeTile(Icons.Outlined.ChatBubbleOutline, "Chats", "", onOpenChats),
         HomeTile(Icons.Outlined.PersonOutline, "Personas", "", onPersonas),
         HomeTile(Icons.Outlined.Memory, "Models", ui.activeModelName.ifBlank { "choose one" }, onModels),
-        HomeTile(Icons.Outlined.LocalLibrary, "Library", "", onLibrary)
+        HomeTile(Icons.Outlined.LocalLibrary, "Library", "", onLibrary),
+        // Notes is a tool you go to, like the Library: it moved here so Know stays one row.
+        HomeTile(Icons.Outlined.StickyNote2, "Notes", "", onNotes)
     )
 
     // Practice: writing to a tutor, or reviewing a flashcard.

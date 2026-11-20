@@ -86,7 +86,17 @@ internal fun SectionHead(name: String, note: String? = null, right: @Composable 
  * Lobster fetch it to Later. A tap marks it read or not.
  */
 @Composable
-internal fun StoryRow(story: EdStory, big: Boolean, read: Boolean, now: Long, onRead: () -> Unit, onLater: () -> Unit) {
+internal fun StoryRow(
+    story: EdStory,
+    big: Boolean,
+    read: Boolean,
+    now: Long,
+    onRead: () -> Unit,
+    onLater: () -> Unit,
+    /** The place the story names most (found on the tablet), and opening it in the Atlas. */
+    place: String? = null,
+    onPlace: () -> Unit = {}
+) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -106,7 +116,8 @@ internal fun StoryRow(story: EdStory, big: Boolean, read: Boolean, now: Long, on
             val small = Editions.smallPrint(story, now)
             Row(verticalAlignment = Alignment.CenterVertically) {
                 if (read) Icon(Icons.Outlined.Check, contentDescription = "Read", tint = P.Faint, modifier = Modifier.size(14.dp).padding(end = 4.dp))
-                if (small.isNotBlank()) Text(small, color = P.Faint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (small.isNotBlank()) Text(small, color = P.Faint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                if (place != null) PlaceLink(place, onPlace)
             }
         }
         if (story.url.isNotBlank()) {
@@ -124,6 +135,16 @@ internal fun StoryRow(story: EdStory, big: Boolean, read: Boolean, now: Long, on
             }
         }
     }
+}
+
+/** A place a story names: a quiet link to it in the Atlas. */
+@Composable
+internal fun PlaceLink(name: String, onClick: () -> Unit) {
+    Text(
+        "  ·  $name ›", color = P.Accent, fontSize = 12.sp, maxLines = 1,
+        modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable(onClickLabel = "Show $name in the Atlas", role = Role.Button, onClick = onClick)
+            .padding(vertical = 4.dp)
+    )
 }
 
 /** The markets strip: SlothDesk's latest closes and moves, worked out on the tablet. */
