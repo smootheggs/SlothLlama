@@ -212,6 +212,9 @@ object Editions {
 
     fun stories(e: EditionOut): List<EdStory> = e.top + e.sections.flatMap { it.stories } + e.corners.flatMap { it.stories }
 
+    /** The paper's motto, under its name on the masthead and on Home. */
+    const val MOTTO = "Slowly digesting a rapidly changing world"
+
     fun storyKey(s: EdStory): String = s.url.ifBlank { s.title }.trim().lowercase().take(300)
 
     // --- the default plan ---

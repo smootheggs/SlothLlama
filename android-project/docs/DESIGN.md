@@ -8,7 +8,7 @@ The rules the Home, Personas, Lobster, SlothDesk and SlothBooks pages follow. Ke
   shown in full, New chat). It may have one filled button.
 - **Row**: for lists. A mark or icon, one line of title, one line of detail, and ⋯ for
   everything else. A tap does the main thing (open, read, show).
-- **Tile**: for grids (personas, your things, Today). A tap is the main action; edits live in ⋯.
+- **Tile**: for grids (personas, your things). A tap is the main action; edits live in ⋯.
 
 ## Rules
 
@@ -37,17 +37,20 @@ Home is one page upright and two pages sideways (the tablet in landscape, an ope
 sideways: from 720 dp wide when wider than tall). Each page is one screen tall; its sections
 spread over the height, 20–48 dp apart, and the page scrolls only if they can't fit.
 
-- **Left page, now**: the hello, Continue and New chat, **Today** (two by two) and **A little
+- **Left page, now**: the hello with its status line, Continue and New chat, and **A little
   Chinese** (the word and the idiom as compact lines, ⋯ for flashcards or the teacher).
 - **Right page, places**: **Favourites** (a chip per favourite persona, + to choose them in
   Personas), **Learn** (the week's practice dots and the word tools as quiet links), **Know**
   (SlothBooks, Notes, Later) and **Do** (SlothDesk, the Lobster, Ourjong) three a row, then the
   quiet row: Chats, Personas, Models, Library, Arrange. SlothBooks is what you read; the Library
   is what SlothLlama reads, set up once like Models.
-- Upright, the same sections in that order on one page; Today goes four in a row and the word
-  sits beside the idiom when there's room.
-- **Filled cards are status, outlined tiles are places.** Today's cards are filled with no
-  border; Know and Do tiles are outlined. Don't mix the two in one section.
+- Upright, the same sections in that order on one page; the word sits beside the idiom when
+  there's room.
+- **A place lights up when it needs you; nothing shows twice.** Unread news puts a moss count on
+  The Sloth Express's icon and a moss outline round it; a catch does the same in coral on
+  SlothLobster; cards due turn Flashcards moss; tickets to mark or ideas to review turn SlothDesk's
+  line moss. Calm things (backup saved, nothing new from the Lobster) share one quiet line under
+  the hello, with a red dot when the backup failed.
 - **Arrange** is tap to swap: tap a tile, then the one to trade places with, in the same
   section (Favourites, Know or Do). Tiles go dashed while arranging and the picked one turns
   soft moss. The order is saved; a new tile keeps its place after the saved ones.
@@ -85,13 +88,24 @@ sleepy z's) are decoration: hidden from TalkBack and switchable in Settings → 
 
 ## Home, kept to one screen
 
-- Today shows tiles only for what needs you (cards due, unread edition, a new catch, tickets to
-  mark, a backup problem). Calm things (backup saved, nothing new from the Lobster) share one quiet
-  line under them.
-- Know and Do are one row each: up to four tiles when each still gets 120 dp (icon above the name
-  when narrow). Know: SlothBooks, The Sloth Express, Atlas, Later. Notes joined Chats, Personas,
-  Models and the Library in the quiet row at the bottom. A longer Today, or the day's Chinese, may
-  still scroll; that's allowed.
+- No Today row (1.34): what needs you lights up its own tile instead (see Home above), and the
+  calm things are one line under the hello.
+- Know and Do are one row each: up to four tiles when each still gets 120 dp. The icon sits beside
+  the name whenever every name fits, at equal widths or, failing that, widths that follow the
+  names; only then does it go above. Know: SlothBooks, The Sloth Express (its line is the motto,
+  "Slowly digesting a rapidly changing world"), Atlas, Later. Notes joined Chats, Personas,
+  Models and the Library in the quiet row at the bottom. The day's Chinese may still scroll;
+  that's allowed.
+
+## The Sloth Express
+
+- A masthead (the name, the motto in serif italics, a double rule, the dateline between rules),
+  the markets strip, then the paper: top stories, the sections, the desk, the language corners.
+  Wide: the news on the left, the desk and the corners on the right.
+- A contents bar stays under the top bar: each part with its unread count, the part you're in
+  picked, a tap to jump. Each section's head says what's unread and has "Mark read".
+- Stories are separated by hairlines; a read story folds to its faint title. The bookmark sends it
+  to Later through the Lobster.
 
 ## Atlas
 

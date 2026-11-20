@@ -51,7 +51,7 @@ object HomeGreeting {
             festivalToday != null && festivalToday.custom.isNotBlank() -> festivalToday.custom
             festivalToday != null && !festivalToday.isFestival -> "The season turns: ${festivalToday.english} begins today."
             festivalToday != null -> "Today is the ${festivalToday.english}."
-            // What the Lobster brought and cards due are in Today; the hello doesn't repeat them.
+            // What the Lobster brought and cards due light up their own tiles; the hello doesn't repeat them.
             else -> f.base.second
         }
         val language = when (o.language) {

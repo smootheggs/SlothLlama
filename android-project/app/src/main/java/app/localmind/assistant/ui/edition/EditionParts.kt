@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.outlined.Add
+import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -36,6 +36,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -51,29 +52,37 @@ import app.localmind.assistant.ui.theme.SlothPalette as P
 
 internal val SERIF = FontFamily.Serif
 
-/** The masthead: the paper's name, its line, and a double rule. */
+/**
+ * The masthead: the paper's name, its motto in italics, a double rule, then the dateline (edition,
+ * day, stories, listening time) between rules.
+ */
 @Composable
 internal fun Masthead(line: String, compact: Boolean) {
     Column(Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 4.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Text("The Sloth Express", color = P.Text, fontSize = if (compact) 30.sp else 38.sp, fontFamily = SERIF, textAlign = TextAlign.Center)
         Text(
-            line, color = P.Faint, fontSize = 11.sp, letterSpacing = 1.6.sp, textAlign = TextAlign.Center,
-            modifier = Modifier.padding(top = 4.dp)
+            Editions.MOTTO, color = P.Muted, fontSize = if (compact) 14.sp else 15.sp, fontFamily = SERIF, fontStyle = FontStyle.Italic,
+            textAlign = TextAlign.Center, modifier = Modifier.padding(top = 2.dp)
         )
-        Spacer(Modifier.height(10.dp))
+        Spacer(Modifier.height(12.dp))
         HorizontalDivider(color = P.BorderStrong)
         Spacer(Modifier.height(2.dp))
+        HorizontalDivider(color = P.BorderStrong)
+        Text(
+            line, color = P.Faint, fontSize = 11.sp, letterSpacing = 1.6.sp, textAlign = TextAlign.Center,
+            modifier = Modifier.padding(vertical = 7.dp)
+        )
         HorizontalDivider(color = P.BorderStrong)
     }
 }
 
-/** A section's head: a rule, its name in small capitals, and a note on the right. */
+/** A section's head: a rule, its name in small capitals, a note and whatever goes on the right. */
 @Composable
-internal fun SectionHead(name: String, note: String? = null, right: @Composable () -> Unit = {}) {
-    Column(Modifier.fillMaxWidth().padding(top = 18.dp, bottom = 6.dp)) {
+internal fun SectionHead(name: String, note: String? = null, modifier: Modifier = Modifier, right: @Composable () -> Unit = {}) {
+    Column(modifier.fillMaxWidth().padding(top = 22.dp, bottom = 4.dp)) {
         HorizontalDivider(color = P.BorderStrong)
-        Row(Modifier.fillMaxWidth().heightIn(min = 36.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(name.uppercase(), color = P.Faint, fontSize = 12.sp, letterSpacing = 1.6.sp, fontWeight = FontWeight.Medium)
+        Row(Modifier.fillMaxWidth().heightIn(min = 40.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(name.uppercase(), color = P.Muted, fontSize = 12.sp, letterSpacing = 1.6.sp, fontWeight = FontWeight.Medium)
             Spacer(Modifier.weight(1f))
             if (note != null) Text(note, color = P.Faint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             right()
@@ -82,8 +91,8 @@ internal fun SectionHead(name: String, note: String? = null, right: @Composable 
 }
 
 /**
- * A story: its title (faint once read), a line of summary, the small print, and + to have the
- * Lobster fetch it to Later. A tap marks it read or not.
+ * A story: its title, a line or two of summary, the small print, and a bookmark to have the
+ * Lobster fetch it to Later. A tap marks it read or not; once read it folds to a faint title.
  */
 @Composable
 internal fun StoryRow(
@@ -102,7 +111,7 @@ internal fun StoryRow(
             .fillMaxWidth()
             .clip(RoundedCornerShape(10.dp))
             .clickable(onClickLabel = if (read) "Mark as unread" else "Mark as read", role = Role.Checkbox, onClick = onRead)
-            .padding(vertical = 8.dp),
+            .padding(vertical = if (big) 12.dp else 10.dp),
         verticalAlignment = Alignment.Top
     ) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -110,7 +119,7 @@ internal fun StoryRow(
                 story.title, color = if (read) P.Faint else P.Text, fontFamily = SERIF,
                 fontSize = if (big) 23.sp else 17.sp, lineHeight = if (big) 29.sp else 23.sp
             )
-            if (story.summary.isNotBlank()) {
+            if (story.summary.isNotBlank() && !read) {
                 Text(story.summary, color = P.Muted, fontSize = 14.sp, lineHeight = 20.sp, maxLines = if (big) 4 else 2, overflow = TextOverflow.Ellipsis)
             }
             val small = Editions.smallPrint(story, now)
@@ -124,14 +133,13 @@ internal fun StoryRow(
             Box(
                 Modifier
                     .padding(start = 10.dp)
-                    .size(40.dp)
+                    .size(44.dp)
                     .clip(CircleShape)
-                    .border(1.dp, P.Border, CircleShape)
                     .clickable(onClickLabel = "Have the Lobster fetch it to Later", role = Role.Button, onClick = onLater)
                     .semantics { contentDescription = "Fetch to Later" },
                 contentAlignment = Alignment.Center
             ) {
-                Icon(Icons.Outlined.Add, contentDescription = null, tint = P.Muted, modifier = Modifier.size(18.dp))
+                Icon(Icons.Outlined.BookmarkBorder, contentDescription = null, tint = P.Faint, modifier = Modifier.size(20.dp))
             }
         }
     }

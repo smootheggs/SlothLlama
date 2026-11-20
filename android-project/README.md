@@ -126,6 +126,12 @@ model too big for the GPU falls back to the CPU on its own.
   names (tap it to see it on the map), the Reader lists the places an article names, and "Your
   places" pins today's stories and the books on your shelf by country. Places are found on the
   tablet, from the Atlas's own names.
+- **Home without repeats** (1.34). The Today row is gone: what needs you lights up its own place
+  (unread news as a count on The Sloth Express, a catch on SlothLobster, cards due on Flashcards,
+  tickets to mark on SlothDesk), and calm things share one quiet line under the hello. Know's tiles
+  put the icon beside the name, so the page fits upright without scrolling. **The Sloth Express**
+  reads like a paper: a masthead with its motto, a contents bar that stays in view with unread
+  counts and jumps to each part, "Mark read" per section, and read stories folded to their title.
 - **Organising SlothBooks.** The default shelves (All, Reading, Up next, To read, Read,
   Reference) are always there; make your own with **+ New shelf**, rename or remove them from
   their ⋯ (the books stay), and put a book on any of them from its card. **Group by** author,

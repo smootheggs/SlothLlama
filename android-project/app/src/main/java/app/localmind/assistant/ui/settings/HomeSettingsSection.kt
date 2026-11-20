@@ -159,10 +159,10 @@ internal fun HomeSettingsSection() {
 
         Divider()
         Group("Tiles")
-        ToggleRow("SlothDesk in Today", "The latest paper tickets, while they're fresh.", s.deskTile) { v ->
+        ToggleRow("Tickets on the SlothDesk tile", "Paper tickets still to mark light it up, while they're fresh.", s.deskTile) { v ->
             vm.update { it.copy(deskTile = v) }
         }
-        ToggleRow("The Lobster's headline", "The newest catch's top headline on its Today tile.", s.lobsterHeadline) { v ->
+        ToggleRow("The Lobster's headline", "The newest catch's top headline on the SlothLobster tile.", s.lobsterHeadline) { v ->
             vm.update { it.copy(lobsterHeadline = v) }
         }
         ToggleRow(

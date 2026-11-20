@@ -172,6 +172,13 @@ class EditionViewModel @Inject constructor(
         if (_chosen.value?.edition?.id == id) _chosen.value = next
     }
 
+    /** A section's stories all read (or all unread again). */
+    fun setReadAll(stories: List<EdStory>, read: Boolean) = viewModelScope.launch {
+        val id = shown.value?.edition?.id ?: return@launch
+        val next = store.setReadMany(id, stories.map(Editions::storyKey), read)
+        if (_chosen.value?.edition?.id == id) _chosen.value = next
+    }
+
     /** The whole article, fetched by the Lobster to the Later shelf (SlothLlama itself never goes online). */
     fun keepForLater(story: EdStory) = viewModelScope.launch {
         if (story.url.isBlank()) {

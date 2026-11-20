@@ -37,6 +37,15 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.layout.LayoutCoordinates
+import androidx.compose.ui.layout.onGloballyPositioned
+import androidx.compose.ui.semantics.Role
+import app.localmind.assistant.domain.edition.EdStory
+import kotlinx.coroutines.launch
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -149,7 +158,7 @@ fun EditionScreen(viewModel: EditionViewModel, onBack: () -> Unit, onPlace: (Str
                     val e = shown
                     val older = e != null && latest != null && e.edition.id != latest?.edition?.id
                     SlothTopBar(
-                        title = "The Sloth Express",
+                        title = e?.let { "${it.edition.name} edition" } ?: "The Sloth Express",
                         subtitle = e?.let { received(it, older) } ?: "From the Lobster",
                         onBack = if (older) viewModel::showLatest else onBack,
                         actions = {
@@ -210,6 +219,15 @@ private fun NoEdition(setup: EditionSetup, onSend: () -> Unit, onSettings: () ->
     }
 }
 
+/** A part of the paper the contents bar can jump to, with what's unread in it. */
+private data class PaperPart(val key: String, val label: String, val unread: Int)
+
+/**
+ * The paper: the masthead and the markets, then the top stories and the sections, the desk and
+ * the language corners. A contents bar stays under the top bar: each part with what's unread in
+ * it, the part you're in picked, a tap to jump there. Wide: news on the left, the desk and the
+ * corners on the right.
+ */
 @Composable
 private fun Paper(
     s: SavedEdition,
@@ -225,55 +243,109 @@ private fun Paper(
     val now = remember(e.id) { System.currentTimeMillis() }
     val read = s.read.toSet()
     val line = Editions.masthead(e, ZoneId.systemDefault(), Editions.listenMinutes(e))
+    val scroll = rememberScrollState()
+    val scope = rememberCoroutineScope()
+    // Where each part starts in the scrolled column, measured as it's laid out.
+    val marks = remember(e.id) { mutableStateMapOf<String, Float>() }
+    var content by remember { mutableStateOf<LayoutCoordinates?>(null) }
+    fun anchor(key: String): Modifier = Modifier.onGloballyPositioned { c ->
+        val root = content
+        if (root != null && root.isAttached && c.isAttached) {
+            val y = root.localPositionOf(c, Offset.Zero).y
+            if (marks[key] != y) marks[key] = y
+        }
+    }
+    fun unread(list: List<EdStory>) = list.count { Editions.storyKey(it) !in read }
+    val sections = e.sections.filter { it.stories.isNotEmpty() }
+    val hasCorners = e.corners.any { it.stories.isNotEmpty() }
+    val parts = buildList {
+        if (e.top.isNotEmpty()) add(PaperPart("top", "Top stories", unread(e.top)))
+        sections.forEach { add(PaperPart("s:" + it.name, it.name, unread(it.stories))) }
+        add(PaperPart("desk", "The desk", 0))
+        if (hasCorners) add(PaperPart("corners", "Corners", 0))
+    }
+    val keys = parts.map { it.key }
+    val current by remember(e.id, keys) {
+        derivedStateOf {
+            val y = scroll.value + 48f
+            keys.lastOrNull { k -> (marks[k] ?: Float.MAX_VALUE) <= y } ?: keys.firstOrNull()
+        }
+    }
+
+    /** A run of stories under its head: unread count and "mark read" on the right, hairlines between. */
+    val block: @Composable (String, String, List<EdStory>, Boolean) -> Unit = { key, name, list, lead ->
+        val left = unread(list)
+        SectionHead(name, modifier = anchor(key)) {
+            if (left == 0) {
+                Text("All read", color = P.Faint, fontSize = 12.sp)
+            } else {
+                Text("$left unread", color = P.Faint, fontSize = 12.sp)
+                Text(
+                    "Mark read", color = P.Accent, fontSize = 12.sp,
+                    modifier = Modifier.padding(start = 4.dp).clip(RoundedCornerShape(8.dp))
+                        .clickable(role = Role.Button, onClickLabel = "Mark $name read") { vm.setReadAll(list, true) }
+                        .padding(horizontal = 8.dp, vertical = 10.dp)
+                )
+            }
+        }
+        list.forEachIndexed { i, st ->
+            if (i > 0) HorizontalDivider(color = P.Border)
+            val at = places[Editions.storyKey(st)]
+            StoryRow(
+                st, big = lead && i == 0, read = Editions.storyKey(st) in read, now = now,
+                onRead = { vm.setRead(st, Editions.storyKey(st) !in read) }, onLater = { vm.keepForLater(st) },
+                place = at?.named, onPlace = { at?.let { onPlace(it.a3) } }
+            )
+        }
+    }
+
     BoxWithConstraints(Modifier.fillMaxSize()) {
         val wide = maxWidth >= WIDE
         val pad = if (wide) 40.dp else 20.dp
-        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = pad).padding(bottom = 48.dp)) {
-            Masthead(line, compact = !wide)
-            val news: @Composable () -> Unit = {
-                Spacer(Modifier.height(12.dp))
+        Column(Modifier.fillMaxSize()) {
+            // Contents: always in view, so a long paper never feels like one endless list.
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = pad, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp)
+            ) {
+                parts.forEach { part ->
+                    Pill(
+                        if (part.unread > 0) "${part.label} · ${part.unread}" else part.label,
+                        selected = part.key == current, quiet = true, small = true
+                    ) {
+                        marks[part.key]?.let { y -> scope.launch { scroll.animateScrollTo(y.toInt()) } }
+                    }
+                }
+            }
+            HorizontalDivider(color = P.Border)
+            Column(
+                Modifier.fillMaxSize().verticalScroll(scroll).onGloballyPositioned { content = it }
+                    .padding(horizontal = pad).padding(top = 12.dp, bottom = 48.dp)
+            ) {
+                Masthead(line, compact = !wide)
+                Spacer(Modifier.height(14.dp))
                 MarketStrip(tiles)
-                if (e.top.isNotEmpty()) {
-                    SectionHead("Top stories", "carried by several of your feeds")
-                    e.top.forEachIndexed { i, st ->
-                        val at = places[Editions.storyKey(st)]
-                        StoryRow(st, big = i == 0, read = Editions.storyKey(st) in read, now = now,
-                            onRead = { vm.setRead(st, Editions.storyKey(st) !in read) }, onLater = { vm.keepForLater(st) },
-                            place = at?.named, onPlace = { at?.let { onPlace(it.a3) } })
-                    }
+                val news: @Composable () -> Unit = {
+                    if (e.top.isNotEmpty()) block("top", "Top stories", e.top, true)
+                    sections.forEach { sec -> block("s:" + sec.name, sec.name, sec.stories, false) }
+                    if (e.notes.isNotEmpty()) Notes(e.notes)
                 }
-            }
-            val sections: @Composable () -> Unit = {
-                e.sections.filter { it.stories.isNotEmpty() }.forEach { sec ->
-                    SectionHead(sec.name)
-                    sec.stories.forEach { st ->
-                        val at = places[Editions.storyKey(st)]
-                        StoryRow(st, big = false, read = Editions.storyKey(st) in read, now = now,
-                            onRead = { vm.setRead(st, Editions.storyKey(st) !in read) }, onLater = { vm.keepForLater(st) },
-                            place = at?.named, onPlace = { at?.let { onPlace(it.a3) } })
+                val desk: @Composable () -> Unit = { Desk(s, setup, personas, vm, onSettings, anchor("desk")) }
+                val corners: @Composable () -> Unit = { Corners(e.corners, vm, now, places, onPlace, anchor("corners")) }
+                if (wide) {
+                    Row(Modifier.fillMaxWidth()) {
+                        Column(Modifier.weight(1.4f)) { news() }
+                        Box(Modifier.padding(horizontal = 28.dp, vertical = 24.dp).width(1.dp).heightIn(min = 400.dp).background(P.Card))
+                        Column(Modifier.weight(1f)) {
+                            desk()
+                            corners()
+                        }
                     }
+                } else {
+                    news()
+                    desk()
+                    corners()
                 }
-                if (e.notes.isNotEmpty()) Notes(e.notes)
-            }
-            val desk: @Composable () -> Unit = { Desk(s, setup, personas, vm, onSettings) }
-            val corners: @Composable () -> Unit = { Corners(e.corners, vm, now, places, onPlace) }
-            if (wide) {
-                Row(Modifier.fillMaxWidth()) {
-                    Column(Modifier.weight(1f)) {
-                        news()
-                        sections()
-                    }
-                    Box(Modifier.padding(horizontal = 28.dp, vertical = 16.dp).width(1.dp).heightIn(min = 400.dp).background(P.Card))
-                    Column(Modifier.weight(1f)) {
-                        desk()
-                        corners()
-                    }
-                }
-            } else {
-                news()
-                desk()
-                corners()
-                sections()
             }
         }
     }
@@ -291,11 +363,11 @@ private fun Notes(notes: List<String>) {
 
 /** The desk: each desk persona's notes on this edition, or the way to ask for them. */
 @Composable
-private fun Desk(s: SavedEdition, setup: EditionSetup, personas: List<Persona>, vm: EditionViewModel, onSettings: () -> Unit) {
+private fun Desk(s: SavedEdition, setup: EditionSetup, personas: List<Persona>, vm: EditionViewModel, onSettings: () -> Unit, modifier: Modifier = Modifier) {
     val seated = setup.desk.mapNotNull { id -> personas.firstOrNull { it.id == id } }
     var chosen by rememberSaveable { mutableStateOf<String?>(null) }
     val persona = seated.firstOrNull { it.id == chosen } ?: seated.firstOrNull()
-    SectionHead("The desk") {
+    SectionHead("The desk", modifier = modifier) {
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             seated.forEach { p -> Pill("${p.badge} · ${p.name}", selected = p.id == persona?.id, quiet = true, small = true) { chosen = p.id } }
             Pill("+ Add a desk", selected = false, small = true, onClick = onSettings)
@@ -343,7 +415,8 @@ private fun Corners(
     vm: EditionViewModel,
     now: Long,
     places: Map<String, app.localmind.assistant.domain.atlas.PlaceHit>,
-    onPlace: (String) -> Unit
+    onPlace: (String) -> Unit,
+    modifier: Modifier = Modifier
 ) {
     val filled = corners.filter { it.stories.isNotEmpty() }
     if (filled.isEmpty()) return
@@ -353,7 +426,7 @@ private fun Corners(
     val heads by vm.heads.collectAsStateWithLifecycle()
     val readings by vm.readings.collectAsStateWithLifecycle()
     val traditional by vm.traditional.collectAsStateWithLifecycle()
-    SectionHead("Language corners", "the day's biggest stories in each")
+    SectionHead("Language corners", "the day's biggest stories in each", modifier = modifier)
     Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         filled.forEach { c ->
             val l = CornerLanguage.of(c.lang)
@@ -373,7 +446,8 @@ private fun Corners(
             )
         }
     }
-    corner.stories.forEach { st ->
+    corner.stories.forEachIndexed { i, st ->
+        if (i > 0) HorizontalDivider(color = P.Border)
         Column(
             Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClickLabel = "Read the story") { vm.openStory(corner, st) }
                 .padding(vertical = 10.dp),

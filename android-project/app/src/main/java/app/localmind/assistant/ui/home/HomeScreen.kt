@@ -111,6 +111,9 @@ import app.localmind.assistant.ui.chat.components.chineseToday
 import app.localmind.assistant.ui.chat.components.clockText
 import app.localmind.assistant.ui.chat.components.slothHello
 import app.localmind.assistant.ui.theme.SlothPalette as P
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.SpanStyle
 import java.time.Instant
 import java.time.ZoneId
 import kotlinx.coroutines.delay
@@ -134,20 +137,16 @@ data class HomeTile(
     /** Drawn as a little mahjong tile instead of the icon (Ourjong's 中). */
     val mark: String? = null,
     /** Stable name for arranging ("library", "desk"…). */
-    val key: String = label
+    val key: String = label,
+    /** A small count on the icon ("24" unread) when the tile needs you; the line under the name stays as it is. */
+    val badge: String? = null
 )
 
-/** One tile in the Today strip: a short live value ("12 due") over its name and a next step. */
-data class TodayItem(
-    val icon: ImageVector,
-    val value: String,
-    val title: String,
-    val detail: String,
-    val tone: Tone,
-    val onClick: () -> Unit,
-    /** How it reads on the "All caught up" line ("backup saved yesterday"); null = leave it off. */
-    val calm: String? = null
-)
+/**
+ * One calm fact for the line under the hello ("backup saved Wed", "nothing new from the Lobster"),
+ * or a problem (in red) that needs a look. A tap goes where it's from.
+ */
+data class StatusNote(val text: String, val onClick: () -> Unit, val problem: Boolean = false)
 
 /** The Home page's optional touches, as set in Settings → Home, with what they need. */
 data class HomeExtrasUi(
@@ -177,10 +176,11 @@ data class HomeActions(
 
 /**
  * The main page. Top: the date, today in Chinese and the almanac line, with search and settings.
- * Then a hello, the two main actions (continue the last chat, start a new one), Today (what's due
- * or new), a word and an idiom for the day, then the three pillars: Learn (the tutors, one chip per
+ * Then a hello with a quiet status line, the two main actions (continue the last chat, start a new
+ * one), a word and an idiom for the day, then the three pillars: Learn (the tutors, one chip per
  * language with the week's practice, and the word tools), Know and Do, and a quiet row for the rest.
- * Colour is kept for the one main action and live numbers; icons stay neutral.
+ * Colour is kept for the one main action and live numbers; icons stay neutral. What needs you
+ * (cards due, an unread edition, a catch, tickets to mark) lights up its own tile, so nothing shows twice.
  * Everything fits on one screen: two columns in landscape, one spread over the height in portrait.
  */
 @OptIn(ExperimentalLayoutApi::class)
@@ -189,7 +189,8 @@ fun HomeScreen(
     script: ChineseScript,
     conversations: List<Conversation>,
     personas: List<Persona>,
-    today: List<TodayItem>,
+    /** The quiet line under the hello: what's calm, and any problem. What needs you lights up its own tile. */
+    status: List<StatusNote> = emptyList(),
     /** Learn: word tools shown under the tutors (Core words, Flashcards, Dictionary). */
     learn: List<HomeTile>,
     /** Know: SlothBooks, Notes, Later. */
@@ -278,6 +279,7 @@ fun HomeScreen(
                     greeting.sub, color = P.Muted, fontSize = 17.sp, lineHeight = 23.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.padding(top = 4.dp)
                 )
+                if (status.isNotEmpty()) StatusLine(status)
             }
         }
     }
@@ -315,35 +317,6 @@ fun HomeScreen(
     }
     fun isPicked(section: String, index: Int) = picked?.let { it.first == section && it.second == index } ?: false
 
-    val todayStrip: @Composable (Boolean) -> Unit = { portrait ->
-        if (today.isNotEmpty()) {
-            Column {
-                SectionLabel("Today")
-                // Only what needs you gets a tile; what's calm (backup saved, nothing new from the
-                // Lobster) shares one quiet line under them, so Today stays one or two rows.
-                val busy = today.filter { it.tone.needsYou }
-                val calm = today.filterNot { it.tone.needsYou }
-                if (busy.isEmpty()) {
-                    CaughtUp(today)
-                } else {
-                    BoxWithConstraints {
-                        // Portrait: all in one row, value over name, when each gets room; landscape: two by two.
-                        val oneRow = portrait && busy.size > 1 && (maxWidth - 12.dp * (busy.size - 1)) / busy.size >= 150.dp
-                        val perRow = if (oneRow) busy.size else 2
-                        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            busy.chunked(perRow).forEach { row ->
-                                Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    row.forEach { item -> TodayTile(item, stacked = oneRow, modifier = Modifier.weight(1f).fillMaxHeight()) }
-                                    repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
-                                }
-                            }
-                            if (calm.any { it.calm != null }) CaughtUp(calm, lead = null)
-                        }
-                    }
-                }
-            }
-        }
-    }
     val daily: @Composable (Boolean) -> Unit = { sideBySide ->
         if (s.wordOfDay || s.idiomOfDay) {
             Column {
@@ -402,27 +375,37 @@ fun HomeScreen(
             }
         }
     }
-    // Know and Do: one row each, three or four tiles (four when each still gets 120 dp); narrow
-    // tiles put the icon above the name. More than fits wraps, rather than any being left out.
+    // Know and Do: one row each, three or four tiles (four when each still gets 120 dp). The icon
+    // sits beside the name whenever every name fits that way: at equal widths if it can, else with
+    // widths that follow the names (The Sloth Express gets more room than Atlas). Only when they
+    // can't does the icon go above the name. More than fits wraps, rather than any being left out.
     val pillar: @Composable (String, String, List<HomeTile>) -> Unit = { label, section, tiles ->
         if (tiles.isNotEmpty()) {
             Column {
                 SectionLabel(label)
                 BoxWithConstraints {
-                    val perRow = if (tiles.size >= 4 && (maxWidth - 36.dp) / 4 >= 120.dp) 4 else 3
-                    val stacked = (maxWidth - 12.dp * (perRow - 1)) / perRow < 170.dp
+                    val full = maxWidth
+                    val perRow = if (tiles.size >= 4 && (full - 36.dp) / 4 >= 120.dp) 4 else 3
+                    val gaps = 12.dp * (perRow - 1)
+                    val rows = tiles.chunked(perRow)
+                    val needs = rows.map { row -> row.map { besideWidth(it) } }
+                    val unit = (full - gaps) / perRow
+                    val equal = needs.all { row -> row.all { it <= unit } }
+                    val shaped = needs.all { row -> row.fold(0.dp) { a, b -> a + b } + MIN_TILE * (perRow - row.size) + gaps <= full }
+                    val stacked = !equal && !shaped
                     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        tiles.chunked(perRow).forEachIndexed { r, row ->
+                        rows.forEachIndexed { r, row ->
                             Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                                 row.forEachIndexed { j, tile ->
                                     val i = r * perRow + j
+                                    val weight = if (!equal && shaped) needs[r][j].value else 1f
                                     ThingTile(
                                         tile, stacked = stacked, arranging = arranging, picked = isPicked(section, i),
-                                        modifier = Modifier.weight(1f).fillMaxHeight(),
+                                        modifier = Modifier.weight(weight).fillMaxHeight(),
                                         onClick = { tap(section, i, tile.onClick) }
                                     )
                                 }
-                                repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
+                                repeat(perRow - row.size) { Spacer(Modifier.weight(if (!equal && shaped) MIN_TILE.value else 1f)) }
                             }
                         }
                     }
@@ -469,7 +452,7 @@ fun HomeScreen(
         val roomy = maxWidth >= WIDE
         if (twoPages) {
             // Landscape (and an open foldable): two pages, each one screen tall. Left, now: the hello,
-            // the main actions, Today and the day's Chinese. Right, places: favourites, Learn, Know,
+            // the main actions and the day's Chinese. Right, places: favourites, Learn, Know,
             // Do and the quiet row. Both start and end on the same lines.
             Column(Modifier.fillMaxSize().padding(horizontal = if (roomy) 40.dp else 24.dp, vertical = 16.dp)) {
                 top()
@@ -477,7 +460,6 @@ fun HomeScreen(
                     HomePage(Modifier.weight(1f)) {
                         greetingBlock(true)
                         mainActions()
-                        todayStrip(false)
                         daily(false)
                     }
                     Box(Modifier.padding(horizontal = if (roomy) 32.dp else 20.dp, vertical = 8.dp).width(1.dp).fillMaxHeight().background(P.Card))
@@ -498,7 +480,6 @@ fun HomeScreen(
                     top()
                     greetingBlock(false)
                     mainActions()
-                    todayStrip(true)
                     daily(true)
                     favouritesRow()
                     learnSection()
@@ -896,90 +877,46 @@ private fun NewChatCard(modifier: Modifier, onClick: () -> Unit) {
 }
 
 /**
- * A Today tile: what's due or new, as a soft filled card (status, not a place to go). Wide: the
- * value and its name on one line and a line about it; stacked (four in a row): the name over the value.
+ * The quiet line under the hello: a green dot and what's calm ("Nothing new from the Lobster ·
+ * backup saved Wed"), or a red dot with the problem first. A tap opens the first thing it names.
  */
 @Composable
-private fun TodayTile(item: TodayItem, stacked: Boolean, modifier: Modifier) {
-    val shape = RoundedCornerShape(16.dp)
-    val icon: @Composable () -> Unit = {
-        Icon(item.icon, contentDescription = null, tint = if (item.tone == Tone.LOBSTER) P.Lobster else P.Muted, modifier = Modifier.size(if (stacked) 18.dp else 20.dp))
-    }
-    val value: @Composable () -> Unit = {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            if (item.tone == Tone.OK) {
-                Box(Modifier.size(6.dp).clip(CircleShape).background(P.Success))
-                Spacer(Modifier.width(6.dp))
-            }
-            Text(
-                item.value, color = toneColor(item.tone), fontSize = if (stacked) 17.sp else 16.sp, fontWeight = FontWeight.Medium,
-                maxLines = 1, overflow = TextOverflow.Ellipsis
-            )
-            if (!stacked) Text(" · ${item.title}", color = P.Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+private fun StatusLine(notes: List<StatusNote>) {
+    val ordered = notes.sortedByDescending { it.problem }
+    val problem = ordered.first().problem
+    val text = buildAnnotatedString {
+        ordered.forEachIndexed { i, note ->
+            if (i > 0) append(" · ")
+            val words = if (i == 0) note.text.replaceFirstChar { it.uppercase() } else note.text
+            if (note.problem) withStyle(SpanStyle(color = P.Danger)) { append(words) } else append(words)
         }
     }
-    if (stacked) {
-        Column(
-            modifier
-                .heightIn(min = 72.dp)
-                .clip(shape)
-                .background(P.Card)
-                .clickable(role = Role.Button, onClick = item.onClick)
-                .padding(horizontal = 14.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                icon()
-                Spacer(Modifier.width(8.dp))
-                Text(item.title, color = P.Faint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-            value()
-        }
-    } else {
-        Row(
-            modifier
-                .heightIn(min = 68.dp)
-                .clip(shape)
-                .background(P.Card)
-                .clickable(role = Role.Button, onClick = item.onClick)
-                .padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            icon()
-            Spacer(Modifier.width(14.dp))
-            Column(Modifier.weight(1f)) {
-                value()
-                if (item.detail.isNotBlank()) {
-                    Text(
-                        item.detail, color = P.Faint, fontSize = 12.sp, lineHeight = 16.sp,
-                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp)
-                    )
-                }
-            }
-        }
+    Row(
+        Modifier
+            .padding(top = 6.dp)
+            .clip(RoundedCornerShape(10.dp))
+            .clickable(role = Role.Button) { ordered.first().onClick() }
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.size(7.dp).clip(CircleShape).background(if (problem) P.Danger else P.Success))
+        Spacer(Modifier.width(10.dp))
+        Text(text, color = P.Muted, fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
     }
 }
 
-/** Nothing needs you: one quiet line instead of the tiles. A tap opens the first thing it names. */
-@Composable
-private fun CaughtUp(items: List<TodayItem>, lead: String? = "All caught up") {
-    val calm = items.filter { it.calm != null }
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
-            .clickable(enabled = calm.isNotEmpty(), role = Role.Button) { calm.firstOrNull()?.onClick?.invoke() }
-            .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Box(Modifier.size(8.dp).clip(CircleShape).background(P.Success))
-        Spacer(Modifier.width(12.dp))
-        Text(
-            (listOfNotNull(lead) + calm.mapNotNull { it.calm }).joinToString(" · ").replaceFirstChar { it.uppercase() },
-            color = P.Muted, fontSize = if (lead == null) 14.sp else 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis
-        )
-    }
+/** How wide a tile must be to put its icon beside its name, with its line on at most two lines. */
+private fun besideWidth(tile: HomeTile): Dp {
+    val name = (tile.label.length * 7.6f).dp
+    val line = if (tile.detail.isBlank()) 0.dp else (tile.detail.length * 6.2f / 2f + 10f).dp
+    return maxOf(MIN_TILE, BESIDE_CHROME + maxOf(name, line))
 }
+
+/** Padding, icon and gap around a tile's name when the icon sits beside it. */
+private val BESIDE_CHROME = 68.dp
+
+/** The narrowest a Know or Do tile gets. */
+private val MIN_TILE = 120.dp
 
 /**
  * A place to go: an outlined tile with an icon, a name and a live line. Narrow: the icon above the
@@ -988,23 +925,44 @@ private fun CaughtUp(items: List<TodayItem>, lead: String? = "All caught up") {
 @Composable
 private fun ThingTile(tile: HomeTile, stacked: Boolean, arranging: Boolean, picked: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val shape = RoundedCornerShape(16.dp)
+    val lit = tile.badge != null && tile.tone.needsYou
+    val litColor = if (tile.tone == Tone.LOBSTER) P.Lobster else P.Accent
     val frame = when {
         picked -> Modifier.background(P.AccentSoft).border(2.dp, P.Accent, shape)
         arranging -> Modifier.dashedBorder(P.BorderStrong, 16.dp)
+        lit -> Modifier.border(1.dp, litColor.copy(alpha = 0.55f), shape)
         else -> Modifier.border(1.dp, P.Border, shape)
     }
     val icon: @Composable () -> Unit = {
-        if (tile.mark != null) TileMark(tile.mark)
-        else Icon(tile.icon, contentDescription = null, tint = if (tile.tone == Tone.LOBSTER) P.Lobster else P.Muted, modifier = Modifier.size(22.dp))
+        Box {
+            if (tile.mark != null) TileMark(tile.mark)
+            else Icon(tile.icon, contentDescription = null, tint = if (lit || tile.tone == Tone.LOBSTER) litColor else P.Muted, modifier = Modifier.size(22.dp))
+            if (lit && !picked && !arranging) {
+                Box(
+                    Modifier
+                        .align(Alignment.TopEnd)
+                        .offset(x = 9.dp, y = (-7).dp)
+                        .heightIn(min = 16.dp)
+                        .widthIn(min = 16.dp)
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(litColor)
+                        .padding(horizontal = 4.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(tile.badge.orEmpty(), color = P.OnAccent, fontSize = 10.sp, fontWeight = FontWeight.Bold, lineHeight = 14.sp, maxLines = 1)
+                }
+            }
+        }
     }
     val text: @Composable () -> Unit = {
         Column {
             Text(tile.label, color = P.Text, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
             val line = if (picked) "Picked" else tile.detail
             if (line.isNotBlank()) {
+                // A lit tile's line keeps its own colour (the badge carries the count); a status line takes the accent.
                 Text(
-                    line, color = if (picked || tile.tone == Tone.ACCENT) P.Accent else P.Muted, fontSize = 13.sp,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis
+                    line, color = if (picked || (tile.tone == Tone.ACCENT && tile.badge == null)) P.Accent else P.Muted, fontSize = 13.sp,
+                    lineHeight = 17.sp, maxLines = if (stacked) 1 else 2, overflow = TextOverflow.Ellipsis
                 )
             }
         }
@@ -1136,11 +1094,12 @@ private fun MoreButton(tile: HomeTile) {
             .padding(horizontal = 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        Icon(tile.icon, contentDescription = null, tint = P.Muted, modifier = Modifier.size(18.dp))
+        val lit = tile.tone == Tone.ACCENT
+        Icon(tile.icon, contentDescription = null, tint = if (lit) P.Accent else P.Muted, modifier = Modifier.size(18.dp))
         Spacer(Modifier.width(8.dp))
         Text(
             if (tile.detail.isBlank()) tile.label else "${tile.label} · ${tile.detail}",
-            color = P.Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
+            color = if (lit) P.Accent else P.Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
         )
     }
 }

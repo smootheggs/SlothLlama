@@ -152,6 +152,11 @@ class EditionStore @Inject constructor(@ApplicationContext context: Context) {
         change(id) { s -> s.copy(read = if (read) (s.read + key).distinct() else s.read - key) }
     }
 
+    /** Ticks a whole section read (or not) in one write. */
+    suspend fun setReadMany(id: String, keys: List<String>, read: Boolean): SavedEdition? = withContext(Dispatchers.IO) {
+        change(id) { s -> s.copy(read = if (read) (s.read + keys).distinct() else s.read - keys.toSet()) }
+    }
+
     suspend fun delete(file: String) = withContext(Dispatchers.IO) {
         synchronized(lock) {
             val f = File(dir, file)

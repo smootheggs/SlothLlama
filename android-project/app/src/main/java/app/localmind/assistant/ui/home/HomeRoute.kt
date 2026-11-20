@@ -122,42 +122,29 @@ fun HomeRoute(
     val lobsterLine = lobster?.let { lobsterStatus(it, now) }
     val newest = lobster?.catch?.firstNotNullOfOrNull { it.item }
     val glance = deskGlance(desk)
-    val today = buildList {
-        val due = cards.dueCount
-        add(
-            if (due > 0) TodayItem(Icons.Outlined.Style, "$due due", "Flashcards", "Review now", Tone.ACCENT, onFlashcards)
-            else TodayItem(Icons.Outlined.Style, "None due", "Flashcards", "", Tone.QUIET, onFlashcards)
-        )
-        if (lobster != null && onLobster != null) {
-            val caught = lobster.catch.size
-            val headline = newest?.takeIf { settings.lobsterHeadline }?.let(::catchHeadline)
-            add(
-                if (caught > 0) TodayItem(
-                    Icons.Outlined.Sailing, "$caught new", "From the Lobster",
-                    headline ?: "Brought back · file it", Tone.LOBSTER, onLobster
-                )
-                else TodayItem(Icons.Outlined.Sailing, "Nothing new", "From the Lobster", lobsterLine.orEmpty(), Tone.QUIET, onLobster, calm = "nothing new from the Lobster")
-            )
-        }
-        // Today's edition, until it's a day old: what's unread and its lead story.
-        paper?.takeIf { now - it.edition.made < 20L * 60 * 60 * 1000 }?.let { p ->
-            val unread = p.stories.size - p.readCount
-            val lead = (p.edition.top + p.edition.sections.flatMap { it.stories }).firstOrNull()?.title.orEmpty()
-            add(
-                if (unread > 0) TodayItem(Icons.Outlined.Newspaper, "$unread unread", "${p.edition.name} edition", lead, Tone.ACCENT, onEdition)
-                else TodayItem(Icons.Outlined.Newspaper, "All read", "${p.edition.name} edition", "", Tone.QUIET, onEdition, calm = "edition read")
-            )
-        }
-        if (settings.deskTile && glance != null && DeskMath.businessDaysBetween(glance.dataDate, todayDate) <= FRESH_DAYS) {
-            add(deskItem(glance, todayDate, onDesk))
-        }
-        add(backupItem(backup, now, onSettings))
+    val caught = lobster?.catch?.size ?: 0
+    // Today's edition, until it's a day old: what's unread lights up The Sloth Express.
+    val freshPaper = paper?.takeIf { now - it.edition.made < 20L * 60 * 60 * 1000 }
+    val unreadNews = freshPaper?.let { it.stories.size - it.readCount }?.takeIf { it > 0 }
+    // Paper tickets still to mark, while they're fresh: they light up SlothDesk.
+    val ticketsToMark = glance?.takeIf {
+        settings.deskTile && it.unmarked > 0 && DeskMath.businessDaysBetween(it.dataDate, todayDate) <= FRESH_DAYS
+    }?.unmarked
+
+    // The quiet line under the hello: what's calm, and a backup problem in red. What needs you
+    // lights up its own tile below instead, so nothing shows twice.
+    val status = buildList {
+        if (lobster != null && onLobster != null && caught == 0) add(StatusNote("nothing new from the Lobster", onLobster))
+        add(backupNote(backup, now, onSettings))
     }
 
     // Learn: the word tools beside the tutors (the tutors themselves are their own row).
     val learn = listOf(
         HomeTile(Icons.Outlined.FormatListNumbered, "Core words", "", onCoreWords),
-        HomeTile(Icons.Outlined.Style, "Flashcards", cards.dueCount.takeIf { it > 0 }?.let { "$it due" } ?: "", onFlashcards),
+        HomeTile(
+            Icons.Outlined.Style, "Flashcards", cards.dueCount.takeIf { it > 0 }?.let { "$it due" } ?: "", onFlashcards,
+            if (cards.dueCount > 0) Tone.ACCENT else Tone.QUIET
+        ),
         HomeTile(Icons.Outlined.Translate, "Dictionary", "", onDictionary)
     )
 
@@ -185,10 +172,10 @@ fun HomeRoute(
         if (onLobster != null || paper != null) {
             add(
                 HomeTile(
-                    Icons.Outlined.Newspaper, "The Sloth Express",
-                    paper?.let { p -> "${p.edition.name} edition · ${p.stories.size - p.readCount} unread" } ?: "",
-                    onEdition,
-                    key = "edition"
+                    Icons.Outlined.Newspaper, "The Sloth Express", app.localmind.assistant.domain.edition.Editions.MOTTO, onEdition,
+                    if (unreadNews != null) Tone.ACCENT else Tone.QUIET,
+                    key = "edition",
+                    badge = unreadNews?.let(::badgeCount)
                 )
             )
         }
@@ -213,15 +200,25 @@ fun HomeRoute(
                 when {
                     ideasDue == 1 -> "1 idea to review"
                     ideasDue > 1 -> "$ideasDue ideas to review"
+                    ticketsToMark != null -> if (ticketsToMark == 1) "1 ticket to mark" else "$ticketsToMark tickets to mark"
                     else -> glance?.let { "Prices to ${shortDate(it.dataDate.toString())}" } ?: ""
                 },
                 onDesk,
-                if (ideasDue > 0) Tone.ACCENT else Tone.QUIET,
+                if (ideasDue > 0 || ticketsToMark != null) Tone.ACCENT else Tone.QUIET,
                 key = "desk"
             )
         )
         if (onLobster != null && lobsterLine != null) {
-            add(HomeTile(Icons.Outlined.Sailing, "SlothLobster", lobsterLine, onLobster, Tone.LOBSTER, key = "lobster"))
+            // A catch lights it up: the count on the icon and, if you like, the newest headline.
+            val headline = newest?.takeIf { caught > 0 && settings.lobsterHeadline }?.let(::catchHeadline)
+            add(
+                HomeTile(
+                    Icons.Outlined.Sailing, "SlothLobster",
+                    headline ?: if (caught > 0) "Brought back · file it" else lobsterLine,
+                    onLobster, Tone.LOBSTER, key = "lobster",
+                    badge = caught.takeIf { it > 0 }?.let(::badgeCount)
+                )
+            )
         }
         if (settings.ourjongTile) {
             val intent = ourjong
@@ -283,7 +280,7 @@ fun HomeRoute(
         script = script,
         conversations = ui.conversations,
         personas = ui.personas,
-        today = today,
+        status = status,
         learn = learn,
         know = knowArranged,
         act = actArranged,
@@ -359,14 +356,8 @@ internal fun askIdiom(idiom: Idiom, traditional: Boolean): String =
     "Tell me about the idiom ${idiom.written(traditional)} (${idiom.pinyin}): its story in a few lines, " +
         "how it's used today, and one natural example sentence with pinyin and English."
 
-private fun deskItem(g: DeskGlance, today: LocalDate, onDesk: () -> Unit): TodayItem {
-    val tickets = if (g.trades == 1) "1 ticket" else "${g.trades} tickets"
-    return when {
-        g.trades == 0 -> TodayItem(Icons.Outlined.ShowChart, "No trades", "SlothDesk", "Prices to ${shortDate(g.dataDate.toString())}", Tone.QUIET, onDesk)
-        g.unmarked > 0 -> TodayItem(Icons.Outlined.ShowChart, tickets, "SlothDesk", "Mark how it went", Tone.ACCENT, onDesk)
-        else -> TodayItem(Icons.Outlined.ShowChart, "All marked", "SlothDesk", "", Tone.QUIET, onDesk, calm = "tickets marked")
-    }
-}
+/** A count for a tile's badge: "24", or "99+". */
+private fun badgeCount(n: Int): String = if (n > 99) "99+" else n.toString()
 
 /** "Awake", "Working: …", "Paused", "Last seen 2 hr. ago". */
 private fun lobsterStatus(state: MailboxState, now: Long): String {
@@ -379,13 +370,11 @@ private fun lobsterStatus(state: MailboxState, now: Long): String {
     }
 }
 
-private fun backupItem(state: AutoBackupState, now: Long, onSettings: () -> Unit): TodayItem = when {
-    !state.enabled -> TodayItem(Icons.Outlined.Shield, "Off", "Backup", "Turn it on in Settings", Tone.QUIET, onSettings, calm = "weekly backup off")
-    state.lastAt == 0L -> TodayItem(Icons.Outlined.Shield, "Soon", "Backup", "First one within a day", Tone.QUIET, onSettings, calm = "first backup within a day")
-    !state.lastOk -> TodayItem(Icons.Outlined.Shield, "Not saved", "Backup", state.lastResult ?: "Open Settings to see why", Tone.PROBLEM, onSettings)
-    else -> dayLabel(state.lastAt, now).let { day ->
-        TodayItem(Icons.Outlined.Shield, "Saved", "Backup", day.replaceFirstChar { it.uppercase() }, Tone.OK, onSettings, calm = "backup saved $day")
-    }
+private fun backupNote(state: AutoBackupState, now: Long, onSettings: () -> Unit): StatusNote = when {
+    !state.enabled -> StatusNote("weekly backup off", onSettings)
+    state.lastAt == 0L -> StatusNote("first backup within a day", onSettings)
+    !state.lastOk -> StatusNote("backup not saved · open Settings", onSettings, problem = true)
+    else -> StatusNote("backup saved ${dayLabel(state.lastAt, now)}", onSettings)
 }
 
 /** "today", "yesterday", "Sun" within the week, else a short date. */
