@@ -17,6 +17,7 @@ import app.slothlobster.mailbox.LobsterStatus
 import app.slothlobster.mailbox.OrderKind
 import app.slothlobster.run.LobsterService
 import app.slothlobster.run.Notifier
+import app.slothlobster.web.FeedItem
 import app.slothlobster.web.Feeds
 import app.slothlobster.web.Hit
 import app.slothlobster.web.Readable
@@ -96,7 +97,8 @@ class Engine(private val lobster: Lobster) {
                 takeOrders()
             }
             if (!lobster.isPaused()) checkWatches()
-            if (!lobster.isPaused()) maybeBrief()
+            // With an edition plan from SlothLlama, the paper takes the brief's place.
+            if (!lobster.isPaused() && !maybeEdition()) maybeBrief()
         } finally {
             lobster.setLive { it.copy(lastPass = System.currentTimeMillis(), workingId = null) }
             runCatching { lobster.refreshLive() }
@@ -141,7 +143,7 @@ class Engine(private val lobster: Lobster) {
             }
             // "every Monday at 7 …" makes it a repeating order: it runs now, then on schedule.
             // Watches repeat by themselves, and a covers order is a list of books ("every day" may be a title).
-            val rule = if (OrderKind.of(order.kind) in setOf(OrderKind.WATCH, OrderKind.COVERS)) null else Repeats.parse(order.text)
+            val rule = if (OrderKind.of(order.kind) in setOf(OrderKind.WATCH, OrderKind.COVERS, OrderKind.EDITION)) null else Repeats.parse(order.text)
             val text = (if (rule != null) Repeats.strip(order.text) else order.text).take(4_000)
             val repeatId = rule?.let { UUID.randomUUID().toString() }
             val job = Job(
@@ -229,6 +231,7 @@ class Engine(private val lobster: Lobster) {
                 OrderKind.ASK -> research(job)
                 OrderKind.PRICES -> prices(job)
                 OrderKind.COVERS -> covers(job)
+                OrderKind.EDITION -> editionOrder(job)
             }
             checkpoint(job.id)
             val catch = forLater(job, outcome.catch)
@@ -243,7 +246,8 @@ class Engine(private val lobster: Lobster) {
                 )
             }
             // Saving for later is meant to be quiet: no notification for each article.
-            if (catch.kind != LATER) notify(outcome.catch.title, outcome.subtitle)
+            // Saving the edition's settings is quiet too.
+            if (catch.kind != LATER && catch.kind != EDITION_PLAN_KIND) notify(outcome.catch.title, outcome.subtitle)
         } catch (e: Stopped) {
             if (e.requeue) store.updateJob(job.id) { it.copy(state = JobState.QUEUED, sources = emptyList()) }
         } catch (e: CancellationException) {
@@ -721,9 +725,11 @@ class Engine(private val lobster: Lobster) {
                 out.append(if (group.isBlank()) "## " else "### ").append(feed.title).append("\n\n")
                 for (item in items) {
                     out.append("- ")
-                    if (item.link.isNotBlank()) out.append('[').append(item.title).append("](").append(item.link).append(')')
-                    else out.append(item.title)
-                    if (item.summary.isNotBlank() && item.summary != item.title) out.append(" — ").append(item.summary)
+                    val title = Editions.linkText(item.title)
+                    if (item.link.isNotBlank()) out.append('[').append(title).append("](").append(item.link).append(')')
+                    else out.append(title)
+                    val small = item.summary.ifBlank { item.meta }
+                    if (small.isNotBlank() && small != item.title) out.append(" — ").append(small)
                     out.append('\n')
                     seen += key(item.link, item.title)
                     if (item.link.isNotBlank()) sources += LobsterSource(item.title, item.link)
@@ -749,6 +755,194 @@ class Engine(private val lobster: Lobster) {
         return text.ifBlank { "Nothing new since the last brief." } to sources
     }
 
+    // --- the edition ---
+
+    /**
+     * Makes the edition when one of the plan's times has come, or one was asked for. True while
+     * SlothLlama's plan is on (then the old brief doesn't run).
+     */
+    private suspend fun maybeEdition(): Boolean {
+        val plan = store.value.settings.edition?.takeIf { it.on } ?: return false
+        val now = Calendar.getInstance()
+        val time = Editions.due(plan, now, store.value.settings.editionsMade)
+        if (time == null && !briefRequested) return true
+        briefRequested = false
+        if (time != null) {
+            val keys = Editions.madeKeys(plan, now, time)
+            store.update { it.copy(settings = it.settings.copy(editionsMade = (it.settings.editionsMade + keys).distinct().takeLast(MAX_EDITION_KEYS))) }
+        }
+        try {
+            val catch = makeEdition(plan, time?.name ?: "Edition", null)
+            val line = editionLine(catch)
+            store.log("brief", catch.title, line)
+            deliver(catch, null, line)
+            notify(catch.title, line)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            store.log("problem", "Couldn't make the edition", friendly(e))
+        }
+        return true
+    }
+
+    /** SlothLlama's plan for the edition: kept here; with "now", the first edition comes straight back. */
+    private suspend fun editionOrder(job: Job): Outcome {
+        val plan = runCatching { Editions.parsePlan(job.text) }
+            .getOrElse { throw WebException("The edition settings couldn't be read (${it.message?.take(120)})") }
+        store.update { it.copy(settings = it.settings.copy(edition = plan)) }
+        val line = planLine(plan)
+        store.log("brief", "Edition settings from SlothLlama", line)
+        if (plan.on && plan.now) {
+            val catch = makeEdition(plan, "Edition", job.orderId)
+            return Outcome(catch, catch.text.take(1_500), editionLine(catch))
+        }
+        val note = LobsterCatch(
+            id = UUID.randomUUID().toString(),
+            orderId = job.orderId,
+            kind = EDITION_PLAN_KIND,
+            title = "Edition settings saved",
+            text = line,
+            createdAt = System.currentTimeMillis()
+        )
+        return Outcome(note, line, "Settings saved")
+    }
+
+    private fun planLine(plan: EditionPlan): String = if (!plan.on) "The edition is off" else
+        plan.times.joinToString(", ") { "${it.name} %02d:%02d".format(it.h, it.m) } +
+            " · ${plan.sections.size} sections · ${plan.corners.size} language corners" + if (plan.weekends) "" else " · weekdays"
+
+    private fun editionLine(catch: LobsterCatch) = "${catch.sources.size} stories"
+
+    /** The section or corner's source as a link: a feed or page, a news search, or the region's top stories. */
+    private fun sourceUrl(source: String, lang: String): String = when {
+        source == "top" -> Feeds.topStories(lang)
+        source.startsWith("search:") -> Feeds.newsSearch(Feeds.newsQuery(source.substringAfter(':').trim()), days = 2, lang = lang)
+        else -> source
+    }
+
+    /** Who published an item: its own outlet, the story's site for Hacker News, or the feed's name. */
+    private fun outletOf(feedTitle: String, item: FeedItem): String = when {
+        item.outlet.isNotBlank() -> item.outlet
+        item.meta.isNotBlank() && item.link.isNotBlank() -> Web.site(item.link)
+        else -> feedTitle
+    }
+
+    /**
+     * The paper: each section's sources read (feeds, news searches, or a page listing stories),
+     * muted stories dropped and lifted ones first, stories several outlets carry pulled out as
+     * the top stories, and each language corner's biggest stories brought back whole.
+     */
+    private suspend fun makeEdition(plan: EditionPlan, name: String, orderId: String?): LobsterCatch {
+        val notes = ArrayList<String>()
+        val seen = store.value.sentHeadlines.toHashSet()
+        val read = HashMap<String, Pair<String, List<FeedItem>>?>()
+        var answered = 0
+
+        suspend fun source(src: String, lang: String, want: Int): Pair<String, List<FeedItem>>? {
+            val url = sourceUrl(src, lang)
+            if (read.containsKey(url)) return read[url]
+            if (lobster.isPaused()) return null
+            val got = try {
+                val page = Web.get(url)
+                val feed = Feeds.parse(page.text, Web.site(page.url))
+                answered++
+                if (feed.items.isNotEmpty() || !page.isHtml) {
+                    store.log("feed", "Read a feed", feed.title)
+                    feed.title to feed.items
+                } else {
+                    // A page without a feed: the stories it links to.
+                    store.log("page", "Read a page of stories", page.url)
+                    val name = org.jsoup.Jsoup.parse(page.text).title().substringBefore(" - ").substringBefore(" | ").trim().take(60)
+                    name.ifBlank { Web.site(page.url) } to Editions.listing(page.text, page.url, want * 3)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                notes += "Couldn't read ${Web.site(url)}: ${friendly(e)}"
+                store.log("problem", "Couldn't read a source", "${Web.site(url)}: ${friendly(e)}")
+                null
+            }
+            read[url] = got
+            return got
+        }
+
+        fun fresh(feedTitle: String, items: List<FeedItem>) =
+            items.filter { key(it.link, it.title) !in seen }.map { outletOf(feedTitle, it) to it }
+
+        val candidates = plan.sections.map { s ->
+            val lists = s.sources.mapNotNull { source(it, "en", s.count) }.map { (t, items) -> fresh(t, items) }
+            val merged = Editions.interleave(lists).distinctBy { key(it.second.link, it.second.title) }
+            Editions.arrange(merged, plan.lift, plan.mute) { it.second }
+        }
+        val pool = candidates.flatMapIndexed { i, list -> list.take(plan.sections[i].count * 2) }
+        val groups = Editions.topStories(pool, plan.top)
+        val used = groups.flatten().map { key(it.second.link, it.second.title) }.toSet()
+        val top = groups.map(Editions::topStory)
+        val sections = plan.sections.mapIndexed { i, s ->
+            EdSection(s.name, candidates[i].filter { key(it.second.link, it.second.title) !in used }.take(s.count).map { Editions.story(it.first, it.second) })
+        }
+
+        val corners = plan.corners.map { c ->
+            val lists = c.sources.mapNotNull { source(it, c.lang, c.count) }
+            // A corner's first source leads; the others (often "top") only fill in if it comes up short.
+            val pool2 = lists.flatMap { (t, items) -> fresh(t, items) }.distinctBy { key(it.second.link, it.second.title) }
+            val picked = Editions.preferTopic(Editions.arrange(pool2, emptyList(), plan.mute) { it.second }, c.topic) { it.second }.take(c.count)
+            val stories = picked.map { (outlet, item) -> cornerStory(outlet, item, c.lang, notes) }
+            EdCorner(c.lang, c.name, lists.firstOrNull()?.first.orEmpty(), stories)
+        }
+        if (answered == 0) throw WebException("None of the edition's sources answered")
+
+        val made = System.currentTimeMillis()
+        val edition = EditionOut(
+            id = UUID.randomUUID().toString(), name = name, made = made,
+            top = top, sections = sections, corners = corners, notes = notes.distinct().take(20)
+        )
+        val stories = Editions.stories(edition)
+        store.update { it.copy(sentHeadlines = it.sentHeadlines + stories.map { s -> key(s.url, s.title) }) }
+        val title = "$name edition · ${today()}"
+        return LobsterCatch(
+            id = edition.id,
+            orderId = orderId,
+            kind = EDITION_KIND,
+            title = title,
+            text = Editions.markdown(edition, today()).take(MAX_EDITION_TEXT),
+            sources = stories.filter { it.url.isNotBlank() }.map { LobsterSource(it.title, it.url) },
+            createdAt = made,
+            fileName = Editions.FILE_NAME,
+            fileBase64 = Base64.getEncoder().encodeToString(Editions.encode(edition).toByteArray(Charsets.UTF_8))
+        )
+    }
+
+    /** A corner story read whole (Google News links only open in a browser, so they stay headlines). */
+    private suspend fun cornerStory(outlet: String, item: FeedItem, lang: String, notes: MutableList<String>): EdStory {
+        val plain = Editions.story(outlet, item)
+        if (item.link.isBlank() || Web.site(item.link) == "news.google.com" || lobster.isPaused()) return plain
+        return try {
+            kotlinx.coroutines.delay(STORY_PAUSE_MS)
+            val page = Web.get(item.link)
+            if (!page.isHtml) return plain
+            val readable = Readable.extract(page.text, page.url)
+            store.log("page", "Read a corner story", page.url)
+            if (lang == "zh" || lang == "yue") {
+                val zhTitle = Editions.chineseTitle(readable.lines)
+                val paras = Editions.chineseParas(readable.lines).let { p -> if (zhTitle != null && p.firstOrNull()?.t == zhTitle) p.drop(1) else p }
+                val ownTitle = zhTitle != null && item.title.none { it in '\u3400'..'\u9FFF' }
+                plain.copy(
+                    title = if (ownTitle) zhTitle!! else plain.title,
+                    summary = if (ownTitle && plain.summary.isBlank()) item.title.take(300) else plain.summary,
+                    paras = paras
+                )
+            } else {
+                plain.copy(paras = Editions.paras(readable.lines))
+            }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            notes += "Couldn't read a story on ${Web.site(item.link)}: ${friendly(e)}"
+            plain
+        }
+    }
+
     /** A headline's identity for "already sent": its link, or its title when it has none. */
     private fun key(link: String, title: String): String = link.ifBlank { title }.trim().lowercase().take(300)
 
@@ -757,7 +951,8 @@ class Engine(private val lobster: Lobster) {
     /** Puts the catch in the mailbox and remembers it. False if there's no mailbox to put it in. */
     private fun deliver(catch: LobsterCatch, jobId: String?, subtitle: String): Boolean {
         // Covers are for SlothBooks only: no copy is kept on the Lobster's own shelf.
-        if (catch.kind != COVERS_KIND) lobster.shelf.keep(catch)
+        // Neither is an edition's settings note.
+        if (catch.kind != COVERS_KIND && catch.kind != EDITION_PLAN_KIND) lobster.shelf.keep(catch)
         val name = runCatching { mailbox.deliver(catch) }.getOrElse {
             store.log("problem", "Couldn't write to the mailbox", it.message.orEmpty())
             null
@@ -838,9 +1033,15 @@ class Engine(private val lobster: Lobster) {
         private const val PER_SOURCE = 6_000
         private const val MAX_ORDER_AGE_MS = 14 * Store.DAY_MS
         private const val COVERS_KIND = "covers"
+        /** The catch kind of an edition, and of the note saying its settings were saved. */
+        const val EDITION_KIND = "edition"
+        const val EDITION_PLAN_KIND = "edition-plan"
         /** Books per covers catch: about 1 MB each. */
         private const val COVER_BATCH = 20
         private const val COVER_PAUSE_MS = 1_000L
+        private const val STORY_PAUSE_MS = 400L
+        private const val MAX_EDITION_KEYS = 24
+        private const val MAX_EDITION_TEXT = 40_000
         const val HOUR_MS = 60L * 60 * 1000
 
         fun verb(kind: String): String = when (OrderKind.of(kind)) {
@@ -851,6 +1052,7 @@ class Engine(private val lobster: Lobster) {
             OrderKind.ASK -> "Researching"
             OrderKind.PRICES -> "Fetching prices"
             OrderKind.COVERS -> "Finding book covers"
+            OrderKind.EDITION -> "Making the edition"
         }
     }
 }

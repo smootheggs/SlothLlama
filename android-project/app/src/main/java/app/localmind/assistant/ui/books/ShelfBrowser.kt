@@ -56,6 +56,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
@@ -222,6 +224,7 @@ fun ShelfBrowser(
             }
             ViewSwitch(view, vm::setView)
         }
+        Spacer(Modifier.height(6.dp))
         if (shown.isEmpty()) {
             Text(
                 when (pick) {
@@ -264,6 +267,7 @@ fun ShelfBrowser(
                     }
                 }
                 if (letters.isNotEmpty()) Letters(letters, Modifier.align(Alignment.CenterEnd)) { l -> starts[l]?.let { scope.launch { state.scrollToItem(it) } } }
+                ScrollEdge(state.canScrollBackward)
             } else {
                 val large = view == BookView.LARGE
                 val state = rememberLazyGridState()
@@ -291,6 +295,7 @@ fun ShelfBrowser(
                     }
                 }
                 if (letters.isNotEmpty()) Letters(letters, Modifier.align(Alignment.CenterEnd)) { l -> starts[l]?.let { scope.launch { state.scrollToItem(it) } } }
+                ScrollEdge(state.canScrollBackward)
             }
         }
     }
@@ -309,6 +314,20 @@ fun ShelfBrowser(
             },
             onDismiss = { naming = null }
         )
+    }
+}
+
+/**
+ * Where the shelf controls end and the books begin: once the books scroll under the controls, a
+ * hairline and a short fade, so covers don't look cut off.
+ */
+@Composable
+private fun ScrollEdge(scrolled: Boolean) {
+    if (!scrolled) return
+    val canvas = P.Canvas
+    Column(Modifier.fillMaxWidth()) {
+        HorizontalDivider(color = P.Border)
+        Box(Modifier.fillMaxWidth().height(24.dp).background(Brush.verticalGradient(listOf(canvas, canvas.copy(alpha = 0f)))))
     }
 }
 

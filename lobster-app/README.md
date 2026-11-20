@@ -14,6 +14,12 @@ goes out on the web, and brings back what it finds for SlothLlama to read offlin
 - **Covers** (sent from SlothBooks): looks each book up by title and author on Open Library, then
   Google Books, and sends back small covers (re-drawn as 300×450 JPEGs), a second between books.
   Only the titles and authors are searched.
+- **The edition** (1.8, set in SlothLlama): the morning paper. Sections from feeds, news
+  searches or a page that lists stories (sites without a feed, such as Easy Mandarin News); the
+  stories several outlets carry pulled out as top stories; muted words left out and lifted ones
+  first; and a corner per language with its biggest stories read whole (Pinyin printed beside the
+  characters is taken out; SlothLlama adds its own). Hacker News's "Article URL / Comments URL"
+  lines become "113 points · 19 comments". While the plan is on, it replaces the daily brief.
 - **Ask** needs a model, which is switched off for now: the Lobster says so and suggests Research.
 
 Orders come from SlothLlama's Lobster page, or can be given in the Lobster itself (or shared to it
@@ -81,6 +87,9 @@ On a phone, keep the same folder in sync with the tablet using Syncthing.
 - Pages are read as text only. Nothing in a page or an order is ever run as a command.
 - Covers are decoded and re-drawn as plain JPEGs before they're sent on; anything that isn't a
   picture of a sane size is dropped.
+- An edition plan is plain data: feed and page links (HTTPS, public sites only), news searches and
+  numbers, checked and capped before it's kept. A listing page is read for its links to the same
+  site; nothing on it is run.
 - No backups of its data, no tracking, no account. CI checks it asks for no other permissions.
 - Orders older than 14 days, or taken before, are ignored, so old order files can't be replayed.
 - The pairing code is wiped from the clipboard once it's pasted (SlothLlama marks it sensitive).

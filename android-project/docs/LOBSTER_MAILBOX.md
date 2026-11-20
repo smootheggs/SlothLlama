@@ -126,6 +126,48 @@ of kind `covers` with `fileName` `slothbooks-covers.json`, about 20 books each:
   file; `pick` keeps up to three for you to choose on the card. `missing` marks books with no cover found.
 - The Lobster keeps no copy of covers on its own shelf.
 
+## The edition (SlothLlama 1.32, SlothLobster 1.8)
+
+The edition's settings go as an `edition` order (never offered in the order box) whose text is
+the plan as JSON, under 4,000 characters (SlothLlama refuses to send a longer one rather than cut
+it short):
+
+```json
+{ "format": "slothexpress-plan", "v": 1, "on": true,
+  "times": [ { "name": "Morning", "h": 7, "m": 0 } ], "weekends": true, "top": 3,
+  "sections": [ { "name": "Markets", "sources": ["search: gold OR silver OR LBMA"], "count": 4 } ],
+  "corners": [ { "lang": "zh", "name": "Mandarin", "sources": ["https://easymandarin.news/en", "top"], "count": 2, "topic": "" } ],
+  "lift": ["gold"], "mute": [], "now": false, "sentAt": 1795158000000 }
+```
+
+- A source is an https feed or page link, `search: words` (a Google News search in the section's
+  or corner's language) or `top` (Google News's top stories for the language's region). A page
+  that isn't a feed is read for its links to the same site that look like articles (the biggest
+  group of them, in page order): that's how Easy Mandarin News, which has no feed, is read.
+- The Lobster checks the plan (times, at most 10 sections and 8 corners of known languages, six
+  sources each, counts capped, words trimmed, links through the same https check as fetches),
+  keeps it, and answers with a catch of kind `edition-plan` ("Edition settings saved"), or with
+  `now`, the first edition. While the plan is on, it replaces the daily brief.
+- At the latest of the plan's times passed today that hasn't been made (one paper after a long
+  sleep, not three), the Lobster reads the sections (muted words out, lifted ones first, feeds
+  taken in turn), pulls out as top stories those two or more outlets carry, reads each corner's
+  stories whole (Pinyin printed beside the characters taken out, the source's English kept line by
+  line), and sends a catch of kind `edition`: a plain Markdown copy in `text`, the paper in
+  `fileName` `sloth-express.json`:
+
+```json
+{ "format": "slothexpress-edition", "v": 1, "id": "…", "name": "Morning", "made": 1795158000000,
+  "top": [ { "title": "…", "url": "https://…", "outlet": "BBC", "at": 0, "summary": "…",
+             "meta": "", "outlets": 3, "also": ["NPR", "Reuters"], "paras": [] } ],
+  "sections": [ { "name": "Tech", "stories": [ { "title": "…", "meta": "60 points · 12 comments" } ] } ],
+  "corners": [ { "lang": "zh", "name": "Mandarin", "source": "Easy Mandarin News",
+                 "stories": [ { "title": "香港天气转凉", "paras": [ { "t": "…", "en": "…" } ] } ] } ],
+  "notes": ["Couldn't read rthk.hk: …"] }
+```
+
+- SlothLlama keeps the paper in its private storage (30 days), removes the catch, and checks it
+  on the way in: known format, sizes capped, links only https. Nothing in it is run.
+
 ## Status (Lobster → SlothLlama), JSON
 
 ```json

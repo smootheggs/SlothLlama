@@ -16,7 +16,9 @@ data class ChatActions(
     /** Save the idea card in this reply to the idea book (the Trader only). */
     val onSaveIdea: ((String) -> Unit)? = null,
     /** Save the gist card in this reply to the book's card in SlothBooks (the Librarian only). */
-    val onSaveGist: ((String) -> Unit)? = null
+    val onSaveGist: ((String) -> Unit)? = null,
+    /** Keep this reply as the desk's notes on today's edition (the desk persona the edition asked). */
+    val onKeepOnDesk: ((String) -> Unit)? = null
 )
 
 val LocalChatActions = compositionLocalOf { ChatActions() }

@@ -50,7 +50,8 @@ fun WordLookupSheet(
     script: ChineseScript,
     language: SpeechLanguage,
     onSpeak: (String) -> Unit,
-    onPractise: (String) -> Unit,
+    /** Null leaves the practise button out (where there's no practice sheet to open). */
+    onPractise: ((String) -> Unit)?,
     onSave: (DictionaryEntry) -> Unit,
     onDismiss: () -> Unit
 ) {
@@ -67,7 +68,7 @@ fun WordLookupSheet(
                 ?: lookup.word
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 SheetAction(Icons.AutoMirrored.Filled.VolumeUp, "Listen") { onSpeak(spoken) }
-                SheetAction(Icons.Outlined.RecordVoiceOver, "Practise saying it") { onPractise(spoken) }
+                if (onPractise != null) SheetAction(Icons.Outlined.RecordVoiceOver, "Practise saying it") { onPractise(spoken) }
             }
             Spacer(Modifier.height(12.dp))
 

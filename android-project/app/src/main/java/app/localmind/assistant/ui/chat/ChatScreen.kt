@@ -107,6 +107,9 @@ fun ChatScreen(
     onSaveIdea: ((String) -> Unit)? = null,
     /** A gist card from a Librarian reply, to the book's card in SlothBooks. */
     onSaveGist: ((String) -> Unit)? = null,
+    /** The persona the edition asked for desk notes, and where its reply is kept. */
+    deskPersonaId: String? = null,
+    onKeepOnDesk: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     // Landscape on a tablet: the chat list stays open on the left instead of sliding over.
@@ -251,7 +254,8 @@ fun ChatScreen(
                 onContinue = viewModel::continueReply,
                 onPractise = if (persona.speech != null) openPractice else null,
                 onSaveIdea = if (persona.id == BuiltInPersonas.TRADER.id) onSaveIdea else null,
-                onSaveGist = if (persona.id == BuiltInPersonas.LIBRARIAN.id) onSaveGist else null
+                onSaveGist = if (persona.id == BuiltInPersonas.LIBRARIAN.id) onSaveGist else null,
+                onKeepOnDesk = if (persona.id == deskPersonaId) onKeepOnDesk else null
             ),
             LocalWordTapAction provides wordTap,
             LocalPhotoFile provides viewModel::photoFile

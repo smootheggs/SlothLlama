@@ -216,6 +216,20 @@ fun SettingsScreen(
             }
 
             Section("Routine") {
+                s.edition?.takeIf { it.on }?.let { plan ->
+                    Panel {
+                        ListRow(
+                            "The edition",
+                            "Set in SlothLlama: " + plan.times.joinToString(", ") { "${it.name} %02d:%02d".format(it.h, it.m) } +
+                                " · ${plan.sections.size} sections · ${plan.corners.size} language corners. It replaces the daily brief.",
+                            onClick = onBriefNow,
+                            divider = false,
+                            titleLines = 1
+                        ) {
+                            Text("Make one now", color = Sea.Coral, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+                        }
+                    }
+                }
                 Panel {
                     SwitchRow(
                         "Daily brief",

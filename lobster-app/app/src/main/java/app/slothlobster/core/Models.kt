@@ -158,7 +158,11 @@ data class Settings(
     /** Settings → Look: "oled", "white" or "system". */
     val theme: String = "oled",
     /** Settings → Look: hide the status bar and the taskbar (a swipe from the edge shows them). */
-    val fullScreen: Boolean = false
+    val fullScreen: Boolean = false,
+    /** (1.8) SlothLlama's plan for the edition; while it's on, the edition replaces the daily brief. */
+    val edition: app.slothlobster.jobs.EditionPlan? = null,
+    /** Editions already made ("2026-11-20|Morning"), so each is made once. */
+    val editionsMade: List<String> = emptyList()
 ) {
     companion object {
         val DEFAULT_FEEDS = listOf(

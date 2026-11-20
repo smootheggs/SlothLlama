@@ -1,0 +1,406 @@
+package app.localmind.assistant.ui.edition
+
+import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.Headphones
+import androidx.compose.material.icons.outlined.Pause
+import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import app.localmind.assistant.data.edition.EditionEntry
+import app.localmind.assistant.domain.edition.CornerLanguage
+import app.localmind.assistant.domain.edition.EdCorner
+import app.localmind.assistant.domain.edition.EditionSetup
+import app.localmind.assistant.domain.edition.Editions
+import app.localmind.assistant.domain.edition.MarketTile
+import app.localmind.assistant.domain.edition.SavedEdition
+import app.localmind.assistant.domain.persona.Persona
+import app.localmind.assistant.ui.common.SlothTopBar
+import app.localmind.assistant.ui.home.WIDE
+import app.localmind.assistant.ui.reader.ReadAloud
+import app.localmind.assistant.ui.theme.SlothPalette as P
+import app.localmind.assistant.ui.trading.FilledButton
+import app.localmind.assistant.ui.trading.Pill
+import app.localmind.assistant.ui.trading.QuietButton
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
+
+private enum class EditionPage { PAPER, ARCHIVE, SETTINGS }
+
+/**
+ * The Sloth Express: the edition the Lobster brought, laid out like a paper (two pages side by
+ * side on a wide screen), with its markets strip, the desk, the language corners, the archive and
+ * the settings that are sent to the Lobster.
+ */
+@Composable
+fun EditionScreen(viewModel: EditionViewModel, onBack: () -> Unit) {
+    val shown by viewModel.shown.collectAsStateWithLifecycle()
+    val latest by viewModel.latest.collectAsStateWithLifecycle()
+    val setup by viewModel.setup.collectAsStateWithLifecycle()
+    val entries by viewModel.entries.collectAsStateWithLifecycle()
+    val tiles by viewModel.tiles.collectAsStateWithLifecycle()
+    val story by viewModel.story.collectAsStateWithLifecycle()
+    val message by viewModel.message.collectAsStateWithLifecycle()
+    val personas by viewModel.personas.collectAsStateWithLifecycle()
+    val snackbar = remember { SnackbarHostState() }
+    var page by rememberSaveable { mutableStateOf(EditionPage.PAPER) }
+
+    LaunchedEffect(message) {
+        message?.let {
+            snackbar.showSnackbar(it)
+            viewModel.clearMessage()
+        }
+    }
+    LaunchedEffect(Unit) { viewModel.start() }
+
+    // The listen version: Android's own voices, offline, each corner in its language.
+    val context = LocalContext.current
+    var playing by remember { mutableStateOf(false) }
+    var paused by remember { mutableStateOf(false) }
+    val voice = remember { arrayOfNulls<ReadAloud>(1) }
+    DisposableEffect(Unit) {
+        onDispose { voice[0]?.shutdown() }
+    }
+    val listen: () -> Unit = {
+        val e = shown?.edition
+        if (e != null) {
+            val reader = voice[0] ?: ReadAloud(context, onBlock = {}, onEnd = { playing = false; paused = false }).also { voice[0] = it }
+            if (playing) {
+                reader.pause()
+                playing = false
+                paused = true
+            } else if (paused) {
+                reader.resume()
+                playing = true
+                paused = false
+            } else {
+                val blocks = Editions.listen(e)
+                reader.play(
+                    blocks.map { it.first }, 0,
+                    blocks.map { (_, lang) -> CornerLanguage.of(lang)?.let { Locale.forLanguageTag(it.locale) } }
+                )
+                playing = true
+            }
+        }
+    }
+
+    story?.let { view ->
+        CornerStoryScreen(view, viewModel, onBack = viewModel::closeStory)
+        return
+    }
+
+    when (page) {
+        EditionPage.ARCHIVE -> BackHandler { page = EditionPage.PAPER }
+        EditionPage.SETTINGS -> BackHandler { page = EditionPage.PAPER }
+        EditionPage.PAPER -> Unit
+    }
+
+    Box(Modifier.fillMaxSize().background(P.Canvas)) {
+        Column(Modifier.fillMaxSize()) {
+            when (page) {
+                EditionPage.PAPER -> {
+                    val e = shown
+                    val older = e != null && latest != null && e.edition.id != latest?.edition?.id
+                    SlothTopBar(
+                        title = "The Sloth Express",
+                        subtitle = e?.let { received(it, older) } ?: "From the Lobster",
+                        onBack = if (older) viewModel::showLatest else onBack,
+                        actions = {
+                            if (e != null) {
+                                IconButton(onClick = listen) {
+                                    Icon(
+                                        if (playing) Icons.Outlined.Pause else Icons.Outlined.Headphones,
+                                        contentDescription = if (playing) "Pause" else "Listen to the edition", tint = P.Text
+                                    )
+                                }
+                            }
+                            IconButton(onClick = { page = EditionPage.ARCHIVE }) { Icon(Icons.Outlined.Archive, contentDescription = "Past editions", tint = P.Text) }
+                            IconButton(onClick = { page = EditionPage.SETTINGS }) { Icon(Icons.Outlined.Settings, contentDescription = "Edition settings", tint = P.Text) }
+                        }
+                    )
+                    if (e == null) {
+                        NoEdition(setup, onSend = { viewModel.send(now = true) }, onSettings = { page = EditionPage.SETTINGS })
+                    } else {
+                        Paper(e, tiles, setup, personas, viewModel, onSettings = { page = EditionPage.SETTINGS })
+                    }
+                }
+                EditionPage.ARCHIVE -> {
+                    SlothTopBar(title = "Past editions", subtitle = "Kept 30 days", onBack = { page = EditionPage.PAPER })
+                    Archive(entries, shown?.edition?.id, onOpen = { viewModel.openEdition(it); page = EditionPage.PAPER }, onDelete = viewModel::delete)
+                }
+                EditionPage.SETTINGS -> {
+                    SlothTopBar(title = "Edition settings", subtitle = "Sent to the SlothLobster through the mailbox, sealed", onBack = { page = EditionPage.PAPER })
+                    EditionSettings(setup, personas, viewModel)
+                }
+            }
+        }
+        SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
+    }
+}
+
+private fun received(s: SavedEdition, older: Boolean): String {
+    val at = Instant.ofEpochMilli(s.edition.made).atZone(ZoneId.systemDefault())
+    val time = at.format(DateTimeFormatter.ofPattern(if (older) "EEE d MMM · HH:mm" else "HH:mm", Locale.getDefault()))
+    return if (older) "Past edition · $time" else "From the Lobster · $time"
+}
+
+@Composable
+private fun NoEdition(setup: EditionSetup, onSend: () -> Unit, onSettings: () -> Unit) {
+    Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Masthead("YOUR MORNING PAPER, MADE BY THE LOBSTER", compact = false)
+        Column(Modifier.widthIn(max = 560.dp).padding(top = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Text(
+                if (setup.sentAt == 0L) "No edition yet. The Lobster makes one at the times you choose, from the sections and language corners in the settings."
+                else "The Lobster has your settings; the first edition comes at ${setup.plan.times.firstOrNull()?.let { "%02d:%02d".format(it.h, it.m) } ?: "the next time"}.",
+                color = P.Muted, fontSize = 15.sp, lineHeight = 22.sp
+            )
+            Text("It needs SlothLobster 1.8 or newer. SlothLlama itself never goes online.", color = P.Faint, fontSize = 13.sp)
+            Row(Modifier.padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                FilledButton("Send settings and make one now", onClick = onSend)
+                QuietButton("Edition settings", muted = true, onClick = onSettings)
+            }
+        }
+    }
+}
+
+@Composable
+private fun Paper(
+    s: SavedEdition,
+    tiles: List<MarketTile>,
+    setup: EditionSetup,
+    personas: List<Persona>,
+    vm: EditionViewModel,
+    onSettings: () -> Unit
+) {
+    val e = s.edition
+    val now = remember(e.id) { System.currentTimeMillis() }
+    val read = s.read.toSet()
+    val line = Editions.masthead(e, ZoneId.systemDefault(), Editions.listenMinutes(e))
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+        val wide = maxWidth >= WIDE
+        val pad = if (wide) 40.dp else 20.dp
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = pad).padding(bottom = 48.dp)) {
+            Masthead(line, compact = !wide)
+            val news: @Composable () -> Unit = {
+                Spacer(Modifier.height(12.dp))
+                MarketStrip(tiles)
+                if (e.top.isNotEmpty()) {
+                    SectionHead("Top stories", "carried by several of your feeds")
+                    e.top.forEachIndexed { i, st ->
+                        StoryRow(st, big = i == 0, read = Editions.storyKey(st) in read, now = now,
+                            onRead = { vm.setRead(st, Editions.storyKey(st) !in read) }, onLater = { vm.keepForLater(st) })
+                    }
+                }
+            }
+            val sections: @Composable () -> Unit = {
+                e.sections.filter { it.stories.isNotEmpty() }.forEach { sec ->
+                    SectionHead(sec.name)
+                    sec.stories.forEach { st ->
+                        StoryRow(st, big = false, read = Editions.storyKey(st) in read, now = now,
+                            onRead = { vm.setRead(st, Editions.storyKey(st) !in read) }, onLater = { vm.keepForLater(st) })
+                    }
+                }
+                if (e.notes.isNotEmpty()) Notes(e.notes)
+            }
+            val desk: @Composable () -> Unit = { Desk(s, setup, personas, vm, onSettings) }
+            val corners: @Composable () -> Unit = { Corners(e.corners, vm, now) }
+            if (wide) {
+                Row(Modifier.fillMaxWidth()) {
+                    Column(Modifier.weight(1f)) {
+                        news()
+                        sections()
+                    }
+                    Box(Modifier.padding(horizontal = 28.dp, vertical = 16.dp).width(1.dp).heightIn(min = 400.dp).background(P.Card))
+                    Column(Modifier.weight(1f)) {
+                        desk()
+                        corners()
+                    }
+                }
+            } else {
+                news()
+                desk()
+                corners()
+                sections()
+            }
+        }
+    }
+}
+
+@Composable
+private fun Notes(notes: List<String>) {
+    var shown by remember { mutableStateOf(false) }
+    Text(
+        if (shown) notes.joinToString("\n") else "${notes.size} thing${if (notes.size == 1) "" else "s"} didn't come through · show",
+        color = P.Faint, fontSize = 12.sp, lineHeight = 17.sp,
+        modifier = Modifier.padding(top = 16.dp).clip(RoundedCornerShape(8.dp)).clickable { shown = !shown }.padding(vertical = 6.dp)
+    )
+}
+
+/** The desk: each desk persona's notes on this edition, or the way to ask for them. */
+@Composable
+private fun Desk(s: SavedEdition, setup: EditionSetup, personas: List<Persona>, vm: EditionViewModel, onSettings: () -> Unit) {
+    val seated = setup.desk.mapNotNull { id -> personas.firstOrNull { it.id == id } }
+    var chosen by rememberSaveable { mutableStateOf<String?>(null) }
+    val persona = seated.firstOrNull { it.id == chosen } ?: seated.firstOrNull()
+    SectionHead("The desk") {
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            seated.forEach { p -> Pill("${p.badge} · ${p.name}", selected = p.id == persona?.id, quiet = true, small = true) { chosen = p.id } }
+            Pill("+ Add a desk", selected = false, small = true, onClick = onSettings)
+        }
+    }
+    if (persona == null) {
+        Text("No one sits on the desk. Add the Trader, or a persona of your own, in the settings.", color = P.Faint, fontSize = 13.sp)
+        return
+    }
+    val note = s.desk.firstOrNull { it.personaId == persona.id }
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(18.dp)).background(P.Card).padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Badge(persona.badge, 30.dp, if (persona.id == Editions.TRADER_ID) Color(0xFFE2C26B) else null)
+            Text(
+                "What ${persona.name.lowercase()}'s desk would watch today", color = P.Text, fontSize = 14.sp,
+                modifier = Modifier.weight(1f).padding(horizontal = 10.dp), maxLines = 2, overflow = TextOverflow.Ellipsis
+            )
+            if (note != null) Text("model-written · not advice", color = P.Faint, fontSize = 11.sp)
+        }
+        if (note != null) {
+            Text(note.text, color = P.Text, fontSize = 15.sp, lineHeight = 22.sp)
+            Row {
+                QuietButton("Ask ${persona.badge} again") { vm.askDesk(persona) }
+                QuietButton("Take it off", muted = true) { vm.dropDesk(persona.id) }
+            }
+        } else {
+            val count = Editions.deskStories(s.edition).size
+            Text(
+                "A card with today's $count headlines and the prices above goes to ${persona.name} in a chat. Keep the reply here with " +
+                    "\"Keep on today's desk\" under it.",
+                color = P.Muted, fontSize = 14.sp, lineHeight = 20.sp
+            )
+            Row { FilledButton("Ask ${persona.badge} for the desk notes") { vm.askDesk(persona) } }
+        }
+    }
+}
+
+/** The language corners: one tab per language, the day's biggest stories in it. */
+@Composable
+private fun Corners(corners: List<EdCorner>, vm: EditionViewModel, now: Long) {
+    val filled = corners.filter { it.stories.isNotEmpty() }
+    if (filled.isEmpty()) return
+    var pick by rememberSaveable { mutableStateOf(filled.first().lang) }
+    val corner = filled.firstOrNull { it.lang == pick } ?: filled.first()
+    val lang = CornerLanguage.of(corner.lang)
+    val heads by vm.heads.collectAsStateWithLifecycle()
+    val readings by vm.readings.collectAsStateWithLifecycle()
+    val traditional by vm.traditional.collectAsStateWithLifecycle()
+    SectionHead("Language corners", "the day's biggest stories in each")
+    Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        filled.forEach { c ->
+            val l = CornerLanguage.of(c.lang)
+            Pill(listOfNotNull(l?.badge, l?.label ?: c.name).distinct().joinToString(" "), selected = c.lang == corner.lang, quiet = true, small = true) { pick = c.lang }
+        }
+    }
+    Row(Modifier.fillMaxWidth().padding(top = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+        lang?.let { Badge(it.badge, 26.dp) }
+        Text(
+            listOf(corner.source, "${corner.stories.size} ${if (corner.stories.size == 1) "story" else "stories"}").filter { it.isNotBlank() }.joinToString(" · "),
+            color = P.Muted, fontSize = 13.sp, modifier = Modifier.weight(1f).padding(horizontal = 10.dp), maxLines = 1, overflow = TextOverflow.Ellipsis
+        )
+        if (lang?.isChinese == true) {
+            Text(
+                (if (readings) "${if (lang == CornerLanguage.MANDARIN) "Pinyin" else "Jyutping"} on" else "Readings off") + " · " + if (traditional) "繁" else "简",
+                color = P.Faint, fontSize = 12.sp
+            )
+        }
+    }
+    corner.stories.forEach { st ->
+        Column(
+            Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).clickable(onClickLabel = "Read the story") { vm.openStory(corner, st) }
+                .padding(vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp)
+        ) {
+            val segs = heads[Editions.storyKey(st)]
+            if (lang?.isChinese == true && segs != null) RubyText(segs, readings, traditional, 24.sp)
+            else Text(st.title, color = P.Text, fontSize = 18.sp, lineHeight = 24.sp, fontFamily = SERIF)
+            if (st.summary.isNotBlank()) Text(st.summary, color = P.Muted, fontSize = 14.sp, lineHeight = 20.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
+            val small = listOf(Editions.smallPrint(st, now), if (st.paras.isNotEmpty()) "read it here ›" else "headline only").filter { it.isNotBlank() }.joinToString(" · ")
+            Text(small, color = P.Faint, fontSize = 12.sp)
+        }
+    }
+}
+
+@Composable
+private fun Archive(entries: List<EditionEntry>, shownId: String?, onOpen: (EditionEntry) -> Unit, onDelete: (EditionEntry) -> Unit) {
+    if (entries.isEmpty()) {
+        Text("No editions yet.", color = P.Faint, fontSize = 14.sp, modifier = Modifier.padding(24.dp))
+        return
+    }
+    val day = DateTimeFormatter.ofPattern("EEE d MMM · HH:mm", Locale.getDefault())
+    LazyColumn(Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
+        items(entries, key = { it.file }) { en ->
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 64.dp).clip(RoundedCornerShape(12.dp)).clickable { onOpen(en) }.padding(vertical = 10.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(
+                        "${en.name} edition · " + Instant.ofEpochMilli(en.made).atZone(ZoneId.systemDefault()).format(day),
+                        color = if (en.id == shownId) P.Accent else P.Text, fontSize = 15.sp, fontWeight = FontWeight.Medium
+                    )
+                    Text("${en.read} of ${en.stories} read", color = P.Faint, fontSize = 12.sp)
+                    en.headlines.take(2).forEach { h -> Text(h, color = P.Muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) }
+                }
+                QuietButton("Delete", muted = true) { onDelete(en) }
+            }
+            HorizontalDivider(color = P.Border)
+        }
+    }
+}

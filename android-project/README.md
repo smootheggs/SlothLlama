@@ -103,6 +103,18 @@ model too big for the GPU falls back to the CPU on its own.
   have. PDFs open in SlothBooks' own viewer, and their text goes into the Library so the book
   button finds it. **Insights:** what you've read, series progress, when your books were
   written, in what languages and where from, all counted on the tablet.
+- **The Sloth Express** (1.32, needs SlothLobster 1.8). Home → The Sloth Express: the morning
+  paper the Lobster makes from the settings you send it. Mostly English news in sections (feeds,
+  news searches, or a page that lists stories), the stories several outlets carry as top stories,
+  a markets strip worked out from SlothDesk's prices, and **the desk**: the Trader's (or any
+  persona's) notes on the day, written in a chat and kept on the edition. **Language corners** bring
+  each language's biggest stories (Easy Mandarin News for Mandarin, then Cantonese, Japanese,
+  French, German, Spanish, Italian), with Pinyin or Jyutping over the words, 简 / 繁, a tap to look a
+  word up, the source's English line by line, key words by your level (HSK for Mandarin, the Core
+  words list for French) to add to Flashcards, and the language's partner to talk it over with.
+  Listen reads the edition aloud offline; past editions are kept 30 days with what you've read.
+  Settings: times (morning, evening…), weekends, length, sections (tap to swap), top stories,
+  words to lift or mute, corners with their sources, topics and story counts, and who sits on the desk.
 - **Organising SlothBooks.** The default shelves (All, Reading, Up next, To read, Read,
   Reference) are always there; make your own with **+ New shelf**, rename or remove them from
   their ⋯ (the books stay), and put a book on any of them from its card. **Group by** author,

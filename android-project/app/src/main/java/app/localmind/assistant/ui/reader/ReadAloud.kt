@@ -25,6 +25,8 @@ class ReadAloud(
     private val tts = TextToSpeech(appContext, this)
     @Volatile private var ready = false
     private var texts: List<String> = emptyList()
+    /** Each block's language, when the caller knows it (the edition's corners); null = guess from the text. */
+    private var locales: List<Locale?> = emptyList()
     private var index = 0
     private var playing = false
     private var startWhenReady = false
@@ -60,9 +62,10 @@ class ReadAloud(
         }
     }
 
-    /** Starts reading [blocks] at [from]. */
-    fun play(blocks: List<String>, from: Int) {
+    /** Starts reading [blocks] at [from]; [languages] gives a block's language where it's known. */
+    fun play(blocks: List<String>, from: Int, languages: List<Locale?> = emptyList()) {
         texts = blocks.map(::spoken)
+        locales = languages
         index = from.coerceIn(0, maxOf(0, blocks.size - 1))
         playing = true
         if (ready) speakCurrent() else startWhenReady = true
@@ -116,7 +119,7 @@ class ReadAloud(
             return
         }
         val text = texts[index]
-        val locale = localeFor(text)
+        val locale = locales.getOrNull(index) ?: localeFor(text)
         val set = tts.setLanguage(locale)
         if (set == TextToSpeech.LANG_MISSING_DATA || set == TextToSpeech.LANG_NOT_SUPPORTED) {
             if (!warned) {

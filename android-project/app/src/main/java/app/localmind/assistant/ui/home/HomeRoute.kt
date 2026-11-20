@@ -10,6 +10,7 @@ import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.LocalLibrary
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Memory
+import androidx.compose.material.icons.outlined.Newspaper
 import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material.icons.outlined.Sailing
 import androidx.compose.material.icons.outlined.ShowChart
@@ -64,6 +65,8 @@ fun HomeRoute(
     onLibrary: () -> Unit,
     /** SlothBooks: the shelf, papers and the Librarian. */
     onBooks: () -> Unit = {},
+    /** The Sloth Express: the edition the Lobster makes. */
+    onEdition: () -> Unit = {},
     onNotes: () -> Unit,
     onDesk: () -> Unit = {},
     /** The Later shelf (in the Reader). */
@@ -92,6 +95,8 @@ fun HomeRoute(
     val reviews by home.reviews.collectAsStateWithLifecycle()
     val message by home.message.collectAsStateWithLifecycle()
     val laterItems by home.laterItems.collectAsStateWithLifecycle()
+    val editionVm: app.localmind.assistant.ui.edition.EditionViewModel = hiltViewModel()
+    val paper by editionVm.latest.collectAsStateWithLifecycle()
     val speaker = rememberTutorSpeaker()
     val now = System.currentTimeMillis()
     val zone = ZoneId.systemDefault()
@@ -129,6 +134,15 @@ fun HomeRoute(
                     headline ?: "Brought back · file it", Tone.LOBSTER, onLobster
                 )
                 else TodayItem(Icons.Outlined.Sailing, "Nothing new", "From the Lobster", lobsterLine.orEmpty(), Tone.QUIET, onLobster)
+            )
+        }
+        // Today's edition, until it's a day old: what's unread and its lead story.
+        paper?.takeIf { now - it.edition.made < 20L * 60 * 60 * 1000 }?.let { p ->
+            val unread = p.stories.size - p.readCount
+            val lead = (p.edition.top + p.edition.sections.flatMap { it.stories }).firstOrNull()?.title.orEmpty()
+            add(
+                if (unread > 0) TodayItem(Icons.Outlined.Newspaper, "$unread unread", "${p.edition.name} edition", lead, Tone.ACCENT, onEdition)
+                else TodayItem(Icons.Outlined.Newspaper, "All read", "${p.edition.name} edition", "", Tone.QUIET, onEdition, calm = "edition read")
             )
         }
         if (settings.deskTile && glance != null && DeskMath.businessDaysBetween(glance.dataDate, todayDate) <= FRESH_DAYS) {
@@ -177,6 +191,16 @@ fun HomeRoute(
                 key = "notes"
             )
         )
+        if (onLobster != null || paper != null) {
+            add(
+                HomeTile(
+                    Icons.Outlined.Newspaper, "The Sloth Express",
+                    paper?.let { p -> "${p.edition.name} edition · ${p.stories.size - p.readCount} unread" } ?: "",
+                    onEdition,
+                    key = "edition"
+                )
+            )
+        }
         val toRead = laterItems.filter { !it.archived }
         add(
             HomeTile(

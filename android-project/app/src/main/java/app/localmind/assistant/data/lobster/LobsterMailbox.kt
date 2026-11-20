@@ -77,7 +77,8 @@ class LobsterMailbox @Inject constructor(
     private val later: app.localmind.assistant.data.later.ReadingList,
     private val books: app.localmind.assistant.data.books.BookShelf,
     private val files: app.localmind.assistant.data.books.PaperFiles,
-    private val covers: app.localmind.assistant.data.books.CoverStore
+    private val covers: app.localmind.assistant.data.books.CoverStore,
+    private val editions: app.localmind.assistant.data.edition.EditionStore
 ) {
 
     // Not in SlothLlama's backups: the key stays on this tablet (pair again after a restore).
@@ -155,6 +156,8 @@ class LobsterMailbox @Inject constructor(
     suspend fun send(kind: OrderKind, text: String, deep: Boolean = false, deliver: String = "library"): LobsterOrder = withContext(io) {
         check(_state.value.enabled) { "The SlothLobster is switched off (Lobster page)." }
         val root = folder() ?: error("Choose the Lobster's mailbox folder first (Lobster page).")
+        // Settings sent as JSON must arrive whole: too long is refused here, never cut short.
+        if (kind == OrderKind.EDITION) check(text.length <= MAX_ORDER_CHARS) { "The edition's settings are too long for one order: fewer sources or words." }
         val order = LobsterOrder(
             id = UUID.randomUUID().toString(),
             kind = kind.id,
@@ -225,6 +228,7 @@ class LobsterMailbox @Inject constructor(
             .filterNot { shelvedForLater(root, it) }
             .filterNot { keptAsFile(root, it) }
             .filterNot { keptCovers(root, it) }
+            .filterNot { keptEdition(root, it) }
         val waiting = dir(root, ORDERS).listFiles().mapNotNull { it.name }.toSet()
         val answered = catch.mapNotNull { it.item?.orderId }.toSet() + prefs.getStringSet(KEY_DONE, emptySet()).orEmpty()
         _state.value = MailboxState(
@@ -343,6 +347,29 @@ class LobsterMailbox @Inject constructor(
         }
     }
 
+    /**
+     * An edition goes to the edition page (its paper is the attached sloth-express.json) and out of
+     * the mailbox; the note saying the Lobster took the edition's settings is noted and goes too.
+     * An edition whose paper won't read stays in the catch, where its plain copy can still be read.
+     */
+    private fun keptEdition(root: DocumentFile, ci: CaughtItem): Boolean {
+        val c = ci.item ?: return false
+        if (c.kind != EDITION && c.kind != EDITION_PLAN) return false
+        return runCatching {
+            if (c.kind == EDITION) {
+                val raw = c.fileBase64?.let { android.util.Base64.decode(it, android.util.Base64.DEFAULT) } ?: error("No paper attached")
+                check(editions.keepBlocking(String(raw, Charsets.UTF_8))) { "Not an edition" }
+            }
+            if (c.orderId != null || c.kind == EDITION_PLAN) editions.acceptedBlocking(c.createdAt)
+            dir(root, CATCH).findFile(ci.fileName)?.delete()
+            c.orderId?.let { id -> prefs.edit().putStringSet(KEY_DONE, (prefs.getStringSet(KEY_DONE, emptySet()).orEmpty() + id).toSet()).apply() }
+            true
+        }.getOrElse { e ->
+            Log.w(TAG, "Couldn't keep an edition", e)
+            false
+        }
+    }
+
     private fun orderViews(waiting: Set<String>, answered: Set<String>): List<OrderView> =
         sentOrders().map { s ->
             OrderView(
@@ -399,6 +426,9 @@ class LobsterMailbox @Inject constructor(
         private const val KEY_KEPT = "kept_files"
         /** The catch kind of the Lobster's covers for SlothBooks. */
         const val COVERS = "covers"
+        /** The catch kinds of an edition and of the note that its settings were taken. */
+        const val EDITION = "edition"
+        const val EDITION_PLAN = "edition-plan"
         private const val MAX_COVERS = 200
         private const val MAX_KEPT_IDS = 200
         const val ORDERS = "orders"

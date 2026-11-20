@@ -83,6 +83,25 @@ description of what the tile is.
 The sloth on its llama for SlothLlama; coral for the Lobster. Small touches (a coffee, a lantern,
 sleepy z's) are decoration: hidden from TalkBack and switchable in Settings → Home.
 
+## The Sloth Express (the edition)
+
+- A paper, not a feed: the masthead's serif name over a small-capitals line (edition, day,
+  stories, minutes to listen) and a double rule. Sideways, two pages: the news on the left (the
+  markets strip, top stories, sections), the desk and the language corners on the right.
+  Upright, one column.
+- Stories are serif titles with one line of summary and faint small print (outlet, "3 outlets",
+  "2 h"; Hacker News's points and comments). A tap marks a story read (it goes faint); + has the
+  Lobster fetch it to Later. No links shown.
+- The markets strip is worked out on the tablet from SlothDesk's prices: last close and the move,
+  muted, with ▲ ▼ rather than red and green.
+- The desk is one card per desk persona (the Trader to start; any persona can be seated). Its notes
+  are written in a chat from a card of the edition's headlines and prices, and kept on the edition
+  with "Keep on today's desk"; they're marked model-written, not advice.
+- Language corners are quiet: a badge (普 粵 日 Fr De Es It), the source, the story. Chinese has its
+  reading over each word (Pinyin or Jyutping), 简 / 繁 word by word, faint underlines for words
+  above your level, and a tap looks a word up. Key words come from the dictionary and the word lists,
+  never a model. "Talk it over" opens the language's partner with the story.
+
 ## SlothBooks
 
 - Shelf, Papers and Insights are text tabs, like SlothDesk's. Sideways, the list sits beside the
@@ -96,7 +115,8 @@ sleepy z's) are decoration: hidden from TalkBack and switchable in Settings → 
 - Counts on Insights are worked out in code and say so.
 - The shelves row comes first: default shelves (can't be removed), a hairline, then yours and
   "+ New shelf" (dashed). A picked shelf of yours shows its ⋯ (rename, remove).
-- Group by and the view switch (list, small covers, large covers) sit on one line under it.
+- Group by and the view switch (list, small covers, large covers) sit on one line under it;
+  once books scroll under them, a hairline and a short fade mark the edge.
   Group headers stay pinned while you scroll. Stacks and copies keep a long shelf short.
 - Made covers: the title in serif and the author on a dark colour by genre, so the grid never
   has holes; a real cover replaces it when there is one.

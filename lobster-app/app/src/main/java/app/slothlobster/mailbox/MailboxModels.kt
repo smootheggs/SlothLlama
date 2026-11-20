@@ -71,7 +71,9 @@ enum class OrderKind(val id: String, val label: String, val hint: String) {
     /** Daily prices for SlothDesk: SlothLlama sends the series it needs; a "prices" catch comes back. */
     PRICES("prices", "Prices", "Daily prices for SlothDesk"),
     /** (1.7) Book covers for SlothBooks: SlothLlama sends titles and authors; "covers" catches come back. */
-    COVERS("covers", "Covers", "Book covers for SlothBooks");
+    COVERS("covers", "Covers", "Book covers for SlothBooks"),
+    /** (1.8) The edition's settings from SlothLlama (JSON); an "edition-plan" note or the first edition comes back. */
+    EDITION("edition", "Edition", "The morning edition's settings");
 
     companion object {
         fun of(id: String) = entries.firstOrNull { it.id == id } ?: ASK

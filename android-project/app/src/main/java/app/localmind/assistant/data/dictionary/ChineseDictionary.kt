@@ -36,6 +36,21 @@ data class DictionaryEntry(
 }
 
 /**
+ * A piece of Chinese text: a dictionary word with its reading, first meaning and both written
+ * forms (so 简 / 繁 can switch word by word), or other text (no reading).
+ */
+data class Segment(
+    val text: String,
+    val reading: String?,
+    val meaning: String?,
+    val traditional: String? = null,
+    val simplified: String? = null
+) {
+    fun shown(traditional: Boolean): String =
+        (if (traditional) this.traditional else simplified)?.takeIf { it.length == text.length } ?: text
+}
+
+/**
  * What a tap on a word found. [word] is the matched text. [entries] are its dictionary entries;
  * a Cantonese word that CC-CEDICT lacks has none, only [cantoneseReading], and then
  * [characters] explains it character by character.
@@ -235,6 +250,51 @@ class ChineseDictionary @Inject constructor(@ApplicationContext private val cont
             }
             out.joinToString(" ")
                 .replace(Regex(" ([，。！？、；：,.!?;:)）」』])"), "$1")
+        }
+    }
+
+    /**
+     * [text] split the way [romanize] reads it (longest dictionary word first), keeping every
+     * character: each Chinese word with its reading and first meaning, everything else as it is
+     * (reading null). For showing Pinyin or Jyutping over the words, and finding key words.
+     */
+    suspend fun segment(text: String, language: SpeechLanguage): List<Segment> {
+        val db = database() ?: return listOf(Segment(text, null, null))
+        return withContext(Dispatchers.IO) {
+            val out = ArrayList<Segment>()
+            val plain = StringBuilder()
+            fun flush() {
+                if (plain.isNotEmpty()) out += Segment(plain.toString(), null, null)
+                plain.clear()
+            }
+            var i = 0
+            while (i < text.length) {
+                if (!isHan(text[i])) {
+                    plain.append(text[i])
+                    i++
+                    continue
+                }
+                flush()
+                var end = i
+                while (end < text.length && end - i < MAX_WORD && isHan(text[end])) end++
+                var matched = 1
+                var found: Segment? = null
+                for (stop in end downTo i + 1) {
+                    val word = text.substring(i, stop)
+                    val entry = entriesFor(db, word).firstOrNull()
+                    val reading = entry?.reading(language)?.takeIf { it.isNotBlank() }
+                        ?: if (language == SpeechLanguage.CANTONESE && word.length >= 2) cantoneseReading(db, word) else null
+                    if (reading != null) {
+                        matched = word.length
+                        found = Segment(word, reading, entry?.definitions?.firstOrNull(), entry?.traditional, entry?.simplified)
+                        break
+                    }
+                }
+                out += found ?: Segment(text[i].toString(), null, null)
+                i += matched
+            }
+            flush()
+            out
         }
     }
 

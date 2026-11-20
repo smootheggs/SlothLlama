@@ -191,7 +191,7 @@ fun LobsterScreen(viewModel: LobsterViewModel, onBack: () -> Unit, onRead: (Stri
                                 Column(Modifier.weight(1f).fillMaxSize().verticalScroll(rememberScrollState())) {
                                     StatusBar(state)
                                     OrderBox(enabled = !busy, onSend = viewModel::send, onDraft = viewModel::draftOrder)
-                                    Orders(state.orders, onCancel = viewModel::cancel)
+                                    Orders(state.orders.filter { it.sent.order.kind != OrderKind.EDITION.id }, onCancel = viewModel::cancel)
                                     Spacer(Modifier.heightIn(min = 32.dp))
                                 }
                                 Column(Modifier.weight(1f).fillMaxSize().verticalScroll(rememberScrollState())) {
@@ -207,7 +207,7 @@ fun LobsterScreen(viewModel: LobsterViewModel, onBack: () -> Unit, onRead: (Stri
                                 StatusBar(state)
                                 OrderBox(enabled = !busy, onSend = viewModel::send, onDraft = viewModel::draftOrder)
                                 catch()
-                                Orders(state.orders, onCancel = viewModel::cancel)
+                                Orders(state.orders.filter { it.sent.order.kind != OrderKind.EDITION.id }, onCancel = viewModel::cancel)
                                 Spacer(Modifier.heightIn(min = 40.dp))
                             }
                         }
