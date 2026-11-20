@@ -241,7 +241,7 @@ fun HomeRoute(
     val more = listOf(
         HomeTile(Icons.Outlined.ChatBubbleOutline, "Chats", "", onOpenChats),
         HomeTile(Icons.Outlined.PersonOutline, "Personas", "", onPersonas),
-        HomeTile(Icons.Outlined.Memory, "Models", ui.activeModelName.ifBlank { "choose one" }, onModels),
+        HomeTile(Icons.Outlined.Memory, "Models", ui.activeModelName.ifBlank { "choose one" }, onModels, key = "models"),
         HomeTile(Icons.Outlined.LocalLibrary, "Library", "", onLibrary),
         // Notes is a tool you go to, like the Library: it moved here so Know stays one row.
         HomeTile(Icons.Outlined.StickyNote2, "Notes", "", onNotes)

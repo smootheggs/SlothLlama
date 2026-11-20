@@ -431,10 +431,19 @@ fun HomeScreen(
                             .padding(horizontal = 16.dp, vertical = 14.dp)
                     )
                 } else {
-                    FlowRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        more.forEach { tile -> MoreButton(tile) }
+                    // One line: when the full names don't fit, Models shows just the model's name
+                    // (its chip icon says what it is). Only a narrow phone wraps.
+                    BoxWithConstraints(Modifier.weight(1f)) {
+                        val room = maxWidth
+                        val shortened = more.map { t -> if (t.key == "models" && t.detail.isNotBlank()) t.copy(label = t.detail, detail = "") else t }
+                        val shown = if (laneWidth(more) <= room) more else shortened
+                        FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                            shown.forEach { tile -> MoreButton(tile) }
+                        }
                     }
-                    MoreButton(HomeTile(Icons.Outlined.DragIndicator, "Arrange", "", { arranging = true; picked = null }))
+                    IconButton(onClick = { arranging = true; picked = null }, modifier = Modifier.size(48.dp)) {
+                        Icon(Icons.Outlined.DragIndicator, contentDescription = "Arrange Home", tint = P.Muted, modifier = Modifier.size(20.dp))
+                    }
                 }
             }
         }
@@ -905,15 +914,28 @@ private fun StatusLine(notes: List<StatusNote>) {
     }
 }
 
-/** How wide a tile must be to put its icon beside its name, with its line on at most two lines. */
+/**
+ * How wide a tile must be to put its icon beside its name. A short line ("2 to read · 2 min")
+ * gets room for one line; a long one may take two.
+ */
 private fun besideWidth(tile: HomeTile): Dp {
     val name = (tile.label.length * 7.6f).dp
-    val line = if (tile.detail.isBlank()) 0.dp else (tile.detail.length * 6.2f / 2f + 10f).dp
+    val line = when {
+        tile.detail.isBlank() -> 0.dp
+        tile.detail.length <= 22 -> (tile.detail.length * 6.6f).dp
+        else -> (tile.detail.length * 6.2f / 2f + 10f).dp
+    }
     return maxOf(MIN_TILE, BESIDE_CHROME + maxOf(name, line))
 }
 
 /** Padding, icon and gap around a tile's name when the icon sits beside it. */
-private val BESIDE_CHROME = 68.dp
+private val BESIDE_CHROME = 62.dp
+
+/** About how wide the quiet row's links are side by side (14 sp text, icon, padding). */
+private fun laneWidth(tiles: List<HomeTile>): Dp = tiles.fold(0.dp) { sum, t ->
+    val text = if (t.detail.isBlank()) t.label else "${t.label} · ${t.detail}"
+    sum + 50.dp + (text.length * 7.3f).dp
+} + 4.dp * (tiles.size - 1).coerceAtLeast(0)
 
 /** The narrowest a Know or Do tile gets. */
 private val MIN_TILE = 120.dp
@@ -978,9 +1000,9 @@ private fun ThingTile(tile: HomeTile, stacked: Boolean, arranging: Boolean, pick
             text()
         }
     } else {
-        Row(base.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(base.padding(horizontal = 14.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
             icon()
-            Spacer(Modifier.width(14.dp))
+            Spacer(Modifier.width(12.dp))
             Box(Modifier.weight(1f)) { text() }
         }
     }
