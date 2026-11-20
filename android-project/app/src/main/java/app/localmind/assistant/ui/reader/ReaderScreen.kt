@@ -68,6 +68,13 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import app.localmind.assistant.ui.theme.LocalSlothColors
+import app.localmind.assistant.ui.theme.LightColors
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.core.view.WindowInsetsControllerCompat
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.material.icons.outlined.LightMode
+import androidx.compose.material.icons.outlined.DarkMode
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextLayoutResult
@@ -109,7 +116,18 @@ fun ReaderScreen(
     val doc by viewModel.doc.collectAsStateWithLifecycle()
     val loading by viewModel.loading.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
+    val white by viewModel.whitePage.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
+    // A white page: the reader takes the light colours; the status bar's icons turn dark to match.
+    val outer = LocalSlothColors.current
+    val view = LocalView.current
+    DisposableEffect(white, outer.isDark) {
+        val window = view.context.findActivity()?.window
+        val bars = window?.let { WindowInsetsControllerCompat(it, view) }
+        val before = bars?.isAppearanceLightStatusBars
+        bars?.isAppearanceLightStatusBars = white || !outer.isDark
+        onDispose { if (before != null) bars?.isAppearanceLightStatusBars = before }
+    }
     // Opened from the shelf (not from the Lobster page or the library): Back returns to the shelf.
     var viaShelf by rememberSaveable { mutableStateOf(false) }
 
@@ -120,6 +138,7 @@ fun ReaderScreen(
         }
     }
 
+    CompositionLocalProvider(LocalSlothColors provides if (white) LightColors else outer) {
     Box(Modifier.fillMaxSize().background(P.Canvas)) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val wide = maxWidth >= WIDE
@@ -191,6 +210,17 @@ fun ReaderScreen(
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
     }
+    }
+}
+
+/** The activity behind a context, if there is one. */
+private fun android.content.Context.findActivity(): android.app.Activity? {
+    var c: android.content.Context? = this
+    while (c is android.content.ContextWrapper) {
+        if (c is android.app.Activity) return c
+        c = c.baseContext
+    }
+    return null
 }
 
 // --- the shelf ---
@@ -400,6 +430,13 @@ private fun Reading(
                     }
                 }) {
                     Icon(Icons.Outlined.Headphones, contentDescription = if (listening) "Stop reading aloud" else "Read aloud", tint = if (listening) P.Accent else P.Muted)
+                }
+                val white by viewModel.whitePage.collectAsStateWithLifecycle()
+                IconButton(onClick = viewModel::toggleWhitePage) {
+                    Icon(
+                        if (white) Icons.Outlined.DarkMode else Icons.Outlined.LightMode,
+                        contentDescription = if (white) "Black page" else "White page", tint = P.Muted
+                    )
                 }
                 SizeButton("A−", enabled = scale > ReaderViewModel.MIN_SCALE) { viewModel.smaller() }
                 SizeButton("A+", enabled = scale < ReaderViewModel.MAX_SCALE) { viewModel.bigger() }

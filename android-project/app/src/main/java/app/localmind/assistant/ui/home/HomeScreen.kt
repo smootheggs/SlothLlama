@@ -68,6 +68,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.DragIndicator
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
@@ -124,7 +132,9 @@ data class HomeTile(
     val onClick: () -> Unit,
     val tone: Tone = Tone.QUIET,
     /** Drawn as a little mahjong tile instead of the icon (Ourjong's 中). */
-    val mark: String? = null
+    val mark: String? = null,
+    /** Stable name for arranging ("library", "desk"…). */
+    val key: String = label
 )
 
 /** One tile in the Today strip: a short live value ("12 due") over its name and a next step. */
@@ -160,7 +170,9 @@ data class HomeActions(
     val onSpeak: (String, SpeechLanguage) -> Unit = { _, _ -> },
     val onAddWord: (DailyWord) -> Unit = {},
     val onAskWord: (DailyWord) -> Unit = {},
-    val onAskIdiom: (Idiom) -> Unit = {}
+    val onAskIdiom: (Idiom) -> Unit = {},
+    /** Arranging Home: swap two tiles of a section ("fav", "know", "do") by position. */
+    val onSwap: (String, Int, Int) -> Unit = { _, _, _ -> }
 )
 
 /**
@@ -185,6 +197,12 @@ fun HomeScreen(
     /** Do: SlothDesk, the Lobster, Ourjong. */
     act: List<HomeTile>,
     more: List<HomeTile>,
+    /** Favourite personas, in order: a chip each that starts a chat. */
+    favourites: List<Persona> = emptyList(),
+    /** persona id → when you last wrote to it ("today", "yesterday"…). */
+    favouriteNotes: Map<String, String> = emptyMap(),
+    /** The "+" after the favourites: choose them in Personas. */
+    onChooseFavourites: () -> Unit = {},
     onSearch: () -> Unit,
     onSettings: () -> Unit,
     onOpenConversation: (String) -> Unit,
@@ -276,7 +294,28 @@ fun HomeScreen(
             NewChatCard(Modifier.weight(1f), onNewChat)
         }
     }
-    val todayStrip: @Composable () -> Unit = {
+    // Arranging: tap a tile, then another in the same section, and they swap.
+    var arranging by remember { mutableStateOf(false) }
+    var picked by remember { mutableStateOf<Pair<String, Int>?>(null) }
+    fun tap(section: String, index: Int, go: () -> Unit) {
+        if (!arranging) {
+            go()
+            return
+        }
+        val p = picked
+        picked = when {
+            p == null -> section to index
+            p.first == section && p.second != index -> {
+                actions.onSwap(section, p.second, index)
+                null
+            }
+            p.first == section -> null
+            else -> section to index
+        }
+    }
+    fun isPicked(section: String, index: Int) = picked?.let { it.first == section && it.second == index } ?: false
+
+    val todayStrip: @Composable (Boolean) -> Unit = { portrait ->
         if (today.isNotEmpty()) {
             Column {
                 SectionLabel("Today")
@@ -284,13 +323,14 @@ fun HomeScreen(
                     CaughtUp(today)
                 } else {
                     BoxWithConstraints {
-                        // All in one row when each tile gets a comfortable width; otherwise two by two.
-                        val oneRow = (maxWidth - 12.dp * (today.size - 1)) / today.size >= 200.dp
+                        // Portrait: all in one row, value over name, when each gets room; landscape: two by two.
+                        val oneRow = portrait && (maxWidth - 12.dp * (today.size - 1)) / today.size >= 150.dp
+                        val perRow = if (oneRow) today.size else 2
                         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                            today.chunked(if (oneRow) today.size else 2).forEach { row ->
+                            today.chunked(perRow).forEach { row ->
                                 Row(Modifier.height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                    row.forEach { item -> TodayTile(item, Modifier.weight(1f).fillMaxHeight()) }
-                                    repeat((if (oneRow) today.size else 2) - row.size) { Spacer(Modifier.weight(1f)) }
+                                    row.forEach { item -> TodayTile(item, stacked = oneRow, modifier = Modifier.weight(1f).fillMaxHeight()) }
+                                    repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
                                 }
                             }
                         }
@@ -299,29 +339,50 @@ fun HomeScreen(
             }
         }
     }
-    val daily: @Composable () -> Unit = {
+    val daily: @Composable (Boolean) -> Unit = { sideBySide ->
         if (s.wordOfDay || s.idiomOfDay) {
             Column {
                 SectionLabel("A little Chinese")
-                DailyCard(
+                DailyStrip(
                     word = word.takeIf { s.wordOfDay },
                     idiom = idiom.takeIf { s.idiomOfDay },
                     traditional = traditional,
                     script = script,
-                    actions = actions
+                    actions = actions,
+                    sideBySide = sideBySide
                 )
             }
         }
     }
+    val favouritesRow: @Composable () -> Unit = {
+        Column {
+            SectionLabel("Favourites")
+            BoxWithConstraints {
+                // As many chips as fit on one line, then "+".
+                val fits = ((maxWidth - 66.dp) / (FAV_CHIP + 10.dp)).toInt().coerceAtLeast(1)
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    favourites.take(fits).forEachIndexed { i, persona ->
+                        FavouriteChip(
+                            persona = persona,
+                            note = favouriteNotes[persona.id],
+                            active = persona.speech != null && persona.speech in extras.todayLanguages,
+                            picked = isPicked("fav", i),
+                            arranging = arranging,
+                            onClick = { tap("fav", i) { onStartWith(persona) } },
+                            onDrill = if (s.tutorDrills && persona.speech != null && !arranging) ({
+                                tutorGroups.firstOrNull { it.language == persona.speech }?.let { actions.onDrill(drillTutor(it)) }
+                            }) else null
+                        )
+                    }
+                    AddFavourite(onChooseFavourites)
+                }
+            }
+        }
+    }
     val learnSection: @Composable () -> Unit = {
-        if (tutorGroups.isNotEmpty() || learn.isNotEmpty()) {
-            var allLanguages by remember { mutableStateOf(false) }
-            // Languages practised lately; with none yet, the first two.
-            val recent = tutorGroups.filter { it.language in extras.recentLanguages }.ifEmpty { tutorGroups.take(2) }
-            val shownGroups = if (allLanguages) tutorGroups else recent
-            val hidden = tutorGroups.size - recent.size
+        if (learn.isNotEmpty()) {
             Column {
-                Row(Modifier.padding(bottom = SECTION_LABEL_GAP), verticalAlignment = Alignment.CenterVertically) {
+                Row(Modifier.padding(bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                     SectionLabel("Learn", gap = 0.dp)
                     extras.practice?.takeIf { s.practiceWeek }?.let { week ->
                         Spacer(Modifier.width(16.dp))
@@ -330,55 +391,56 @@ fun HomeScreen(
                         Text("${week.count} of 7", color = P.Faint, fontSize = 12.sp, modifier = Modifier.clearAndSetSemantics {})
                     }
                 }
-                FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    shownGroups.forEach { group ->
-                        TutorChip(
-                            group, script,
-                            lastPractised = extras.lastPractised[group.language]?.takeIf { s.practiceWeek },
-                            active = group.language in extras.todayLanguages,
-                            drills = s.tutorDrills,
-                            onStartWith = onStartWith,
-                            onDrill = actions.onDrill
-                        )
-                    }
-                    if (hidden > 0) {
-                        MoreLanguages(if (allLanguages) "Fewer" else "+$hidden", if (allLanguages) "Show fewer languages" else "Show $hidden more languages") {
-                            allLanguages = !allLanguages
-                        }
-                    }
-                }
-                if (learn.isNotEmpty()) {
-                    FlowRow(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                        learn.forEach { tile -> MoreButton(tile) }
-                    }
+                FlowRow(Modifier.offset(x = (-12).dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                    learn.forEach { tile -> MoreButton(tile) }
                 }
             }
         }
     }
-    // Know and Do: three tiles a row when there's room (a tablet), two on a phone.
-    val pillar: @Composable (String, List<HomeTile>) -> Unit = { label, tiles ->
+    // Know and Do: three tiles a row; narrow tiles put the icon above the name.
+    val pillar: @Composable (String, String, List<HomeTile>) -> Unit = { label, section, tiles ->
         if (tiles.isNotEmpty()) {
             Column {
                 SectionLabel(label)
                 BoxWithConstraints {
-                    val perRow = if ((maxWidth - 24.dp) / 3 >= 170.dp) 3 else 2
-                    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                        tiles.chunked(perRow).forEach { row ->
-                            Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                                row.forEach { tile -> ThingTile(tile, Modifier.weight(1f).fillMaxHeight()) }
-                                repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
-                            }
+                    val stacked = (maxWidth - 24.dp) / 3 < 170.dp
+                    Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                        tiles.take(3).forEachIndexed { i, tile ->
+                            ThingTile(
+                                tile, stacked = stacked, arranging = arranging, picked = isPicked(section, i),
+                                modifier = Modifier.weight(1f).fillMaxHeight(),
+                                onClick = { tap(section, i, tile.onClick) }
+                            )
                         }
+                        repeat(3 - tiles.take(3).size) { Spacer(Modifier.weight(1f)) }
                     }
                 }
             }
         }
     }
-    val moreRow: @Composable () -> Unit = {
+    val footer: @Composable () -> Unit = {
         Column {
             HorizontalDivider(color = P.Border)
-            FlowRow(Modifier.padding(top = 8.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                more.forEach { tile -> MoreButton(tile) }
+            Row(Modifier.padding(top = 6.dp).offset(x = (-12).dp), verticalAlignment = Alignment.CenterVertically) {
+                if (arranging) {
+                    Text(
+                        "Tap a tile, then the one to swap it with.", color = P.Muted, fontSize = 14.sp,
+                        modifier = Modifier.weight(1f).padding(start = 12.dp)
+                    )
+                    Text(
+                        "Done", color = P.Accent, fontSize = 15.sp, fontWeight = FontWeight.Medium,
+                        modifier = Modifier
+                            .heightIn(min = 48.dp)
+                            .clip(RoundedCornerShape(24.dp))
+                            .clickable(role = Role.Button) { arranging = false; picked = null }
+                            .padding(horizontal = 16.dp, vertical = 14.dp)
+                    )
+                } else {
+                    FlowRow(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        more.forEach { tile -> MoreButton(tile) }
+                    }
+                    MoreButton(HomeTile(Icons.Outlined.DragIndicator, "Arrange", "", { arranging = true; picked = null }))
+                }
             }
         }
     }
@@ -389,60 +451,75 @@ fun HomeScreen(
             .statusBarsPadding()
             .navigationBarsPadding()
     ) {
-        if (maxWidth >= WIDE) {
-            // Landscape: hello, main actions, Today and the day's Chinese on the left; Learn (the
-            // tutors and word tools), Know and Do on the right.
-            Column(Modifier.fillMaxSize().padding(horizontal = 40.dp, vertical = 16.dp)) {
+        // Two pages when the screen lies on its side and has room for both: the tablet in
+        // landscape, and an open foldable held sideways. Upright, one page.
+        val twoPages = maxWidth >= TWO_PAGES && maxWidth > maxHeight
+        val roomy = maxWidth >= WIDE
+        if (twoPages) {
+            // Landscape (and an open foldable): two pages, each one screen tall. Left, now: the hello,
+            // the main actions, Today and the day's Chinese. Right, places: favourites, Learn, Know,
+            // Do and the quiet row. Both start and end on the same lines.
+            Column(Modifier.fillMaxSize().padding(horizontal = if (roomy) 40.dp else 24.dp, vertical = 16.dp)) {
                 top()
-                Row(Modifier.weight(1f).padding(top = 24.dp), horizontalArrangement = Arrangement.spacedBy(48.dp)) {
-                    Column(
-                        Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(SECTION_GAP)
-                    ) {
+                Row(Modifier.weight(1f).padding(top = 12.dp)) {
+                    HomePage(Modifier.weight(1f)) {
                         greetingBlock(true)
                         mainActions()
-                        todayStrip()
-                        daily()
+                        todayStrip(false)
+                        daily(false)
                     }
-                    Column(
-                        Modifier.weight(1f).verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(SECTION_GAP)
-                    ) {
+                    Box(Modifier.padding(horizontal = if (roomy) 32.dp else 20.dp, vertical = 8.dp).width(1.dp).fillMaxHeight().background(P.Card))
+                    HomePage(Modifier.weight(1f)) {
+                        favouritesRow()
                         learnSection()
-                        pillar("Know", know)
-                        pillar("Do", act)
-                        moreRow()
+                        pillar("Know", "know", know)
+                        pillar("Do", "do", act)
+                        footer()
                     }
                 }
             }
         } else {
-            // The sections spread over the screen's height when they fit, and never sit closer than
-            // SECTION_GAP: past one screen the page scrolls with room to breathe.
-            val screen = maxHeight
+            // Portrait: one page. The sections spread over the screen's height when they fit, and
+            // never sit closer than the smallest gap: past one screen the page scrolls.
             Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                Column(
-                    Modifier
-                        .widthIn(max = 720.dp)
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                        .heightIn(min = screen)
-                        .padding(start = 24.dp, end = 24.dp, top = 16.dp, bottom = 28.dp),
-                    verticalArrangement = Spread(SECTION_GAP, 56.dp)
-                ) {
+                HomePage(Modifier.widthIn(max = 760.dp).fillMaxWidth().padding(horizontal = 24.dp), top = 16.dp, bottom = 20.dp) {
                     top()
                     greetingBlock(false)
                     mainActions()
-                    todayStrip()
-                    daily()
+                    todayStrip(true)
+                    daily(true)
+                    favouritesRow()
                     learnSection()
-                    pillar("Know", know)
-                    pillar("Do", act)
-                    moreRow()
+                    pillar("Know", "know", know)
+                    pillar("Do", "do", act)
+                    footer()
                 }
             }
         }
     }
 }
+
+/** A page of Home: its sections spread over the height available, scrolling only if they can't fit. */
+@Composable
+private fun HomePage(modifier: Modifier, top: Dp = 0.dp, bottom: Dp = 0.dp, content: @Composable () -> Unit) {
+    BoxWithConstraints(modifier.fillMaxHeight()) {
+        val height = maxHeight
+        Column(
+            Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .heightIn(min = height)
+                .padding(top = top, bottom = bottom),
+            verticalArrangement = Spread(20.dp, 48.dp)
+        ) { content() }
+    }
+}
+
+/** Narrowest sideways screen that gets Home's two pages (an open foldable is about 750–880dp). */
+private val TWO_PAGES = 720.dp
+
+/** Width a favourite chip is given when working out how many fit. */
+private val FAV_CHIP = 170.dp
 
 // --- The date, today in Chinese, and the almanac ----------------------------------------------
 
@@ -568,80 +645,98 @@ private fun Sleepy(modifier: Modifier) {
 
 // --- A word and an idiom for the day ------------------------------------------------------------
 
+/**
+ * The day's word and idiom as two quiet lines (side by side in portrait). The word has Listen and
+ * a menu (flashcards, ask the teacher); a tap on the idiom tells its story.
+ */
 @Composable
-private fun DailyCard(word: DailyWord?, idiom: Idiom?, traditional: Boolean, script: ChineseScript, actions: HomeActions) {
-    val shape = RoundedCornerShape(16.dp)
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .height(IntrinsicSize.Min)
-            .clip(shape)
-            .border(1.dp, P.Border, shape)
-            .animateContentSize()
-    ) {
-        word?.let { WordHalf(it, traditional, script, actions, Modifier.weight(1f)) }
-        if (word != null && idiom != null) VerticalDivider(Modifier.fillMaxHeight().padding(vertical = 14.dp), color = P.Border)
-        idiom?.let { IdiomHalf(it, traditional, actions, Modifier.weight(1f)) }
+private fun DailyStrip(word: DailyWord?, idiom: Idiom?, traditional: Boolean, script: ChineseScript, actions: HomeActions, sideBySide: Boolean) {
+    if (sideBySide && word != null && idiom != null) {
+        Row(horizontalArrangement = Arrangement.spacedBy(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            WordLine(word, traditional, script, actions, Modifier.weight(1f))
+            IdiomLine(idiom, traditional, actions, Modifier.weight(1f))
+        }
+    } else {
+        Column {
+            word?.let { WordLine(it, traditional, script, actions, Modifier.fillMaxWidth()) }
+            idiom?.let { IdiomLine(it, traditional, actions, Modifier.fillMaxWidth()) }
+        }
     }
 }
 
 @Composable
-private fun WordHalf(word: DailyWord, traditional: Boolean, script: ChineseScript, actions: HomeActions, modifier: Modifier) {
+private fun WordLine(word: DailyWord, traditional: Boolean, script: ChineseScript, actions: HomeActions, modifier: Modifier) {
     val language = if (word.cantonese) SpeechLanguage.CANTONESE else SpeechLanguage.MANDARIN
     val written = word.written(traditional)
-    Column(modifier.padding(start = 20.dp, end = 8.dp, top = 16.dp, bottom = 8.dp)) {
-        Text(
-            "WORD · ${languageMark(language, script)}", color = P.Faint, fontSize = 11.sp, letterSpacing = 1.2.sp,
-            fontWeight = FontWeight.Medium
-        )
-        Text(written, color = P.Text, fontSize = 24.sp, lineHeight = 30.sp, modifier = Modifier.padding(top = 8.dp))
-        Text(word.reading, color = P.Muted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp))
-        Text(word.meaning, color = P.Text, fontSize = 14.sp, lineHeight = 19.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
-        Row(Modifier.padding(top = 2.dp)) {
-            IconButton(onClick = { actions.onSpeak(written, language) }, modifier = Modifier.size(44.dp)) {
-                Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Say $written", tint = P.Muted, modifier = Modifier.size(20.dp))
+    var menu by remember { mutableStateOf(false) }
+    Row(modifier.heightIn(min = 48.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(languageMark(language, script), color = P.Faint, fontSize = 11.sp, modifier = Modifier.width(22.dp))
+        Text(written, color = P.Text, fontSize = 22.sp, maxLines = 1)
+        Spacer(Modifier.width(10.dp))
+        Column(Modifier.weight(1f)) {
+            Text(word.reading, color = P.Muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(word.meaning, color = P.Text, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+        IconButton(onClick = { actions.onSpeak(written, language) }, modifier = Modifier.size(44.dp)) {
+            Icon(Icons.AutoMirrored.Filled.VolumeUp, contentDescription = "Say $written", tint = P.Muted, modifier = Modifier.size(20.dp))
+        }
+        Box {
+            IconButton(onClick = { menu = true }, modifier = Modifier.size(44.dp)) {
+                Icon(Icons.Outlined.MoreHoriz, contentDescription = "More for $written", tint = P.Muted, modifier = Modifier.size(20.dp))
             }
-            IconButton(onClick = { actions.onAddWord(word) }, modifier = Modifier.size(44.dp)) {
-                Icon(Icons.Outlined.LibraryAdd, contentDescription = "Add to flashcards", tint = P.Muted, modifier = Modifier.size(20.dp))
-            }
-            IconButton(onClick = { actions.onAskWord(word) }, modifier = Modifier.size(44.dp)) {
-                Icon(Icons.Outlined.School, contentDescription = "Ask the ${language.label} teacher about it", tint = P.Muted, modifier = Modifier.size(20.dp))
+            DropdownMenu(expanded = menu, onDismissRequest = { menu = false }, modifier = Modifier.background(P.Elevated)) {
+                DropdownMenuItem(
+                    leadingIcon = { Icon(Icons.Outlined.LibraryAdd, contentDescription = null, tint = P.Muted) },
+                    text = { Text("Add to flashcards", color = P.Text) },
+                    onClick = { menu = false; actions.onAddWord(word) }
+                )
+                DropdownMenuItem(
+                    leadingIcon = { Icon(Icons.Outlined.School, contentDescription = null, tint = P.Muted) },
+                    text = { Text("Ask the ${language.label} teacher", color = P.Text) },
+                    onClick = { menu = false; actions.onAskWord(word) }
+                )
             }
         }
     }
 }
 
-/** The idiom; a tap tells its story. */
 @Composable
-private fun IdiomHalf(idiom: Idiom, traditional: Boolean, actions: HomeActions, modifier: Modifier) {
+private fun IdiomLine(idiom: Idiom, traditional: Boolean, actions: HomeActions, modifier: Modifier) {
     var story by remember(idiom) { mutableStateOf(false) }
-    Column(
-        modifier
-            .clickable(role = Role.Button, onClickLabel = if (story) "Hide the story" else "Tell its story") { story = !story }
-            .padding(start = 20.dp, end = 20.dp, top = 16.dp, bottom = 16.dp)
-    ) {
-        Text("IDIOM", color = P.Faint, fontSize = 11.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.Medium)
-        Text(idiom.written(traditional), color = P.Text, fontSize = 24.sp, lineHeight = 30.sp, modifier = Modifier.padding(top = 8.dp))
-        Text(idiom.pinyin, color = P.Muted, fontSize = 13.sp, modifier = Modifier.padding(bottom = 4.dp))
-        Text(idiom.meaning, color = P.Text, fontSize = 14.sp, lineHeight = 19.sp, maxLines = if (story) 4 else 2, overflow = TextOverflow.Ellipsis)
-        Text(
-            "Literally: ${idiom.literal}", color = P.Muted, fontSize = 13.sp, lineHeight = 18.sp, fontStyle = FontStyle.Italic,
-            maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp)
-        )
-        if (story) {
-            if (idiom.story.isNotBlank()) Text(idiom.story, color = P.Muted, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 4.dp))
-            Text(
-                "Ask the teacher →", color = P.Accent, fontSize = 13.sp,
-                modifier = Modifier
-                    .padding(top = 6.dp)
-                    .clip(RoundedCornerShape(8.dp))
-                    .clickable(role = Role.Button) { actions.onAskIdiom(idiom) }
-                    .padding(vertical = 6.dp)
-            )
-        } else {
-            Text(
-                if (idiom.story.isNotBlank()) "Tap for its story" else "Tap to ask the teacher about it",
-                color = P.Faint, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp)
+    Box(modifier) {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .heightIn(min = 48.dp)
+                .clip(RoundedCornerShape(10.dp))
+                .clickable(role = Role.Button, onClickLabel = "Tell its story") { story = true },
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Text("成", color = P.Faint, fontSize = 11.sp, modifier = Modifier.width(22.dp).clearAndSetSemantics {})
+            Text(idiom.written(traditional), color = P.Text, fontSize = 22.sp, maxLines = 1)
+            Spacer(Modifier.width(10.dp))
+            Column(Modifier.weight(1f)) {
+                Text(idiom.pinyin, color = P.Muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(idiom.meaning, color = P.Text, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+        }
+        DropdownMenu(expanded = story, onDismissRequest = { story = false }, modifier = Modifier.background(P.Elevated)) {
+            Column(Modifier.widthIn(min = 260.dp, max = 420.dp).padding(horizontal = 16.dp, vertical = 8.dp)) {
+                Text(idiom.written(traditional), color = P.Text, fontSize = 22.sp)
+                Text(idiom.pinyin, color = P.Muted, fontSize = 13.sp)
+                Text(idiom.meaning, color = P.Text, fontSize = 14.sp, lineHeight = 19.sp, modifier = Modifier.padding(top = 6.dp))
+                Text(
+                    "Literally: ${idiom.literal}", color = P.Muted, fontSize = 13.sp, lineHeight = 18.sp, fontStyle = FontStyle.Italic,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+                if (idiom.story.isNotBlank()) {
+                    Text(idiom.story, color = P.Muted, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 6.dp))
+                }
+            }
+            DropdownMenuItem(
+                leadingIcon = { Icon(Icons.Outlined.School, contentDescription = null, tint = P.Muted) },
+                text = { Text("Ask the teacher about it", color = P.Text) },
+                onClick = { story = false; actions.onAskIdiom(idiom) }
             )
         }
     }
@@ -788,39 +883,66 @@ private fun NewChatCard(modifier: Modifier, onClick: () -> Unit) {
     }
 }
 
-/** A slim Today tile: an icon, the value and its name on one line, and a line about it. */
+/**
+ * A Today tile: what's due or new, as a soft filled card (status, not a place to go). Wide: the
+ * value and its name on one line and a line about it; stacked (four in a row): the name over the value.
+ */
 @Composable
-private fun TodayTile(item: TodayItem, modifier: Modifier) {
+private fun TodayTile(item: TodayItem, stacked: Boolean, modifier: Modifier) {
     val shape = RoundedCornerShape(16.dp)
-    Row(
-        modifier
-            .heightIn(min = 64.dp)
-            .clip(shape)
-            .border(1.dp, P.Border, shape)
-            .clickable(role = Role.Button, onClick = item.onClick)
-            .padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(item.icon, contentDescription = null, tint = if (item.tone == Tone.LOBSTER) P.Lobster else P.Muted, modifier = Modifier.size(20.dp))
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (item.tone == Tone.OK) {
-                    Box(Modifier.size(6.dp).clip(CircleShape).background(P.Success))
-                    Spacer(Modifier.width(6.dp))
-                }
-                Text(
-                    item.value, color = toneColor(item.tone), fontSize = 16.sp, fontWeight = FontWeight.Medium,
-                    maxLines = 1, overflow = TextOverflow.Ellipsis
-                )
-                Text(" · ${item.title}", color = P.Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+    val icon: @Composable () -> Unit = {
+        Icon(item.icon, contentDescription = null, tint = if (item.tone == Tone.LOBSTER) P.Lobster else P.Muted, modifier = Modifier.size(if (stacked) 18.dp else 20.dp))
+    }
+    val value: @Composable () -> Unit = {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            if (item.tone == Tone.OK) {
+                Box(Modifier.size(6.dp).clip(CircleShape).background(P.Success))
+                Spacer(Modifier.width(6.dp))
             }
-            if (item.detail.isNotBlank()) {
-                Text(
-                    item.detail, color = P.Faint, fontSize = 12.sp, lineHeight = 16.sp,
-                    maxLines = if (item.tone == Tone.LOBSTER) 2 else 1, overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.padding(top = 2.dp)
-                )
+            Text(
+                item.value, color = toneColor(item.tone), fontSize = if (stacked) 17.sp else 16.sp, fontWeight = FontWeight.Medium,
+                maxLines = 1, overflow = TextOverflow.Ellipsis
+            )
+            if (!stacked) Text(" · ${item.title}", color = P.Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
+    }
+    if (stacked) {
+        Column(
+            modifier
+                .heightIn(min = 72.dp)
+                .clip(shape)
+                .background(P.Card)
+                .clickable(role = Role.Button, onClick = item.onClick)
+                .padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                icon()
+                Spacer(Modifier.width(8.dp))
+                Text(item.title, color = P.Faint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            value()
+        }
+    } else {
+        Row(
+            modifier
+                .heightIn(min = 68.dp)
+                .clip(shape)
+                .background(P.Card)
+                .clickable(role = Role.Button, onClick = item.onClick)
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            icon()
+            Spacer(Modifier.width(14.dp))
+            Column(Modifier.weight(1f)) {
+                value()
+                if (item.detail.isNotBlank()) {
+                    Text(
+                        item.detail, color = P.Faint, fontSize = 12.sp, lineHeight = 16.sp,
+                        maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 2.dp)
+                    )
+                }
             }
         }
     }
@@ -847,137 +969,133 @@ private fun CaughtUp(items: List<TodayItem>) {
     }
 }
 
-/** The "+4" chip that shows the rest of the languages. */
-@Composable
-private fun MoreLanguages(label: String, description: String, onClick: () -> Unit) {
-    val shape = RoundedCornerShape(28.dp)
-    Box(
-        Modifier
-            .heightIn(min = 52.dp)
-            .clip(shape)
-            .border(1.dp, P.Border, shape)
-            .clickable(role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = description }
-            .padding(horizontal = 18.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(label, color = P.Muted, fontSize = 15.sp, modifier = Modifier.clearAndSetSemantics {})
-    }
-}
-
 /**
- * One chip per language; with more than one tutor it asks which. A long press (or the menu's
- * last line) starts a five-minute drill with the teacher.
+ * A place to go: an outlined tile with an icon, a name and a live line. Narrow: the icon above the
+ * name. Arranging: a dashed outline, and a filled moss one on the tile picked to swap.
  */
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
-private fun TutorChip(
-    group: TutorGroup,
-    script: ChineseScript,
-    lastPractised: String?,
-    active: Boolean,
-    drills: Boolean,
-    onStartWith: (Persona) -> Unit,
-    onDrill: (Persona) -> Unit
-) {
-    var choosing by remember { mutableStateOf(false) }
-    val shape = RoundedCornerShape(28.dp)
-    val roles = group.tutors.map { roleOf(it, group.language) }
-    val detail = (roles + listOfNotNull(lastPractised)).joinToString(" · ")
-    Box {
-        Row(
-            Modifier
-                .heightIn(min = 52.dp)
-                .clip(shape)
-                .border(1.dp, P.Border, shape)
-                .combinedClickable(
-                    role = Role.Button,
-                    onClickLabel = "Talk with the ${group.language.label} tutor",
-                    onLongClickLabel = if (drills) "Five-minute drill" else null,
-                    onLongClick = if (drills) ({ onDrill(drillTutor(group)) }) else null,
-                    onClick = { if (group.tutors.size == 1) onStartWith(group.tutors.first()) else choosing = true }
-                )
-                .padding(start = 7.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Filled for a language practised today; an outline otherwise, so the page isn't all green.
-            Box(
-                Modifier
-                    .size(36.dp)
-                    .clip(CircleShape)
-                    .then(if (active) Modifier.background(P.AccentSoft) else Modifier.border(1.dp, P.Border, CircleShape)),
-                contentAlignment = Alignment.Center
-            ) {
-                Text(
-                    languageMark(group.language, script), color = if (active) P.Accent else P.Muted,
-                    fontSize = 15.sp, fontWeight = FontWeight.Medium
-                )
-            }
-            Spacer(Modifier.width(12.dp))
-            Column {
-                Text(group.language.label, color = P.Text, fontSize = 16.sp)
-                Text(detail, color = P.Faint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            }
-        }
-        DropdownMenu(expanded = choosing, onDismissRequest = { choosing = false }, modifier = Modifier.background(P.Elevated)) {
-            group.tutors.forEachIndexed { i, tutor ->
-                DropdownMenuItem(
-                    text = {
-                        Column {
-                            Text(roles[i], color = P.Text, fontSize = 15.sp)
-                            if (tutor.tagline.isNotBlank()) Text(tutor.tagline, color = P.Muted, fontSize = 12.sp, maxLines = 2)
-                        }
-                    },
-                    onClick = {
-                        choosing = false
-                        onStartWith(tutor)
-                    }
-                )
-            }
-            if (drills) {
-                HorizontalDivider(color = P.Border)
-                DropdownMenuItem(
-                    leadingIcon = { Icon(Icons.Outlined.Timer, contentDescription = null, tint = P.Muted, modifier = Modifier.size(18.dp)) },
-                    text = {
-                        Column {
-                            Text("Five-minute drill", color = P.Text, fontSize = 15.sp)
-                            Text("Quick questions at your level", color = P.Muted, fontSize = 12.sp)
-                        }
-                    },
-                    onClick = {
-                        choosing = false
-                        onDrill(drillTutor(group))
-                    }
-                )
-            }
-        }
-    }
-}
-
-@Composable
-private fun ThingTile(tile: HomeTile, modifier: Modifier) {
+private fun ThingTile(tile: HomeTile, stacked: Boolean, arranging: Boolean, picked: Boolean, modifier: Modifier, onClick: () -> Unit) {
     val shape = RoundedCornerShape(16.dp)
-    Row(
-        modifier
-            .heightIn(min = 64.dp)
-            .clip(shape)
-            .border(1.dp, P.Border, shape)
-            .clickable(role = Role.Button, onClick = tile.onClick)
-            .padding(horizontal = 16.dp, vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
+    val frame = when {
+        picked -> Modifier.background(P.AccentSoft).border(2.dp, P.Accent, shape)
+        arranging -> Modifier.dashedBorder(P.BorderStrong, 16.dp)
+        else -> Modifier.border(1.dp, P.Border, shape)
+    }
+    val icon: @Composable () -> Unit = {
         if (tile.mark != null) TileMark(tile.mark)
-        else Icon(tile.icon, contentDescription = null, tint = if (tile.tone == Tone.LOBSTER) P.Lobster else P.Muted, modifier = Modifier.size(24.dp))
-        Spacer(Modifier.width(14.dp))
-        Column(Modifier.weight(1f)) {
-            Text(tile.label, color = P.Text, fontSize = 16.sp)
-            if (tile.detail.isNotBlank()) {
+        else Icon(tile.icon, contentDescription = null, tint = if (tile.tone == Tone.LOBSTER) P.Lobster else P.Muted, modifier = Modifier.size(22.dp))
+    }
+    val text: @Composable () -> Unit = {
+        Column {
+            Text(tile.label, color = P.Text, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val line = if (picked) "Picked" else tile.detail
+            if (line.isNotBlank()) {
                 Text(
-                    tile.detail, color = if (tile.tone == Tone.ACCENT) P.Accent else P.Muted, fontSize = 13.sp,
+                    line, color = if (picked || tile.tone == Tone.ACCENT) P.Accent else P.Muted, fontSize = 13.sp,
                     maxLines = 1, overflow = TextOverflow.Ellipsis
                 )
             }
         }
+    }
+    val base = modifier
+        .heightIn(min = 76.dp)
+        .clip(shape)
+        .then(frame)
+        .clickable(role = Role.Button, onClickLabel = if (arranging) "Pick to swap" else null, onClick = onClick)
+    if (stacked) {
+        Column(base.padding(horizontal = 14.dp, vertical = 12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            icon()
+            text()
+        }
+    } else {
+        Row(base.padding(horizontal = 16.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            icon()
+            Spacer(Modifier.width(14.dp))
+            Box(Modifier.weight(1f)) { text() }
+        }
+    }
+}
+
+/** A dashed rounded outline, for tiles while Home is being arranged. */
+private fun Modifier.dashedBorder(color: Color, radius: Dp): Modifier = drawBehind {
+    val stroke = Stroke(width = 1.5.dp.toPx(), pathEffect = PathEffect.dashPathEffect(floatArrayOf(8.dp.toPx(), 6.dp.toPx())))
+    val inset = stroke.width / 2
+    drawRoundRect(
+        color = color,
+        topLeft = Offset(inset, inset),
+        size = Size(size.width - stroke.width, size.height - stroke.width),
+        cornerRadius = CornerRadius(radius.toPx()),
+        style = stroke
+    )
+}
+
+/**
+ * A favourite persona: its badge, its name and when you last wrote to it. A tap starts a chat;
+ * a long press on a tutor starts a five-minute drill.
+ */
+@OptIn(ExperimentalFoundationApi::class)
+@Composable
+private fun FavouriteChip(
+    persona: Persona,
+    note: String?,
+    active: Boolean,
+    picked: Boolean,
+    arranging: Boolean,
+    onClick: () -> Unit,
+    onDrill: (() -> Unit)?
+) {
+    val shape = RoundedCornerShape(28.dp)
+    val frame = when {
+        picked -> Modifier.background(P.AccentSoft).border(2.dp, P.Accent, shape)
+        arranging -> Modifier.dashedBorder(P.BorderStrong, 28.dp)
+        else -> Modifier.border(1.dp, P.Border, shape)
+    }
+    Row(
+        Modifier
+            .widthIn(max = FAV_CHIP)
+            .heightIn(min = 56.dp)
+            .clip(shape)
+            .then(frame)
+            .combinedClickable(
+                role = Role.Button,
+                onClickLabel = if (arranging) "Pick to swap" else "Chat with ${persona.name}",
+                onLongClickLabel = if (onDrill != null) "Five-minute drill" else null,
+                onLongClick = onDrill,
+                onClick = onClick
+            )
+            .padding(start = 8.dp, end = 16.dp, top = 6.dp, bottom = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(
+            Modifier.size(40.dp).clip(CircleShape).background(if (active) P.AccentSoft else P.Elevated),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(persona.badge, color = if (persona.badge == "Au") GOLD else P.Accent, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        }
+        Spacer(Modifier.width(10.dp))
+        Column {
+            Text(persona.name, color = P.Text, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            val line = if (picked) "Picked" else note
+            if (!line.isNullOrBlank()) Text(line, color = if (picked) P.Accent else P.Faint, fontSize = 12.sp, maxLines = 1)
+        }
+    }
+}
+
+/** The Trader's Au, in gold. */
+private val GOLD = Color(0xFFE2C26B)
+
+/** After the favourites: choose them in Personas (the star on each). */
+@Composable
+private fun AddFavourite(onClick: () -> Unit) {
+    Box(
+        Modifier
+            .size(56.dp)
+            .clip(CircleShape)
+            .dashedBorder(P.BorderStrong, 28.dp)
+            .clickable(role = Role.Button, onClickLabel = "Choose favourites", onClick = onClick),
+        contentAlignment = Alignment.Center
+    ) {
+        Icon(Icons.Outlined.Add, contentDescription = "Choose favourites", tint = P.Muted, modifier = Modifier.size(20.dp))
     }
 }
 

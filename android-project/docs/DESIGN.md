@@ -17,8 +17,9 @@ The rules the Home, Personas, Lobster and SlothDesk pages follow. Keep new scree
 - Status as marks, not sentences: gate dots, practice dots, a coloured status dot, ✓ / ✕ rings.
   Say it in words for TalkBack (`contentDescription`), not on screen.
 - Two columns from about 600 dp wide (grids), and two panes from 840 dp (`WIDE`).
-- Sections are at least 32 dp apart; a section label sits 14 dp above its content. When a page
-  is taller than the screen it scrolls; gaps never shrink to fit.
+- Sections are at least 32 dp apart (Home's pages: 20–48 dp, spread to the screen); a section
+  label sits 14 dp above its content. When a page is taller than the screen it scrolls; gaps
+  never shrink below their minimum to fit.
 - Touch targets are at least 44–48 dp, even when the mark inside is small.
 
 ## Navigation and chips
@@ -32,11 +33,23 @@ The rules the Home, Personas, Lobster and SlothDesk pages follow. Keep new scree
 
 ## Home
 
-Home follows the three pillars: Today (what's due or new), then **Learn** (a chip per tutor
-language with the week's practice, and the word tools as quiet links), **Know** (Library, Notes,
-Later) and **Do** (SlothDesk, the Lobster, Ourjong) as tiles, three a row on a tablet, and a last
-quiet row for Chats, Personas and Models. On the Y700 in portrait it fits one screen; a longer
-page scrolls rather than squeezing the gaps.
+Home is one page upright and two pages sideways (the tablet in landscape, an open foldable held
+sideways: from 720 dp wide when wider than tall). Each page is one screen tall; its sections
+spread over the height, 20–48 dp apart, and the page scrolls only if they can't fit.
+
+- **Left page, now**: the hello, Continue and New chat, **Today** (two by two) and **A little
+  Chinese** (the word and the idiom as compact lines, ⋯ for flashcards or the teacher).
+- **Right page, places**: **Favourites** (a chip per favourite persona, + to choose them in
+  Personas), **Learn** (the week's practice dots and the word tools as quiet links), **Know**
+  (Library, Notes, Later) and **Do** (SlothDesk, the Lobster, Ourjong) three a row, then the quiet
+  row: Chats, Personas, Models, Arrange.
+- Upright, the same sections in that order on one page; Today goes four in a row and the word
+  sits beside the idiom when there's room.
+- **Filled cards are status, outlined tiles are places.** Today's cards are filled with no
+  border; Know and Do tiles are outlined. Don't mix the two in one section.
+- **Arrange** is tap to swap: tap a tile, then the one to trade places with, in the same
+  section (Favourites, Know or Do). Tiles go dashed while arranging and the picked one turns
+  soft moss. The order is saved; a new tile keeps its place after the saved ones.
 
 ## Colour
 

@@ -1,5 +1,6 @@
 package app.localmind.assistant.ui.home
 
+import app.localmind.assistant.data.home.HomeSettings
 import android.content.Intent
 import android.text.format.DateUtils
 import android.widget.Toast
@@ -152,7 +153,8 @@ fun HomeRoute(
                     1 -> "1 item"
                     else -> "$items items"
                 },
-                onLibrary
+                onLibrary,
+                key = "library"
             )
         )
         add(
@@ -163,7 +165,8 @@ fun HomeRoute(
                     1 -> "1 note"
                     else -> "${notes.size} notes"
                 },
-                onNotes
+                onNotes,
+                key = "notes"
             )
         )
         val toRead = laterItems.filter { !it.archived }
@@ -171,7 +174,8 @@ fun HomeRoute(
             HomeTile(
                 Icons.Outlined.BookmarkBorder, "Later",
                 if (toRead.isEmpty()) "" else "${toRead.size} to read · ${toRead.sumOf { it.minutesLeft }} min",
-                onLater
+                onLater,
+                key = "later"
             )
         )
     }
@@ -188,11 +192,12 @@ fun HomeRoute(
                     else -> glance?.let { "Prices to ${shortDate(it.dataDate.toString())}" } ?: ""
                 },
                 onDesk,
-                if (ideasDue > 0) Tone.ACCENT else Tone.QUIET
+                if (ideasDue > 0) Tone.ACCENT else Tone.QUIET,
+                key = "desk"
             )
         )
         if (onLobster != null && lobsterLine != null) {
-            add(HomeTile(Icons.Outlined.Sailing, "SlothLobster", lobsterLine, onLobster, Tone.LOBSTER))
+            add(HomeTile(Icons.Outlined.Sailing, "SlothLobster", lobsterLine, onLobster, Tone.LOBSTER, key = "lobster"))
         }
         if (settings.ourjongTile) {
             val intent = ourjong
@@ -204,7 +209,8 @@ fun HomeRoute(
                         if (intent != null) runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
                         else Toast.makeText(context, "Ourjong isn't installed. Add it in Obtainium, then it opens from here.", Toast.LENGTH_LONG).show()
                     },
-                    mark = "中"
+                    mark = "中",
+                    key = "ourjong"
                 )
             )
         }
@@ -238,15 +244,24 @@ fun HomeRoute(
     fun teacherFor(language: SpeechLanguage): Persona? =
         tutorGroups(ui.personas).firstOrNull { it.language == language }?.let(::drillTutor)
 
+    // Arranged as you left them (Home → Arrange), and your favourite personas in their order.
+    val knowArranged = HomeSettings.arranged(know, settings.knowOrder) { it.key }
+    val actArranged = HomeSettings.arranged(act, settings.doOrder) { it.key }
+    val favourites = settings.favourites.mapNotNull { id -> ui.personas.firstOrNull { it.id == id } }
+    val favouriteNotes = favourites.mapNotNull { p -> practisedAgo(lastByPersona[p.id], todayDate, zone)?.let { p.id to it } }.toMap()
+
     HomeScreen(
         script = script,
         conversations = ui.conversations,
         personas = ui.personas,
         today = today,
         learn = learn,
-        know = know,
-        act = act,
+        know = knowArranged,
+        act = actArranged,
         more = more,
+        favourites = favourites,
+        favouriteNotes = favouriteNotes,
+        onChooseFavourites = onPersonas,
         onSearch = onOpenChats,
         onSettings = onSettings,
         onOpenConversation = { id ->
@@ -278,7 +293,14 @@ fun HomeRoute(
                 val language = if (word.cantonese) SpeechLanguage.CANTONESE else SpeechLanguage.MANDARIN
                 startAndSend(teacherFor(language), askWord(word, script == ChineseScript.TRADITIONAL))
             },
-            onAskIdiom = { idiom -> startAndSend(teacherFor(SpeechLanguage.MANDARIN), askIdiom(idiom, script == ChineseScript.TRADITIONAL)) }
+            onAskIdiom = { idiom -> startAndSend(teacherFor(SpeechLanguage.MANDARIN), askIdiom(idiom, script == ChineseScript.TRADITIONAL)) },
+            onSwap = { section, a, b ->
+                when (section) {
+                    "know" -> home.update { it.copy(knowOrder = HomeSettings.swapped(knowArranged.map { t -> t.key }, a, b)) }
+                    "do" -> home.update { it.copy(doOrder = HomeSettings.swapped(actArranged.map { t -> t.key }, a, b)) }
+                    "fav" -> home.update { it.copy(favourites = HomeSettings.swapped(favourites.map { p -> p.id }, a, b) + it.favourites.filter { id -> favourites.none { p -> p.id == id } }) }
+                }
+            }
         )
     )
 }

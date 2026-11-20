@@ -36,6 +36,8 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.Edit
 import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.MoreHoriz
+import androidx.compose.material.icons.outlined.StarOutline
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -108,10 +110,11 @@ fun PersonasScreen(
     val modelAssignments by viewModel.modelAssignments.collectAsStateWithLifecycle()
     val levels by viewModel.levels.collectAsStateWithLifecycle()
     val lastChat by viewModel.lastChat.collectAsStateWithLifecycle()
+    val favourites by viewModel.favourites.collectAsStateWithLifecycle()
     var choosingModel by remember { mutableStateOf<Persona?>(null) }
     val today = remember { LocalDate.now() }
     val zone = remember { ZoneId.systemDefault() }
-    val sections = remember(personas) { personaSections(personas) }
+    val sections = remember(personas, favourites) { personaSections(personas, favourites) }
 
     Column(Modifier.fillMaxSize().background(P.Canvas)) {
         SlothTopBar(
@@ -150,6 +153,8 @@ fun PersonasScreen(
                             mark = personaMark(persona, section.language, script),
                             status = statusLine(persona, levels, lastChat[persona.id], today, zone),
                             ownModel = assigned?.let { a -> models.firstOrNull { it.file.name == a }?.displayName ?: "$a (missing)" },
+                            favourite = persona.id in favourites,
+                            onFavourite = { viewModel.toggleFavourite(persona) },
                             onChat = { onChatWith(persona.id) },
                             onEdit = { viewModel.edit(persona) },
                             onModel = { choosingModel = persona },
@@ -210,9 +215,16 @@ fun PersonasScreen(
 data class PersonaSection(val key: String, val title: String, val language: SpeechLanguage?, val personas: List<Persona>)
 
 private const val ASSISTANTS = "assistants"
+private const val FAVOURITES = "favourites"
 
-/** Tutors by language (partner first), then the assistants (built-in first). */
-fun personaSections(personas: List<Persona>): List<PersonaSection> {
+/**
+ * Your favourites first (in Home's order), then tutors by language (partner first), then the
+ * assistants (built-in first). A favourite shows once, under Favourites.
+ */
+fun personaSections(all: List<Persona>, favourites: List<String> = emptyList()): List<PersonaSection> {
+    val starred = favourites.mapNotNull { id -> all.firstOrNull { it.id == id } }
+    val personas = all.filter { it.id !in favourites }
+    val favs = if (starred.isEmpty()) emptyList() else listOf(PersonaSection(FAVOURITES, "Favourites", null, starred))
     val tutors = personas.filter { it.speech != null }
         .groupBy { it.speech!! }
         .toSortedMap(compareBy { it.ordinal })
@@ -220,7 +232,7 @@ fun personaSections(personas: List<Persona>): List<PersonaSection> {
             PersonaSection(language.name, language.label, language, list.sortedBy { if (roleName(it, language) == "Partner") 0 else 1 })
         }
     val assistants = personas.filter { it.speech == null }.sortedBy { if (it.isBuiltIn) 0 else 1 }
-    return tutors + PersonaSection(ASSISTANTS, "Assistants", null, assistants)
+    return favs + tutors + PersonaSection(ASSISTANTS, "Assistants", null, assistants)
 }
 
 /** "Mandarin Teacher" → "Teacher"; a tutor named just for its language is the partner. */
@@ -319,6 +331,8 @@ private fun PersonaTile(
     mark: String,
     status: String,
     ownModel: String?,
+    favourite: Boolean,
+    onFavourite: () -> Unit,
     onChat: () -> Unit,
     onEdit: () -> Unit,
     onModel: () -> Unit,
@@ -344,6 +358,13 @@ private fun PersonaTile(
                 Text(mark, color = P.Accent, fontSize = if (mark.length > 1) 18.sp else 26.sp, fontWeight = FontWeight.Medium)
             }
             Spacer(Modifier.weight(1f))
+            IconButton(onClick = onFavourite, modifier = Modifier.size(44.dp)) {
+                Icon(
+                    if (favourite) Icons.Filled.Star else Icons.Outlined.StarOutline,
+                    contentDescription = if (favourite) "Remove ${persona.name} from favourites" else "Add ${persona.name} to favourites",
+                    tint = if (favourite) P.Accent else P.Faint
+                )
+            }
             Box {
                 IconButton(onClick = { menu = true }, modifier = Modifier.size(44.dp)) {
                     Icon(Icons.Outlined.MoreHoriz, contentDescription = "More for ${persona.name}", tint = P.Muted)

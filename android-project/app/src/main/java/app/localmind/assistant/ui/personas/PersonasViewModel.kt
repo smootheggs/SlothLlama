@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import app.localmind.assistant.data.home.HomePrefs
 import javax.inject.Inject
 
 /** Editable copy of a persona while the editor is open. */
@@ -74,8 +75,21 @@ class PersonasViewModel @Inject constructor(
     private val library: ModelLibrary,
     private val personaModels: PersonaModelStore,
     tutorLevels: TutorLevelStore,
-    dao: LocalMindDao
+    dao: LocalMindDao,
+    private val homePrefs: HomePrefs
 ) : ViewModel() {
+
+    /** Favourite persona ids, in Home's order. */
+    val favourites: StateFlow<List<String>> = homePrefs.settings
+        .map { it.favourites }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), homePrefs.settings.value.favourites)
+
+    /** Stars or unstars [persona]: a new favourite goes last on Home's row. */
+    fun toggleFavourite(persona: Persona) {
+        homePrefs.update { s ->
+            s.copy(favourites = if (persona.id in s.favourites) s.favourites - persona.id else s.favourites + persona.id)
+        }
+    }
 
     /** Your level in each language, for the tutors' tiles. */
     val levels: StateFlow<Map<SpeechLanguage, TutorLevel>> = tutorLevels.levels

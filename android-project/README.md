@@ -139,11 +139,18 @@ model too big for the GPU falls back to the CPU on its own.
   repeat-after-me (scored word by word, accents optional) and flashcards work in every language.
   Listening: SenseVoice covers Japanese; French, German, Spanish and Italian need Whisper Small
   (Models → Voice input: European languages; three files, about 375 MB).
-- **Home page.** Opens by default: the time, today in Chinese, a hello, Continue and New chat,
-  **Today** (flashcards due, what the Lobster brought back, the weekly backup), the tutors one
-  chip per language and your things with live status, all on one screen (Settings → Appearance →
-  Open on the Home page). OLED black with a moss-green accent, kept for the main action and live
-  numbers; coral is the Lobster's.
+- **Home page.** Opens by default (Settings → Appearance → Open on the Home page). Upright it's
+  one page; sideways (the tablet in landscape, an open foldable) it's two, each one screen
+  tall. The left page is now: the time, today in Chinese, a hello, Continue and New chat,
+  **Today** (flashcards due, what the Lobster brought back, SlothDesk's tickets, the weekly
+  backup) and the day's Chinese. The right page is places: **Favourites**, Learn, Know (Library,
+  Notes, Later) and Do (SlothDesk, the Lobster, Ourjong). OLED black with a moss-green accent,
+  kept for the main action and live numbers; coral is the Lobster's.
+- **Favourites.** Star a persona in Personas (☆ beside ⋯) and it gets a chip on Home and leads
+  the Personas page. The Trader, the Mandarin and Cantonese partners and the General Assistant
+  are starred to begin with. Long-press a tutor's chip for a five-minute drill.
+- **Arrange.** Home → Arrange, then tap a tile and the one to swap it with (Favourites, Know or
+  Do). Done saves the order.
   Back returns to where you came from; Home is in the menu.
 - **Small touches on Home** (each one on or off in Settings → Home). Under the date, a faint
   almanac line: today's festival or solar term (the 24 节气, worked out from the Sun's position
@@ -154,7 +161,7 @@ model too big for the GPU falls back to the CPU on its own.
   to hear it), and a sloth with a coffee in the morning or a lantern on festival days.
   **A little Chinese**: a word of the day (Mandarin and Cantonese in turn) to hear, keep as a
   flashcard or ask the teacher about, and an idiom with its story. Seven dots for the week's
-  practice and "last practised" on each tutor; long-press a tutor for a five-minute drill.
+  practice, and "last practised" on each favourite tutor.
   SlothDesk's fresh tickets in Today, the Lobster's top headline on its tile, and an Ourjong
   tile that opens the mahjong app if it's installed. All offline, from short lists in the app.
 - **Later, a read-it-later shelf.** In any app, share a link and pick **Save for later**: the
@@ -168,8 +175,8 @@ model too big for the GPU falls back to the CPU on its own.
   order box and the newest catch as a card, the rest as rows; SlothDesk shows tonight's tickets
   as a table you mark in place, one strategy in full and the others as rows. The rules are in
   [docs/DESIGN.md](docs/DESIGN.md).
-- **Landscape.** On a tablet held sideways the chat list stays open beside the chat, the Home
-  page and Settings use two columns, and Models and Personas show cards side by side.
+- **Landscape.** On a tablet held sideways the chat list stays open beside the chat, Home is
+  two pages, Settings uses two columns, and Models and Personas show cards side by side.
 - **Start page.** The time, today in Chinese (weekday, lunar date, zodiac year — computed on the
   tablet, no weather because the app stays offline), a hello, and quick ways in.
 - **Private library.** Library (Home or the chat list): add books and documents (PDF, EPUB,
@@ -224,7 +231,8 @@ model too big for the GPU falls back to the CPU on its own.
   which explains it; the numbers are always worked out in code. Nothing connects to a broker.
 - **Reader.** Tap **Read** on a catch (the morning brief, a fetched page, research), a Library
   document or a note to read it in full: headings, lists and links laid out for reading, text
-  size (A− / A+), find in text, and it reopens where you stopped. Tap a link to have the Lobster
+  size (A− / A+), a white page for daylight (the sun / moon button; it stays as you left it),
+  find in text, and it reopens where you stopped. Tap a link to have the Lobster
   fetch it, or pick several headlines with **+** and send them together; the reader itself never
   opens a link. Press and hold a paragraph to save it to Notes or ask a new chat to explain,
   simplify, translate or sum it up (the passage goes along as an attachment). Share sends the

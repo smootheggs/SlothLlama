@@ -33,7 +33,12 @@ data class HomeSettings(
     val lobsterHeadline: Boolean = true,
     val practiceWeek: Boolean = true,
     val tutorDrills: Boolean = true,
-    val ourjongTile: Boolean = true
+    val ourjongTile: Boolean = true,
+    /** Persona ids on Home's favourites row, in order. */
+    val favourites: List<String> = DEFAULT_FAVOURITES,
+    /** The order of the Know and Do tiles, by key ("library", "desk"…); missing keys go last. */
+    val knowOrder: List<String> = emptyList(),
+    val doOrder: List<String> = emptyList()
 ) {
     /** True when [month]/[day] is your birthday (29 February is kept on the 28th in other years). */
     fun isBirthday(month: Int, day: Int, leapYear: Boolean): Boolean {
@@ -43,6 +48,22 @@ data class HomeSettings(
     }
 
     companion object {
+        val DEFAULT_FAVOURITES = listOf(
+            "persona-trader", "persona-mandarin-partner", "persona-cantonese-partner", "persona-general-assistant"
+        )
+
+        /** [items] in [order] (by [key]); anything the order doesn't name keeps its place after. */
+        fun <T> arranged(items: List<T>, order: List<String>, key: (T) -> String): List<T> {
+            val at = order.withIndex().associate { (i, k) -> k to i }
+            return items.withIndex().sortedBy { (i, t) -> at[key(t)] ?: (order.size + i) }.map { it.value }
+        }
+
+        /** [keys] with the items at [a] and [b] swapped. */
+        fun swapped(keys: List<String>, a: Int, b: Int): List<String> {
+            if (a !in keys.indices || b !in keys.indices || a == b) return keys
+            return keys.toMutableList().also { val t = it[a]; it[a] = it[b]; it[b] = t }
+        }
+
         /** "04-21" → (4, 21); anything else → null. */
         fun parseBirthday(text: String): Pair<Int, Int>? {
             val parts = text.trim().split('-')
@@ -87,6 +108,9 @@ class HomePrefs @Inject constructor(@ApplicationContext context: Context) {
             .putBoolean("practice_week", next.practiceWeek)
             .putBoolean("tutor_drills", next.tutorDrills)
             .putBoolean("ourjong_tile", next.ourjongTile)
+            .putString("favourites", next.favourites.joinToString(","))
+            .putString("know_order", next.knowOrder.joinToString(","))
+            .putString("do_order", next.doOrder.joinToString(","))
             .apply()
         _settings.value = next
     }
@@ -114,9 +138,14 @@ class HomePrefs @Inject constructor(@ApplicationContext context: Context) {
             lobsterHeadline = prefs.getBoolean("lobster_headline", d.lobsterHeadline),
             practiceWeek = prefs.getBoolean("practice_week", d.practiceWeek),
             tutorDrills = prefs.getBoolean("tutor_drills", d.tutorDrills),
-            ourjongTile = prefs.getBoolean("ourjong_tile", d.ourjongTile)
+            ourjongTile = prefs.getBoolean("ourjong_tile", d.ourjongTile),
+            favourites = prefs.getString("favourites", null)?.let { split(it) } ?: d.favourites,
+            knowOrder = prefs.getString("know_order", null)?.let { split(it) }.orEmpty(),
+            doOrder = prefs.getString("do_order", null)?.let { split(it) }.orEmpty()
         )
     }
+
+    private fun split(text: String): List<String> = text.split(',').map { it.trim() }.filter { it.isNotEmpty() }
 
     companion object {
         const val FILE = "home"

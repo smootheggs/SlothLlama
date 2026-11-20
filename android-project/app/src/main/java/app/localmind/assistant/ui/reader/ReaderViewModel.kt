@@ -88,6 +88,16 @@ class ReaderViewModel @Inject constructor(
     /** Text size, 0.8× to 1.8×. */
     val scale: StateFlow<Float> = _scale.asStateFlow()
 
+    private val _whitePage = MutableStateFlow(prefs.getBoolean(KEY_WHITE, false))
+    /** Read on a white page (the rest of the app stays as it is). */
+    val whitePage: StateFlow<Boolean> = _whitePage.asStateFlow()
+
+    fun toggleWhitePage() {
+        val v = !_whitePage.value
+        _whitePage.value = v
+        prefs.edit().putBoolean(KEY_WHITE, v).apply()
+    }
+
     private val _picked = MutableStateFlow<Set<String>>(emptySet())
     /** Links picked to send to the Lobster together. */
     val picked: StateFlow<Set<String>> = _picked.asStateFlow()
@@ -321,6 +331,7 @@ class ReaderViewModel @Inject constructor(
     companion object {
         private const val PREFS = "reader"
         private const val KEY_SCALE = "scale"
+        private const val KEY_WHITE = "white_page"
         private const val KEY_RECENT = "recent"
         private const val POS = "pos:"
         private const val STEP = 0.1f
