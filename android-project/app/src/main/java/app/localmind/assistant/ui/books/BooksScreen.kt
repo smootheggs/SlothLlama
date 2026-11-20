@@ -51,6 +51,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -86,6 +87,8 @@ import app.localmind.assistant.domain.books.Shelf
 import app.localmind.assistant.domain.books.ShelfImport
 import app.localmind.assistant.domain.books.ShelfStats
 import app.localmind.assistant.domain.books.Status
+import app.localmind.assistant.domain.books.UserShelf
+import app.localmind.assistant.domain.books.Works
 import app.localmind.assistant.ui.common.SlothTopBar
 import app.localmind.assistant.ui.home.WIDE
 import app.localmind.assistant.ui.theme.SlothPalette as P
@@ -96,12 +99,6 @@ import app.localmind.assistant.ui.trading.QuietButton
 
 /** SlothBooks' three tabs. */
 enum class BooksTab(val label: String) { SHELF("Shelf"), PAPERS("Papers"), INSIGHTS("Insights") }
-
-private enum class Filter(val label: String) {
-    ALL("All"), UNREAD("To read"), READING("Reading"), READ("Read"), FICTION("Fiction"), NONFICTION("Nonfiction"), SERIES("Series")
-}
-
-private enum class Sort(val label: String) { AUTHOR("By author"), TITLE("By title"), YEAR("By year"), ADDED("Newest first") }
 
 private val SERIF = FontFamily.Serif
 
@@ -118,6 +115,10 @@ fun BooksScreen(viewModel: BooksViewModel, onBack: () -> Unit) {
     val busy by viewModel.busy.collectAsStateWithLifecycle()
     val preview by viewModel.preview.collectAsStateWithLifecycle()
     val reading by viewModel.reading.collectAsStateWithLifecycle()
+    val shelves by viewModel.shelves.collectAsStateWithLifecycle()
+    val pick by viewModel.pick.collectAsStateWithLifecycle()
+    val group by viewModel.group.collectAsStateWithLifecycle()
+    val view by viewModel.view.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     var tab by rememberSaveable { mutableStateOf(BooksTab.SHELF) }
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
@@ -141,12 +142,13 @@ fun BooksScreen(viewModel: BooksViewModel, onBack: () -> Unit) {
         return
     }
 
+    CompositionLocalProvider(LocalCovers provides viewModel::coverBitmap) {
     Box(Modifier.fillMaxSize().background(P.Canvas)) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val wide = maxWidth >= WIDE
             val inTab = books.filter { if (tab == BooksTab.PAPERS) it.isPaper else !it.isPaper }
             val selected = books.firstOrNull { it.id == selectedId }?.takeIf { tab != BooksTab.INSIGHTS && (it.isPaper == (tab == BooksTab.PAPERS)) }
-            val shown = selected ?: if (wide) (inTab.firstOrNull { it.status == Status.READING } ?: inTab.firstOrNull()) else null
+            val shown = selected ?: if (wide) (inTab.firstOrNull { it.status == Status.READING } ?: inTab.firstOrNull { tab != BooksTab.SHELF || pick.holds(it) }) else null
             if (!wide && selected != null) BackHandler { selectedId = null }
 
             Column(Modifier.fillMaxSize()) {
@@ -167,8 +169,9 @@ fun BooksScreen(viewModel: BooksViewModel, onBack: () -> Unit) {
                 }
                 val list: @Composable (Modifier) -> Unit = { m ->
                     when (tab) {
-                        BooksTab.SHELF -> ShelfList(
-                            all = books, picked = shown?.id, wide = wide, modifier = m,
+                        BooksTab.SHELF -> ShelfBrowser(
+                            all = books, shelves = shelves, pick = pick, group = group, view = view,
+                            picked = shown?.id, wide = wide, vm = viewModel, modifier = m,
                             onPick = { selectedId = it.id },
                             onImport = pickSheet, onAdd = { editing = viewModel.newBook() }
                         )
@@ -186,16 +189,17 @@ fun BooksScreen(viewModel: BooksViewModel, onBack: () -> Unit) {
                         list(Modifier.weight(1f).fillMaxHeight())
                         Box(Modifier.padding(horizontal = 24.dp, vertical = 16.dp).width(1.dp).fillMaxHeight().background(P.Card))
                         Box(Modifier.weight(1f).fillMaxHeight()) {
-                            if (shown != null) BookCard(shown, books, viewModel, onEdit = { editing = it }, onPick = { selectedId = it.id })
+                            if (shown != null) BookCard(shown, books, viewModel, onEdit = { editing = it }, onPick = { selectedId = it.id }, shelves = shelves)
                             else EmptyCard(tab)
                         }
                     }
-                    selected != null -> BookCard(selected, books, viewModel, onEdit = { editing = it }, onPick = { selectedId = it.id }, modifier = Modifier.padding(horizontal = 24.dp))
+                    selected != null -> BookCard(selected, books, viewModel, onEdit = { editing = it }, onPick = { selectedId = it.id }, modifier = Modifier.padding(horizontal = 24.dp), shelves = shelves)
                     else -> list(Modifier.fillMaxSize().padding(horizontal = 24.dp))
                 }
             }
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
+    }
     }
 
     editing?.let { b ->
@@ -243,210 +247,6 @@ private fun BooksTabs(tab: BooksTab, onTab: (BooksTab) -> Unit, modifier: Modifi
     }
 }
 
-// --- the shelf ---
-
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun ShelfList(
-    all: List<Book>, picked: String?, wide: Boolean, modifier: Modifier,
-    onPick: (Book) -> Unit, onImport: () -> Unit, onAdd: () -> Unit
-) {
-    val books = all.filter { !it.isPaper }
-    var filter by rememberSaveable { mutableStateOf(Filter.ALL) }
-    var sort by rememberSaveable { mutableStateOf(Sort.AUTHOR) }
-    var query by rememberSaveable { mutableStateOf("") }
-    var searching by rememberSaveable { mutableStateOf(false) }
-    if (books.isEmpty()) {
-        Column(modifier.verticalScroll(rememberScrollState()).padding(vertical = 24.dp)) {
-            Column(Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(P.Card).padding(20.dp)) {
-                Text("Your shelf is empty", color = P.Text, fontSize = 21.sp, fontFamily = SERIF)
-                Text(
-                    "Bring in a spreadsheet of your books once (a Title column is all it needs; Author, Year, Genre and the rest are read if they're there), or add books one at a time.",
-                    color = P.Muted, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.padding(top = 6.dp, bottom = 14.dp)
-                )
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    FilledButton("Choose a spreadsheet", onClick = onImport)
-                    Spacer(Modifier.width(8.dp))
-                    QuietButton("Add a book", onClick = onAdd)
-                }
-            }
-        }
-        return
-    }
-    val readingNow = books.filter { it.status == Status.READING }.sortedByDescending { it.updatedAt }
-    val queue = books.filter { it.upNext != null }.sortedBy { it.upNext }
-    val counts = mapOf(
-        Filter.ALL to books.size, Filter.UNREAD to books.count { it.status == Status.UNREAD },
-        Filter.READING to readingNow.size, Filter.READ to books.count { it.status == Status.READ },
-        Filter.FICTION to books.count { it.isFiction }, Filter.NONFICTION to books.count { !it.isFiction },
-        Filter.SERIES to books.count { it.series.isNotBlank() }
-    )
-    val rows = books.asSequence()
-        .filter { b ->
-            when (filter) {
-                Filter.ALL -> true
-                Filter.UNREAD -> b.status == Status.UNREAD
-                Filter.READING -> b.status == Status.READING
-                Filter.READ -> b.status == Status.READ
-                Filter.FICTION -> b.isFiction
-                Filter.NONFICTION -> !b.isFiction
-                Filter.SERIES -> b.series.isNotBlank()
-            }
-        }
-        .filter { Shelf.matches(it, query) }
-        .let { seq ->
-            when {
-                filter == Filter.SERIES -> seq.sortedWith(compareBy({ it.series }, { it.seriesNo ?: Int.MAX_VALUE }, { it.year ?: 0 }))
-                sort == Sort.TITLE -> seq.sortedBy { Book.keyOf(it.title, "") }
-                sort == Sort.YEAR -> seq.sortedWith(compareBy({ it.year ?: Int.MAX_VALUE }, { it.title }))
-                sort == Sort.ADDED -> seq.sortedByDescending { it.addedAt }
-                else -> seq.sortedWith(compareBy({ surname(it.author) }, { it.year ?: 0 }, { it.title }))
-            }
-        }
-        .toList()
-
-    LazyColumn(modifier, verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        item { Spacer(Modifier.height(16.dp)) }
-        readingNow.forEach { b ->
-            item(key = "now-${b.id}") {
-                ReadingNow(b, onClick = { onPick(b) })
-                Spacer(Modifier.height(12.dp))
-            }
-        }
-        if (queue.isNotEmpty()) {
-            item(key = "queue") {
-                Column(Modifier.padding(top = 10.dp, bottom = 14.dp)) {
-                    Label("Up next", "your queue, in order")
-                    FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        queue.forEach { b -> Pill(b.title, selected = b.id == picked, quiet = true, small = true) { onPick(b) } }
-                    }
-                }
-            }
-        }
-        item(key = "filters") {
-            Column(Modifier.padding(top = 8.dp, bottom = 6.dp)) {
-                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Filter.entries.forEach { f ->
-                        Pill("${f.label} ${counts[f] ?: 0}", selected = f == filter, quiet = true, small = true) { filter = f }
-                    }
-                }
-                Row(Modifier.padding(top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    if (searching) {
-                        Box(Modifier.weight(1f)) { Field("", query, "Title, author, series or genre") { query = it } }
-                        QuietButton("Done", muted = true) { searching = false; query = "" }
-                    } else {
-                        IconButton(onClick = { searching = true }) { Icon(Icons.Outlined.Search, contentDescription = "Search the shelf", tint = P.Muted) }
-                        if (filter != Filter.SERIES) {
-                            Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                                Sort.entries.forEach { s ->
-                                    Text(
-                                        s.label, fontSize = 13.sp, color = if (s == sort) P.Text else P.Faint,
-                                        modifier = Modifier.heightIn(min = 44.dp).clip(RoundedCornerShape(10.dp)).clickable { sort = s }
-                                            .padding(horizontal = 10.dp, vertical = 13.dp)
-                                    )
-                                }
-                            }
-                        } else Spacer(Modifier.weight(1f))
-                        Text("○ to read · ◐ reading · ● read", color = P.Faint, fontSize = 12.sp, modifier = Modifier.clearAndSetSemantics {})
-                    }
-                }
-            }
-        }
-        if (rows.isEmpty()) {
-            item { Text("Nothing here.", color = P.Faint, fontSize = 14.sp, modifier = Modifier.padding(vertical = 16.dp)) }
-        }
-        items(rows, key = { it.id }) { b ->
-            BookRow(b, picked = b.id == picked, seriesView = filter == Filter.SERIES, onClick = { onPick(b) })
-        }
-        item { Spacer(Modifier.height(if (wide) 24.dp else 72.dp)) }
-    }
-}
-
-private fun surname(author: String): String =
-    author.split(",", " and ", "&").first().trim().split(' ').lastOrNull().orEmpty().lowercase()
-
-@Composable
-private fun ReadingNow(b: Book, onClick: () -> Unit) {
-    Column(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(22.dp)).background(P.Card).clickable(onClick = onClick).padding(horizontal = 20.dp, vertical = 16.dp)
-    ) {
-        Text("READING NOW", color = P.Faint, fontSize = 12.sp, letterSpacing = 1.4.sp)
-        Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Spine(b)
-            Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
-                Text(b.title, color = P.Text, fontSize = 20.sp, fontFamily = SERIF, maxLines = 2, overflow = TextOverflow.Ellipsis)
-                Text(
-                    listOfNotNull(b.author.ifBlank { null }, b.upTo.ifBlank { null }).joinToString(" · "),
-                    color = P.Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
-                )
-            }
-            Text("${b.progress}%", color = P.Accent, fontSize = 20.sp, fontWeight = FontWeight.Medium)
-        }
-        Progress(b.progress, Modifier.padding(top = 12.dp))
-    }
-}
-
-@Composable
-private fun Progress(percent: Int, modifier: Modifier = Modifier) {
-    Box(
-        modifier.fillMaxWidth().height(4.dp).clip(CircleShape).background(P.Elevated)
-            .semantics { contentDescription = "$percent percent read" }
-    ) {
-        Box(Modifier.fillMaxWidth(percent.coerceIn(0, 100) / 100f).height(4.dp).clip(CircleShape).background(P.Accent))
-    }
-}
-
-/** A book's mark: a small spine with the author's initial (there are no covers: the app is offline). */
-@Composable
-private fun Spine(b: Book) {
-    Box(
-        Modifier.size(width = 30.dp, height = 42.dp).clip(RoundedCornerShape(4.dp)).background(P.Elevated).border(1.dp, P.BorderStrong, RoundedCornerShape(4.dp)),
-        contentAlignment = Alignment.BottomCenter
-    ) {
-        Text(
-            (if (b.isPaper) "¶" else surname(b.author).take(1).uppercase().ifBlank { b.title.take(1) }),
-            color = P.Muted, fontSize = 12.sp, fontFamily = SERIF, modifier = Modifier.padding(bottom = 4.dp).clearAndSetSemantics {}
-        )
-    }
-}
-
-@Composable
-private fun StatusMark(status: String) {
-    val d = Modifier.size(10.dp).clip(CircleShape)
-    val label = Status.label(status)
-    Box(Modifier.semantics { contentDescription = label }) {
-        when (status) {
-            Status.READ -> Box(d.background(P.Accent))
-            Status.READING -> Box(d.border(1.5.dp, P.Accent, CircleShape)) {
-                Box(Modifier.fillMaxHeight().fillMaxWidth(0.5f).background(P.Accent))
-            }
-            Status.ASIDE, Status.REFERENCE -> Box(d.border(1.5.dp, P.Faint, CircleShape)) {
-                Box(Modifier.align(Alignment.Center).size(width = 6.dp, height = 1.5.dp).background(P.Faint))
-            }
-            else -> Box(d.border(1.5.dp, P.Faint, CircleShape))
-        }
-    }
-}
-
-@Composable
-private fun BookRow(b: Book, picked: Boolean, seriesView: Boolean = false, onClick: () -> Unit) {
-    Row(
-        Modifier.fillMaxWidth().heightIn(min = 64.dp).clip(RoundedCornerShape(14.dp))
-            .background(if (picked) P.Card else Color.Transparent).clickable(onClick = onClick).padding(horizontal = 10.dp, vertical = 8.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Spine(b)
-        Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
-            Text(b.title, color = P.Text, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            val meta = if (seriesView) listOfNotNull(b.series + (b.seriesNo?.let { " · $it" } ?: ""), b.author.ifBlank { null })
-            else listOfNotNull(b.author.ifBlank { null }, b.yearText.ifBlank { null }, b.readingIn.ifBlank { null }, (b.series.ifBlank { null } ?: b.form.ifBlank { null }))
-            Text(meta.joinToString(" · "), color = P.Muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        }
-        if (b.upNext != null) Text("Up next", color = P.Accent, fontSize = 12.sp, modifier = Modifier.padding(end = 10.dp))
-        StatusMark(b.status)
-    }
-}
-
 // --- papers ---
 
 @Composable
@@ -476,7 +276,7 @@ private fun PapersList(papers: List<Book>, picked: String?, modifier: Modifier, 
                     .background(if (p.id == picked) P.Card else Color.Transparent).clickable { onPick(p) }.padding(horizontal = 10.dp, vertical = 8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Spine(p)
+                BookCover(p, 30.dp)
                 Column(Modifier.weight(1f).padding(horizontal = 14.dp)) {
                     Text(p.title, color = P.Text, fontSize = 16.sp, maxLines = 2, overflow = TextOverflow.Ellipsis)
                     Text(
@@ -485,7 +285,7 @@ private fun PapersList(papers: List<Book>, picked: String?, modifier: Modifier, 
                     )
                 }
                 if (p.fresh) Text("New", color = P.Accent, fontSize = 12.sp, modifier = Modifier.padding(end = 10.dp))
-                StatusMark(p.status)
+                StatusDot(p.status)
             }
         }
         item { Spacer(Modifier.height(72.dp)) }
@@ -511,13 +311,15 @@ private fun EmptyCard(tab: BooksTab) {
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun BookCard(
-    book: Book, all: List<Book>, vm: BooksViewModel, onEdit: (Book) -> Unit, onPick: (Book) -> Unit, modifier: Modifier = Modifier
+    book: Book, all: List<Book>, vm: BooksViewModel, onEdit: (Book) -> Unit, onPick: (Book) -> Unit, modifier: Modifier = Modifier,
+    shelves: List<UserShelf> = emptyList()
 ) {
     val context = LocalContext.current
     var menu by remember { mutableStateOf(false) }
     var reveal by remember(book.id) { mutableStateOf(false) }
     Column(modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 18.dp, bottom = 48.dp)) {
         Row(verticalAlignment = Alignment.Top) {
+            BookCover(book, 96.dp, Modifier.padding(end = 18.dp))
             Column(Modifier.weight(1f)) {
                 Text(book.title, color = P.Text, fontSize = 26.sp, lineHeight = 32.sp, fontFamily = SERIF)
                 val meta = listOfNotNull(
@@ -565,11 +367,31 @@ private fun BookCard(
             }
         }
 
+        // Other copies of the same book (an illustrated edition, a translation).
+        val copies = Works.copies(all)[book.id].orEmpty()
+        if (copies.isNotEmpty()) {
+            Label("Copies", "${copies.size + 1}")
+            copies.forEach { c ->
+                Row(
+                    Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(RoundedCornerShape(12.dp)).clickable { onPick(c) }.padding(horizontal = 6.dp, vertical = 6.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    BookCover(c, 30.dp)
+                    Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                        Text(c.title, color = P.Text, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                        Text(listOfNotNull(c.readingIn.ifBlank { null }?.let { "in $it" }, c.format.ifBlank { null }, Status.label(c.status)).joinToString(" · "), color = P.Muted, fontSize = 13.sp)
+                    }
+                    StatusDot(c.status)
+                }
+            }
+        }
+
         // You
         Label("You")
         Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Status.ALL.forEach { s -> Pill(Status.label(s), selected = book.status == s, quiet = true, small = true) { vm.setStatus(book, s) } }
         }
+        ShelfChips(book, shelves, vm)
         val dates = listOfNotNull(
             book.started.ifBlank { null }?.let { "Started $it" }, book.finished.ifBlank { null }?.let { "Finished $it" },
             if (book.reads > 1) "Read ${book.reads} times in the app" else null
@@ -651,12 +473,12 @@ private fun BookCard(
                     Modifier.fillMaxWidth().heightIn(min = 52.dp).clip(RoundedCornerShape(12.dp)).clickable { onPick(l.book) }.padding(horizontal = 6.dp, vertical = 6.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Spine(l.book)
+                    BookCover(l.book, 30.dp)
                     Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                         Text(l.book.title, color = P.Text, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                         Text("${l.book.author} · ${l.why}", color = P.Muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
-                    StatusMark(l.book.status)
+                    StatusDot(l.book.status)
                 }
             }
         }
@@ -689,6 +511,23 @@ private fun BookCard(
             )
         }
     }
+}
+
+/** The shelves of yours a book is on: tap to take it off or put it on; + to make a new one for it. */
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun ShelfChips(book: Book, shelves: List<UserShelf>, vm: BooksViewModel) {
+    var naming by remember { mutableStateOf(false) }
+    Text("Shelves", color = P.Faint, fontSize = 12.sp, modifier = Modifier.padding(top = 14.dp, bottom = 6.dp))
+    FlowRow(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+        shelves.forEach { s -> Pill(s.name, selected = s.id in book.shelves, quiet = true, small = true) { vm.setOnShelf(book, s, s.id !in book.shelves) } }
+        Box(
+            Modifier.heightIn(min = 40.dp).clip(RoundedCornerShape(18.dp)).border(1.dp, P.BorderStrong, RoundedCornerShape(18.dp))
+                .clickable(role = Role.Button) { naming = true }.padding(horizontal = 12.dp),
+            contentAlignment = Alignment.Center
+        ) { Text(if (shelves.isEmpty()) "+ Make a shelf for it" else "+ New shelf", color = P.Muted, fontSize = 12.sp) }
+    }
+    if (naming) NameDialog("New shelf for ${book.title}", "", onDone = { vm.createShelf(it, addTo = book); naming = false }, onDismiss = { naming = false })
 }
 
 @Composable
@@ -902,7 +741,10 @@ private fun BookEditor(start: Book, isNew: Boolean, onSave: (Book) -> Unit, onDi
                 Box(Modifier.weight(3f)) { Field("Series or cycle", b.series, "Optional") { b = b.copy(series = it) } }
                 Box(Modifier.weight(1f)) { Field("Number", number, "", number = true) { number = it } }
             }
-            Field("Region", b.region, "Europe, Asia, North America…") { b = b.copy(region = it) }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Box(Modifier.weight(1f)) { Field("Region", b.region, "Europe, Asia, North America…") { b = b.copy(region = it) } }
+                Box(Modifier.weight(1f)) { Field("Topic", b.topic, "Only to change its group (Topic)") { b = b.copy(topic = it) } }
+            }
             Field("About", b.about, "One line on what it is", lines = 2) { b = b.copy(about = it) }
             Field("Notes", b.notes, "Awards, edition…") { b = b.copy(notes = it) }
             Row(Modifier.padding(top = 18.dp), verticalAlignment = Alignment.CenterVertically) {

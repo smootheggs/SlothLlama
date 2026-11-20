@@ -103,6 +103,16 @@ model too big for the GPU falls back to the CPU on its own.
   have. PDFs open in SlothBooks' own viewer, and their text goes into the Library so the book
   button finds it. **Insights:** what you've read, series progress, when your books were
   written, in what languages and where from, all counted on the tablet.
+- **Organising SlothBooks.** The default shelves (All, Reading, Up next, To read, Read,
+  Reference) are always there; make your own with **+ New shelf**, rename or remove them from
+  their ⋯ (the books stay), and put a book on any of them from its card. **Group by** author,
+  genre, topic (History splits into China and East Asia, the World Wars, the Middle East…), series,
+  era, language or region, with a header per group and an A–Z strip by author. An author with four
+  or more books folds into one stack you open in place; copies of one book (an illustrated
+  edition, a translation) are one row with "2 copies". Language courses, cookbooks and guides go on
+  Reference, out of To read. Show the shelf as a **list**, **small covers** or **large covers**.
+  Every book has a cover: a PDF's first page or an EPUB's own cover when there's a file, else one
+  made on the tablet from the title and genre.
 - **SlothDesk: Ideas and Calculators.** SlothDesk has three tabs: Strategies, Ideas, Calculators.
   **Ideas:** write an idea before it
   plays out (instrument, direction, entry, stop, target, horizon, thesis, what would prove it

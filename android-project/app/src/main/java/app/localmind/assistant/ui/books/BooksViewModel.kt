@@ -8,6 +8,12 @@ import app.localmind.assistant.data.ask.AskInbox
 import app.localmind.assistant.data.ask.LaunchRequest
 import app.localmind.assistant.data.attachments.AttachmentStore
 import app.localmind.assistant.data.books.BookShelf
+import app.localmind.assistant.data.books.CoverStore
+import app.localmind.assistant.domain.books.CoverSource
+import app.localmind.assistant.domain.books.DefaultShelf
+import app.localmind.assistant.domain.books.GroupBy
+import app.localmind.assistant.domain.books.ShelfPick
+import app.localmind.assistant.domain.books.UserShelf
 import app.localmind.assistant.data.books.PaperFiles
 import app.localmind.assistant.data.books.SheetReader
 import app.localmind.assistant.data.library.LibraryStore
@@ -37,18 +43,76 @@ import kotlinx.coroutines.withContext
 import java.time.LocalDate
 import javax.inject.Inject
 
+/** How the shelf is shown. */
+enum class BookView { LIST, SMALL, LARGE }
+
 /** SlothBooks: the shelf, its cards, papers kept as files, the counts, and the way into the Librarian. */
 @HiltViewModel
 class BooksViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     private val shelf: BookShelf,
     private val files: PaperFiles,
+    private val covers: CoverStore,
     private val library: LibraryStore,
     private val askInbox: AskInbox,
     private val attachments: AttachmentStore
 ) : ViewModel() {
 
     val books: StateFlow<List<Book>> = shelf.books
+
+    /** Your own shelves (the default ones aren't in here). */
+    val shelves: StateFlow<List<UserShelf>> = shelf.shelves
+
+    private val prefs = context.getSharedPreferences("books", Context.MODE_PRIVATE)
+
+    private val _view = MutableStateFlow(BookView.entries.firstOrNull { it.name == prefs.getString("view", null) } ?: BookView.LIST)
+    /** List, small covers or large covers; remembered. */
+    val view: StateFlow<BookView> = _view.asStateFlow()
+
+    private val _group = MutableStateFlow(GroupBy.entries.firstOrNull { it.name == prefs.getString("group", null) } ?: GroupBy.AUTHOR)
+    val group: StateFlow<GroupBy> = _group.asStateFlow()
+
+    private val _pick = MutableStateFlow<ShelfPick>(ShelfPick.Default(DefaultShelf.ALL))
+    /** The shelf the list shows. */
+    val pick: StateFlow<ShelfPick> = _pick.asStateFlow()
+
+    fun setView(v: BookView) {
+        _view.value = v
+        prefs.edit().putString("view", v.name).apply()
+    }
+
+    fun setGroup(g: GroupBy) {
+        _group.value = g
+        prefs.edit().putString("group", g.name).apply()
+    }
+
+    fun choose(p: ShelfPick) {
+        _pick.value = p
+    }
+
+    // --- your shelves ---
+
+    fun createShelf(name: String, addTo: Book? = null) = act {
+        val made = shelf.createShelf(name)
+        if (addTo != null) shelf.setOnShelf(addTo.id, made.id, true) else _pick.value = ShelfPick.Mine(made.id)
+        if (addTo != null) "${addTo.title} is on ${made.name}" else null
+    }
+
+    fun renameShelf(s: UserShelf, name: String) = act { shelf.renameShelf(s.id, name); null }
+
+    fun deleteShelf(s: UserShelf) = act {
+        shelf.deleteShelf(s.id)
+        if ((_pick.value as? ShelfPick.Mine)?.id == s.id) _pick.value = ShelfPick.Default(DefaultShelf.ALL)
+        "${s.name} is gone; its books are still on your shelf"
+    }
+
+    fun setOnShelf(book: Book, s: UserShelf, on: Boolean) = act { shelf.setOnShelf(book.id, s.id, on); null }
+
+    // --- covers ---
+
+    /** The kept cover for [book] at about [widthPx] wide, or null for the made one. Blocking: call off the main thread. */
+    fun coverBitmap(book: Book, widthPx: Int): android.graphics.Bitmap? =
+        book.cover.takeIf { it.isNotBlank() }?.let { covers.load(it, widthPx) }
 
     val stats: StateFlow<ShelfStats> = shelf.books.map { ShelfStats.of(it, LocalDate.now()) }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), ShelfStats.of(emptyList(), LocalDate.now()))
@@ -129,6 +193,7 @@ class BooksViewModel @Inject constructor(
 
     fun delete(book: Book) = act {
         shelf.delete(book.id)
+        if (book.cover.isNotBlank()) withContext(Dispatchers.IO) { covers.delete(book.cover) }
         "${book.title} is off the shelf" + if (book.hasFile) " (the file stays in Documents/${PaperFiles.ROOT})" else ""
     }
 
@@ -228,8 +293,17 @@ class BooksViewModel @Inject constructor(
         _reading.value = null
     }
 
-    /** Files on the shelf whose text isn't in the Library yet: indexed one at a time, quietly. */
+    /** Files on the shelf whose text isn't in the Library yet: indexed one at a time, quietly. Covers come from the files too. */
     private suspend fun indexFiles() {
+        for (b in shelf.books.value.filter { it.hasFile && it.cover.isBlank() && it.coverSource.isBlank() }) {
+            val epub = b.fileName.endsWith(".epub", ignoreCase = true)
+            val made = withContext(Dispatchers.IO) {
+                val name = CoverStore.nameFor(b.id)
+                if (epub) covers.fromEpub(name, Uri.parse(b.file)) else covers.fromPdf(name, Uri.parse(b.file))
+            }
+            // A file with no usable first page or cover keeps the made one, and isn't tried again.
+            shelf.update(b.id) { it.copy(cover = made.orEmpty(), coverSource = if (made == null) "none" else if (epub) CoverSource.EPUB else CoverSource.PDF) }
+        }
         for (b in shelf.books.value.filter { it.hasFile && it.libraryId == null }) {
             try {
                 val item = library.addDocument(Uri.parse(b.file))

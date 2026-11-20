@@ -68,6 +68,16 @@ data class Book(
     val reads: Int = 0,
     /** A paper the Lobster brought that you haven't opened yet. */
     val fresh: Boolean = false,
+    /** Ids of your own shelves this book is on ([UserShelf]). */
+    val shelves: List<String> = emptyList(),
+    /** Your topic for it, when the one worked out ([Topics.of]) doesn't fit. */
+    val topic: String = "",
+    /** The cover's file name in the app's covers folder ("" = the made cover). */
+    val cover: String = "",
+    /** Where the cover came from: [CoverSource]. */
+    val coverSource: String = "",
+    /** Covers the Lobster found to choose from (files "<id>.c1.jpg"…), 0 = none waiting. */
+    val coverChoices: Int = 0,
     val addedAt: Long = 0,
     val updatedAt: Long = 0
 ) {
@@ -127,6 +137,20 @@ object GistSource {
         YOU -> "yours"
         else -> "general knowledge, not the text"
     }
+}
+
+/** A shelf you made. The default shelves (All, Reading, Up next, To read, Read, Reference) aren't these and can't be removed. */
+@Serializable
+data class UserShelf(val id: String, val name: String, val createdAt: Long = 0)
+
+object CoverSource {
+    const val PDF = "pdf"
+    const val EPUB = "epub"
+    const val LOBSTER = "lobster"
+    const val PHOTO = "photo"
+
+    /** Covers you chose or that came from the file itself are never replaced by a fetch for the whole shelf. */
+    fun keeps(source: String): Boolean = source == PHOTO || source == PDF || source == EPUB
 }
 
 object Kinds {

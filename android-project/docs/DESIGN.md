@@ -94,3 +94,9 @@ sleepy z's) are decoration: hidden from TalkBack and switchable in Settings → 
   where it came from ("general knowledge, not the text"). A novel's gist stays folded until you
   mark it Read.
 - Counts on Insights are worked out in code and say so.
+- The shelves row comes first: default shelves (can't be removed), a hairline, then yours and
+  "+ New shelf" (dashed). A picked shelf of yours shows its ⋯ (rename, remove).
+- Group by and the view switch (list, small covers, large covers) sit on one line under it.
+  Group headers stay pinned while you scroll. Stacks and copies keep a long shelf short.
+- Made covers: the title in serif and the author on a dark colour by genre, so the grid never
+  has holes; a real cover replaces it when there is one.

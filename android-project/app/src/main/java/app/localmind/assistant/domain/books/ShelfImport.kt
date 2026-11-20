@@ -68,7 +68,7 @@ object ShelfImport {
         val form = get(FORM).let { f -> Forms.ALL.firstOrNull { it.equals(f, ignoreCase = true) } }
             ?: Forms.guess(genre, subgenre, fiction)
         val format = get(FORMAT).let { f -> FORMATS.firstOrNull { it.equals(f, ignoreCase = true) } }.orEmpty()
-        return Book(
+        val book = Book(
             id = id(),
             kind = if (form == Forms.PAPER) Kinds.PAPER else Kinds.BOOK,
             title = title,
@@ -90,6 +90,8 @@ object ShelfImport {
             addedAt = now,
             updatedAt = now
         )
+        // Language courses, cookbooks and guides go on the Reference shelf rather than To read.
+        return if (ReferenceRule.looksLikeReference(book)) book.copy(status = Status.REFERENCE) else book
     }
 
     /** "1844", "1844.0", "-440", "440 BC", "c. 1400" → a year; anything else → null. */

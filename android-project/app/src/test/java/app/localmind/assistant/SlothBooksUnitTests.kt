@@ -3,6 +3,14 @@ package app.localmind.assistant
 import app.localmind.assistant.data.books.PaperFiles
 import app.localmind.assistant.data.books.SheetReader
 import app.localmind.assistant.domain.books.Book
+import app.localmind.assistant.domain.books.DefaultShelf
+import app.localmind.assistant.domain.books.Entry
+import app.localmind.assistant.domain.books.GroupBy
+import app.localmind.assistant.domain.books.Grouping
+import app.localmind.assistant.domain.books.ReferenceRule
+import app.localmind.assistant.domain.books.ShelfPick
+import app.localmind.assistant.domain.books.Topics
+import app.localmind.assistant.domain.books.Works
 import app.localmind.assistant.domain.books.Forms
 import app.localmind.assistant.domain.books.GistCard
 import app.localmind.assistant.domain.books.LibrarianContext
@@ -171,6 +179,76 @@ class SlothBooksUnitTests {
         assertTrue(Shelf.matches(b, "cafe"))
         assertTrue(Shelf.matches(b, "elise"))
         assertFalse(Shelf.matches(b, "harbour"))
+    }
+
+    // --- organising (1.30) ---
+
+    @Test
+    fun `courses, cookbooks and guides go to Reference, a travel memoir doesn't`() {
+        val course = book("Speak Lumarian Today", form = Forms.NONFICTION, genre = "Language Learning")
+        val guide = book("Harbour Towns", form = Forms.NONFICTION, genre = "Travel").copy(subgenre = "Travel Guide / Coast")
+        val memoir = book("Walking the Coast", form = Forms.NONFICTION, genre = "Travel").copy(subgenre = "Travel writing")
+        val novel = book("The Cook's Guide to Murder", form = Forms.NOVEL)
+        assertTrue(ReferenceRule.looksLikeReference(course))
+        assertTrue(ReferenceRule.looksLikeReference(guide))
+        assertFalse(ReferenceRule.looksLikeReference(memoir))
+        assertFalse(ReferenceRule.looksLikeReference(novel))
+        val imported = ShelfImport.toBook(mapOf("Title" to "Speak Lumarian Today", "Genre" to "Language Learning", "Fiction/Nonfiction" to "Nonfiction"), 1L) { "x" }!!
+        assertEquals(Status.REFERENCE, imported.status)
+        assertTrue(DefaultShelf.REFERENCE.holds(imported))
+        assertFalse(DefaultShelf.TO_READ.holds(imported))
+    }
+
+    @Test
+    fun `an illustrated edition and a translation are copies; a sequel isn't`() {
+        val a = book("The Long Road", "Ines Varga")
+        val b = book("The Long Road Illustrated", "Ines Varga")
+        val c = book("Romance of the Two Rivers", "Lo Wen")
+        val d = book("Two Rivers", "Lo Wen").copy(readIn = "Chinese")
+        val sequel = book("The Long Road Home", "Ines Varga")
+        val copies = Works.copies(listOf(a, b, c, d, sequel))
+        assertEquals(listOf(b.id), copies[a.id]?.map { it.id })
+        assertEquals(listOf(c.id), copies[d.id]?.map { it.id })
+        assertNull(copies[sequel.id])
+    }
+
+    @Test
+    fun `grouped by author, prolific authors stack and copies are one row`() {
+        val plays = (1..5).map { book("Play $it", "Will Quill", form = Forms.DRAMA) }
+        val lone = book("Quiet Shore", "Ada Quinn")
+        val one = book("The Long Road", "Ines Varga")
+        val two = book("The Long Road Illustrated", "Ines Varga")
+        val sections = Grouping.sections(plays + lone + one + two, GroupBy.AUTHOR)
+        assertEquals(listOf("Q", "V"), sections.map { it.title })
+        val q = sections[0].entries
+        assertTrue(q.any { it is Entry.Stack && it.books.size == 5 })
+        assertTrue(q.any { it is Entry.One && it.book.title == "Quiet Shore" })
+        val v = sections[1].entries.single() as Entry.One
+        assertEquals(1, v.copies.size)
+        assertEquals(2, sections[1].count)
+    }
+
+    @Test
+    fun `topics split history; your own topic wins`() {
+        val h = book("Dragon Courts", form = Forms.NONFICTION, genre = "History").copy(subgenre = "Asian History")
+        assertEquals("History · China and East Asia", Topics.of(h))
+        assertEquals("Harbours", Topics.of(h.copy(topic = "Harbours")))
+        assertEquals("Mystery", Topics.of(book("Fog Lane")))
+    }
+
+    @Test
+    fun `authors are filed by surname, particles kept`() {
+        assertEquals("Balzac, Honoré de", Grouping.filed("Honoré de Balzac"))
+        assertEquals("balzac", Grouping.surname("Honoré de Balzac"))
+        assertEquals("Quill, Will", Grouping.filed("Will Quill"))
+    }
+
+    @Test
+    fun `your shelves hold what you put on them`() {
+        val b = book("Quiet Shore").copy(shelves = listOf("s1"))
+        assertTrue(ShelfPick.Mine("s1").holds(b))
+        assertFalse(ShelfPick.Mine("s2").holds(b))
+        assertTrue(ShelfPick.Default(DefaultShelf.ALL).holds(b))
     }
 
     // --- the Librarian ---
