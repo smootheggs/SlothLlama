@@ -432,7 +432,8 @@ private fun QuizQuestion(vm: AtlasViewModel, world: AtlasWorld, quiz: QuizState,
         }
         Text(q.prompt, color = P.Text, fontSize = 20.sp, fontFamily = SERIF)
         BoxWithConstraints {
-            val two = maxWidth > 520.dp
+            val full = maxWidth
+            val two = full > 520.dp
             FlowRow(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 q.options.forEachIndexed { i, option ->
                     val chosen = quiz.chosen
@@ -440,7 +441,7 @@ private fun QuizQuestion(vm: AtlasViewModel, world: AtlasWorld, quiz: QuizState,
                     val isWrong = chosen == i && i != q.answer
                     Box(
                         Modifier
-                            .width(if (two) (maxWidth - 10.dp) / 2 else maxWidth)
+                            .width(if (two) (full - 10.dp) / 2 else full)
                             .heightIn(min = 56.dp)
                             .clip(RoundedCornerShape(16.dp))
                             .background(if (isRight) P.AccentSoft else androidx.compose.ui.graphics.Color.Transparent)

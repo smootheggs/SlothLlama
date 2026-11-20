@@ -182,6 +182,7 @@ internal fun CountryPage(info: CountryInfo, world: AtlasWorld, vm: AtlasViewMode
 }
 
 /** English first (the page's title), then the names in the tutors' languages, each marked. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun NamesBlock(c: app.localmind.assistant.domain.atlas.AtlasCountry, reading: String) {
     val rows = listOf(
