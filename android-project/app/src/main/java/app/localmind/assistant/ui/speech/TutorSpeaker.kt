@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
+import android.speech.tts.Voice
 import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -60,7 +61,15 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
         when (val p = prepare(text, language)) {
             Prepared.NothingToSay -> toast("Nothing to read aloud in this reply")
             Prepared.NoVoice -> {
-                toast("No ${language.label} voice installed. Opening voice settings…")
+                if (language == SpeechLanguage.CANTONESE) {
+                    toast(
+                        "No Cantonese voice on this tablet, so it isn't read in Mandarin instead. " +
+                            "Add one: Speech Services by Google → Install voice data → Chinese (Hong Kong).",
+                        long = true
+                    )
+                } else {
+                    toast("No ${language.label} voice installed. Opening voice settings…")
+                }
                 openVoiceInstaller()
             }
             is Prepared.Ready -> tts.speak(p.text, TextToSpeech.QUEUE_FLUSH, null, "tutor-reply")
@@ -103,12 +112,44 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
     private fun prepare(text: String, language: SpeechLanguage, rate: Float = LEARNER_RATE): Prepared {
         val spoken = spokenText(text, language)
         if (spoken.isBlank()) return Prepared.NothingToSay
-        val locale = language.localeTags
-            .map { Locale.forLanguageTag(it) }
-            .firstOrNull { isUsable(tts.isLanguageAvailable(it)) }
-        if (locale == null || !isUsable(tts.setLanguage(locale))) return Prepared.NoVoice
+        if (!chooseVoice(language)) return Prepared.NoVoice
         tts.setSpeechRate(rate)
         return Prepared.Ready(spoken)
+    }
+
+    /** The engine's voices, as plain facts ([VoiceChoice] decides between them). */
+    private fun voices(): List<Pair<Voice, VoiceChoice.Candidate>> =
+        runCatching { tts.voices?.toList() }.getOrNull().orEmpty().map { v ->
+            v to VoiceChoice.Candidate(
+                name = v.name,
+                locale = v.locale,
+                needsNetwork = v.isNetworkConnectionRequired,
+                notInstalled = v.features?.contains(TextToSpeech.Engine.KEY_FEATURE_NOT_INSTALLED) == true,
+                quality = v.quality
+            )
+        }
+
+    /**
+     * Sets a voice for [language]. Cantonese takes only a real Cantonese voice: an engine without
+     * one says "Chinese (Hong Kong)" is fine and then reads in Mandarin, so a language-only match
+     * doesn't count. Only voices on the tablet are picked by name; online ones never are.
+     */
+    private fun chooseVoice(language: SpeechLanguage): Boolean {
+        val listed = voices()
+        VoiceChoice.pick(language, listed.map { it.second })?.let { name ->
+            val voice = listed.first { it.second.name == name }.first
+            if (runCatching { tts.setVoice(voice) }.getOrDefault(TextToSpeech.ERROR) == TextToSpeech.SUCCESS) return true
+        }
+        val locales = language.localeTags.map { Locale.forLanguageTag(it) }
+        if (language == SpeechLanguage.CANTONESE) {
+            // Engines that don't list their voices: the country has to match, not just "Chinese".
+            val locale = locales.firstOrNull { tts.isLanguageAvailable(it) >= TextToSpeech.LANG_COUNTRY_AVAILABLE } ?: return false
+            if (!isUsable(tts.setLanguage(locale))) return false
+            val now = runCatching { tts.voice }.getOrNull()
+            return now == null || VoiceChoice.isCantonese(now.locale, now.name)
+        }
+        val locale = locales.firstOrNull { isUsable(tts.isLanguageAvailable(it)) } ?: return false
+        return isUsable(tts.setLanguage(locale))
     }
 
     /** For personas without a Chinese voice: the reply without Markdown, in the tablet's language. */
@@ -147,8 +188,8 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
         }
     }
 
-    private fun toast(message: String) {
-        Toast.makeText(appContext, message, Toast.LENGTH_SHORT).show()
+    private fun toast(message: String, long: Boolean = false) {
+        Toast.makeText(appContext, message, if (long) Toast.LENGTH_LONG else Toast.LENGTH_SHORT).show()
     }
 
     companion object {
@@ -246,4 +287,50 @@ fun rememberTutorSpeaker(): TutorSpeaker {
         onDispose { speaker.shutdown() }
     }
     return speaker
+}
+
+/**
+ * Which text-to-speech voice reads a language: a voice that speaks it (for Cantonese, really
+ * Cantonese), installed and on the tablet, best quality first.
+ */
+object VoiceChoice {
+    data class Candidate(
+        val name: String,
+        val locale: Locale?,
+        val needsNetwork: Boolean,
+        val notInstalled: Boolean,
+        val quality: Int
+    )
+
+    /** A Cantonese voice: yue, or Chinese for Hong Kong or Macau (Mandarin voices there are rare). */
+    fun isCantonese(locale: Locale?, name: String?): Boolean {
+        val n = name.orEmpty().lowercase()
+        if (n.contains("yue") || n.contains("cantonese")) return true
+        if (locale == null) return false
+        val lang = locale.language.lowercase()
+        if (lang == "yue") return true
+        return lang == "zh" && (locale.country.equals("HK", true) || locale.country.equals("MO", true))
+    }
+
+    private fun speaks(language: SpeechLanguage, c: Candidate): Boolean {
+        if (language == SpeechLanguage.CANTONESE) return isCantonese(c.locale, c.name)
+        val locale = c.locale ?: return false
+        // Mandarin from a Cantonese voice would be the same mistake the other way round.
+        if (language == SpeechLanguage.MANDARIN && isCantonese(locale, c.name)) return false
+        return language.localeTags.any { tag -> Locale.forLanguageTag(tag).language == locale.language }
+    }
+
+    /** The name of the voice to use, or null to leave it to the engine. */
+    fun pick(language: SpeechLanguage, voices: List<Candidate>): String? {
+        val wanted = language.localeTags.map { Locale.forLanguageTag(it) }
+        return voices
+            // A voice that needs the network sends the text off the tablet, so it's never picked.
+            .filter { !it.notInstalled && !it.needsNetwork && speaks(language, it) }
+            .sortedWith(
+                // The listed regions in order (zh-CN before zh-TW), then the rest; best quality first.
+                compareBy<Candidate> { c -> wanted.indexOfFirst { it.country.equals(c.locale?.country, true) }.let { if (it < 0) wanted.size else it } }
+                    .thenByDescending { it.quality }
+            )
+            .firstOrNull()?.name
+    }
 }

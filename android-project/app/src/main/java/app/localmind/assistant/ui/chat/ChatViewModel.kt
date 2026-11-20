@@ -313,10 +313,12 @@ class ChatViewModel @Inject constructor(
      * Something shared from another app: a new chat (with the general assistant if a tutor was
      * open) with the photo or document attached and [prompt] in the box, ready to send or edit.
      */
-    fun receiveShare(prompt: String, photo: String?, document: DocumentText?) {
+    fun receiveShare(prompt: String, photo: String?, document: DocumentText?, personaId: String? = null) {
         if (_isGenerating.value) return
         val tutor = uiState.value.activePersona.speech != null
-        createNewConversation(personaId = if (tutor) BuiltInPersonas.GENERAL_ASSISTANT.id else _selectedPersonaId.value)
+        createNewConversation(
+            personaId = personaId ?: if (tutor) BuiltInPersonas.GENERAL_ASSISTANT.id else _selectedPersonaId.value
+        )
         _attachments.value = PendingAttachments(photo = photo, document = document)
         _inputText.value = prompt
     }

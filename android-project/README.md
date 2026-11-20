@@ -78,6 +78,17 @@ model too big for the GPU falls back to the CPU on its own.
   save it as a flashcard. Drawer → Dictionary searches by characters, pinyin (`nihao`,
   `ni3 hao3`) or English. Built from CC-CEDICT (CC BY-SA 4.0) with Jyutping from ToJyutping;
   CI fetches both at pinned checksums (`scripts/fetch-dictionary.sh`).
+- **Trader.** A built-in persona: a senior precious-metals sales trader (gold, silver, PGMs;
+  spot, forwards, leases and the FX swaps between currencies) who coaches. Send it news with
+  **Read it like a trader** (Share to SlothLlama, or **Ask the trader** in the reader): what
+  happened, why it matters, priced in or a surprise, which clients care and what you'd tell
+  them, and the other side. It writes trade ideas as cards (entry, stop, target, horizon,
+  thesis, wrong if) and plays clients for pitch practice, with feedback when the call ends.
+  SlothDesk's **Ask about this** goes to it too. It never works out prices or P&L itself.
+- **Voices.** Each language is read by a voice installed on the tablet (never one that sends the
+  text online). Cantonese is only read by a real Cantonese voice: without one, it says so instead
+  of reading in Mandarin. To add one: Speech Services by Google → Install voice data →
+  Chinese (Hong Kong).
 - **Core words.** Home → Core words: the most-used words of Mandarin (2,500, with HSK 3.0
   levels), Cantonese (1,500, from spoken Hong Kong Cantonese) and French (1,575), ranked by
   frequency and sorted by part of speech (nouns, verbs, adjectives, measure words, particles…).

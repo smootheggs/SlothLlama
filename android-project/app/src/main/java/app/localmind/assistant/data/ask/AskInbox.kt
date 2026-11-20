@@ -21,7 +21,9 @@ sealed interface LaunchRequest {
     data class Shared(
         val prompt: String,
         val photo: String? = null,
-        val document: app.localmind.assistant.domain.attachments.DocumentText? = null
+        val document: app.localmind.assistant.domain.attachments.DocumentText? = null,
+        /** Who answers; null keeps the open persona (or the general assistant over a tutor). */
+        val personaId: String? = null
     ) : LaunchRequest
     /** Open the SlothLobster page. */
     data object Lobster : LaunchRequest

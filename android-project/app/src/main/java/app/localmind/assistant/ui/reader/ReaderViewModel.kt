@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.localmind.assistant.data.ask.AskInbox
 import app.localmind.assistant.data.ask.LaunchRequest
+import app.localmind.assistant.domain.persona.BuiltInPersonas
 import app.localmind.assistant.data.attachments.AttachmentStore
 import app.localmind.assistant.data.later.LaterItem
 import app.localmind.assistant.data.later.ReadingList
@@ -276,6 +277,18 @@ class ReaderViewModel @Inject constructor(
     fun askAboutAll() {
         val d = _doc.value ?: return
         askInbox.post(LaunchRequest.Shared(prompt = "", document = attachments.textDocument(d.title, withSources(d))))
+    }
+
+    /** The whole text to the trader, to read it the way a metals desk would. */
+    fun askTrader() {
+        val d = _doc.value ?: return
+        askInbox.post(
+            LaunchRequest.Shared(
+                prompt = BuiltInPersonas.READ_LIKE_A_TRADER,
+                document = attachments.textDocument(d.title, withSources(d)),
+                personaId = BuiltInPersonas.TRADER.id
+            )
+        )
     }
 
     /** The text as Markdown, for Share. */

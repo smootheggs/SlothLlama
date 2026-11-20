@@ -555,6 +555,7 @@ private fun Reading(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Action("Ask about this") { viewModel.askAboutAll() }
+                Action("Ask the trader", muted = true) { viewModel.askTrader() }
                 if (laterItem != null) {
                     if (!laterItem.archived) Action("Done") { viewModel.finishLater(laterItem.id) }
                     Action(if (laterItem.favourite) "★ Favourite" else "☆ Favourite", muted = !laterItem.favourite) {

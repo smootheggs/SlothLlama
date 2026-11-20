@@ -7,6 +7,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.localmind.assistant.data.ask.AskInbox
 import app.localmind.assistant.data.ask.LaunchRequest
+import app.localmind.assistant.domain.persona.BuiltInPersonas
 import app.localmind.assistant.data.attachments.AttachmentStore
 import app.localmind.assistant.data.desk.DeskState
 import app.localmind.assistant.data.desk.DeskStore
@@ -298,7 +299,8 @@ class DeskViewModel @Inject constructor(
             LaunchRequest.Shared(
                 prompt = "Explain this SlothDesk report in plain words: what the strategy does, what the gates say, " +
                     "and what to watch. Use only the numbers in it; don't work out new ones.",
-                document = attachments.textDocument("SlothDesk: ${rep.label}", text)
+                document = attachments.textDocument("SlothDesk: ${rep.label}", text),
+                personaId = BuiltInPersonas.TRADER.id
             )
         )
     }

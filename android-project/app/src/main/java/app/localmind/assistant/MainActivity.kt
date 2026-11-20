@@ -274,7 +274,7 @@ private fun SlothRoot(
             LaunchRequest.Flashcards -> navigate(Destination.FLASHCARDS)
             is LaunchRequest.Shared -> {
                 navigate(Destination.CHAT)
-                chatViewModel.receiveShare(request.prompt, request.photo, request.document)
+                chatViewModel.receiveShare(request.prompt, request.photo, request.document, request.personaId)
             }
             LaunchRequest.Lobster -> navigate(Destination.LOBSTER)
             null -> Unit

@@ -1,5 +1,7 @@
 package app.localmind.assistant
 
+import app.localmind.assistant.domain.persona.BuiltInPersonas
+import androidx.compose.material.icons.outlined.ShowChart
 import android.content.Intent
 import android.net.Uri
 import android.os.Bundle
@@ -259,6 +261,9 @@ class ShareActivity : ComponentActivity() {
                 add(Choice(Icons.Outlined.Compress, "Summarize", "The main points, in a new chat") {
                     fileChat(uri, "Summarize this in a few bullet points.")
                 })
+                add(Choice(Icons.Outlined.ShowChart, "Read it like a trader", "What it means for metals and FX, in a new chat") {
+                    fileChat(uri, BuiltInPersonas.READ_LIKE_A_TRADER, personaId = BuiltInPersonas.TRADER.id)
+                })
             }
             add(Choice(Icons.Outlined.LocalLibrary, "Add to Library", "Indexed here, found when you ask") {
                 incoming.uris.forEach { uri ->
@@ -294,6 +299,9 @@ class ShareActivity : ComponentActivity() {
                 add(Choice(Icons.Outlined.Compress, "Summarize", "The main points, in a new chat") {
                     textChat(t, "Summarize this in a few bullet points.", forceDocument = true)
                 })
+                add(Choice(Icons.Outlined.ShowChart, "Read it like a trader", "What it means for metals and FX, in a new chat") {
+                    textChat(t, BuiltInPersonas.READ_LIKE_A_TRADER, forceDocument = true, personaId = BuiltInPersonas.TRADER.id)
+                })
                 add(Choice(Icons.Outlined.Translate, "Translate", "Into English, in a new chat") {
                     textChat(t, if (long) "Translate this into English." else "Translate this into English:\n\n${t.text}")
                 })
@@ -315,10 +323,10 @@ class ShareActivity : ComponentActivity() {
     // --- opening a chat ---
 
     /** Long text goes as a document; short text sits in the box itself. Returns null: no message. */
-    private fun textChat(t: Incoming.Text, prompt: String, forceDocument: Boolean = false): String? {
+    private fun textChat(t: Incoming.Text, prompt: String, forceDocument: Boolean = false, personaId: String? = null): String? {
         val asDocument = forceDocument || t.text.length > SHORT_TEXT
         val document = if (asDocument) attachments.textDocument(t.subject ?: "Shared text", t.text) else null
-        openChat(LaunchRequest.Shared(prompt = prompt, document = document))
+        openChat(LaunchRequest.Shared(prompt = prompt, document = document, personaId = personaId))
         return null
     }
 
@@ -329,10 +337,10 @@ class ShareActivity : ComponentActivity() {
         return null
     }
 
-    private suspend fun fileChat(uri: Uri, prompt: String): String? {
+    private suspend fun fileChat(uri: Uri, prompt: String, personaId: String? = null): String? {
         working = "Reading ${nameOf(uri)}…"
         val document: DocumentText = attachments.readDocument(uri)
-        openChat(LaunchRequest.Shared(prompt = prompt, document = document))
+        openChat(LaunchRequest.Shared(prompt = prompt, document = document, personaId = personaId))
         return null
     }
 
