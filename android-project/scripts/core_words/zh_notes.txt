@@ -1,0 +1,42 @@
+# Mandarin grammar notes: word|note|example ~ pinyin ~ English|example ~ pinyin ~ English
+的|Links a describer to a noun: what comes before 的 describes what comes after. With a pronoun it shows whose (我的 mine). Left at the end, it stands for the thing described (红的 the red one). Between close family or with familiar things it is often dropped: 我妈妈.|我的书 ~ wǒ de shū ~ my book|这是新的。 ~ zhè shì xīn de ~ This one is new.|昨天来的人 ~ zuótiān lái de rén ~ the person who came yesterday
+了|Two jobs. After a verb it marks the action as done (吃了 ate). At the end of a sentence it marks a change: something is now so, or about to be. Not a past tense: habits in the past take no 了, and the negative 没 drops it.|我吃了两碗饭。 ~ wǒ chī le liǎng wǎn fàn ~ I ate two bowls of rice.|下雨了。 ~ xià yǔ le ~ It's started to rain.|我不去了。 ~ wǒ bú qù le ~ I'm not going after all.
+是|Links two nouns: A 是 B. Adjectives don't take it (我很忙, not 我是忙). In 是…的 it picks out when, where or how something already happened.|我是老师。 ~ wǒ shì lǎoshī ~ I'm a teacher.|你是怎么来的？ ~ nǐ shì zěnme lái de ~ How did you get here?
+在|Before a place: at, in (我在家). Before a verb: in the middle of doing (我在吃饭). After a verb it shows where something ends up (住在北京).|他在图书馆。 ~ tā zài túshūguǎn ~ He's at the library.|我在看书。 ~ wǒ zài kàn shū ~ I'm reading.|放在桌子上 ~ fàng zài zhuōzi shang ~ put it on the table
+不|Negates the present, the future, habits and wishes, and adjectives. Before a fourth tone it changes to bú (不是 bú shì). For the past and for 有, use 没.|我不喝酒。 ~ wǒ bù hē jiǔ ~ I don't drink.|明天不去。 ~ míngtiān bú qù ~ (I'm) not going tomorrow.
+没|Negates what did or didn't happen, and 有 (没有 not have). It drops the 了 the positive would have.|我没去。 ~ wǒ méi qù ~ I didn't go.|我没有钱。 ~ wǒ méi yǒu qián ~ I have no money.
+吗|Turns a statement into a yes/no question. Don't add it when the sentence already asks (什么, 谁, 哪, A不A).|你好吗？ ~ nǐ hǎo ma ~ How are you?|你是学生吗？ ~ nǐ shì xuésheng ma ~ Are you a student?
+呢|At the end of a short phrase: and what about ...? It also softens a question that already has a question word, and marks an ongoing state.|我很好，你呢？ ~ wǒ hěn hǎo, nǐ ne ~ I'm fine, and you?|他在哪儿呢？ ~ tā zài nǎr ne ~ Where is he, then?
+吧|Softens a sentence into a suggestion (let's ...) or a guess wanting a yes (... right?).|我们走吧。 ~ wǒmen zǒu ba ~ Let's go.|你是美国人吧？ ~ nǐ shì Měiguó rén ba ~ You're American, right?
+着|After a verb: an ongoing state rather than an action (sitting, wearing, the door standing open). Often with 呢 at the end.|门开着。 ~ mén kāi zhe ~ The door is open.|他坐着看电视。 ~ tā zuò zhe kàn diànshì ~ He's sitting watching TV.
+过|After a verb: have done (at least once) before, an experience. Negated with 没.|我去过中国。 ~ wǒ qù guo Zhōngguó ~ I've been to China.|我没吃过。 ~ wǒ méi chī guo ~ I've never had it.
+得|Between a verb and how it is done: 跑得快 runs fast. With an object, say the verb twice: 说中文说得很好. Read dé it means to get; read děi it means must.|他说得很好。 ~ tā shuō de hěn hǎo ~ He speaks very well.|你得走了。 ~ nǐ děi zǒu le ~ You have to go.
+地|After an adjective, turns it into how a verb is done, like English -ly. Written 地, said de.|他慢慢地走。 ~ tā mànmān de zǒu ~ He walks slowly.
+个|The everyday measure word. Chinese puts a measure word between a number (or 这, 那, 几) and a noun. When unsure, 个 is the safe choice, though many nouns have their own.|三个人 ~ sān ge rén ~ three people|这个问题 ~ zhè ge wèntí ~ this question
+就|Then, at once: shows something happens sooner, more easily, or exactly as said. 就是 means precisely, that's it.|我马上就来。 ~ wǒ mǎshàng jiù lái ~ I'll be right there.|他八点就到了。 ~ tā bā diǎn jiù dào le ~ He was already there by eight.
+才|Only then, not until: the opposite of 就, things happening later or with more effort. Also only, just.|他十点才起床。 ~ tā shí diǎn cái qǐchuáng ~ He didn't get up until ten.|我才知道。 ~ wǒ cái zhīdào ~ I've only just found out.
+也|Also, too. Goes before the verb, never at the end of the sentence. With a negative: not ... either.|我也去。 ~ wǒ yě qù ~ I'm going too.|我也不知道。 ~ wǒ yě bù zhīdào ~ I don't know either.
+都|All, both: looks back at a plural before it. Goes before the verb. 都 + 了 can mean already.|我们都是学生。 ~ wǒmen dōu shì xuésheng ~ We're all students.|都十点了！ ~ dōu shí diǎn le ~ It's already ten!
+还|Still; also, in addition; (in questions) 还是 means or.|他还在睡觉。 ~ tā hái zài shuìjiào ~ He's still asleep.|你喝茶还是咖啡？ ~ nǐ hē chá háishi kāfēi ~ Tea or coffee?
+又|Again, for something that has already happened again. 又…又… means both ... and ....|他又迟到了。 ~ tā yòu chídào le ~ He's late again.|又便宜又好吃 ~ yòu piányi yòu hǎochī ~ cheap and tasty
+再|Again, for something yet to happen; then, after that.|明天再来。 ~ míngtiān zài lái ~ Come again tomorrow.|吃完再走。 ~ chī wán zài zǒu ~ Eat first, then go.
+把|Brings the object before the verb, to say what is done to it: 把 + thing + verb + result. The verb can't stand alone; it needs something after it (了, a place, a result).|把门关上。 ~ bǎ mén guān shang ~ Close the door.|我把钥匙丢了。 ~ wǒ bǎ yàoshi diū le ~ I've lost my keys.
+被|Marks the passive: thing + 被 (+ doer) + verb. Usually for something unwelcome. In speech 让 and 叫 do the same.|我的车被偷了。 ~ wǒ de chē bèi tōu le ~ My car was stolen.
+给|To give; for, to someone (给你打电话 call you). After a verb, to (送给她 give to her).|给我一杯水。 ~ gěi wǒ yì bēi shuǐ ~ Give me a glass of water.|我给你打电话。 ~ wǒ gěi nǐ dǎ diànhuà ~ I'll call you.
+跟|With, and (between nouns), and to follow. 跟…一样 means the same as.|我跟他一起去。 ~ wǒ gēn tā yìqǐ qù ~ I'll go with him.|跟你一样 ~ gēn nǐ yíyàng ~ same as you
+和|And, between nouns only; it doesn't join two sentences or two verbs.|我和你 ~ wǒ hé nǐ ~ you and me
+比|Than: A 比 B + adjective. No 很 before the adjective; the difference goes after it.|他比我高。 ~ tā bǐ wǒ gāo ~ He's taller than me.|今天比昨天冷一点。 ~ jīntiān bǐ zuótiān lěng yìdiǎn ~ Today is a bit colder than yesterday.
+很|Very, but before an adjective on its own it is often just the link a sentence needs: 我很好 is simply I'm fine.|我很忙。 ~ wǒ hěn máng ~ I'm busy.
+太|Too: 太…了. With 不 it softens: 不太好 not very good.|太贵了！ ~ tài guì le ~ Too expensive!|不太远 ~ bú tài yuǎn ~ not very far
+会|Can, from a learned skill (会游泳 can swim); will, likely to.|我会说中文。 ~ wǒ huì shuō Zhōngwén ~ I can speak Chinese.|明天会下雨。 ~ míngtiān huì xià yǔ ~ It'll rain tomorrow.
+能|Can: able to, or allowed to, in the circumstances.|你能来吗？ ~ nǐ néng lái ma ~ Can you come?
+可以|May, can: permission, or it being possible.|我可以坐这儿吗？ ~ wǒ kěyǐ zuò zhèr ma ~ May I sit here?
+要|To want; going to, will; need to, must. 不要 means don't.|我要一杯咖啡。 ~ wǒ yào yì bēi kāfēi ~ I'd like a coffee.|不要走！ ~ bú yào zǒu ~ Don't go!
+想|To want to, would like to (softer than 要); to think; to miss.|我想去中国。 ~ wǒ xiǎng qù Zhōngguó ~ I'd like to go to China.|我想你。 ~ wǒ xiǎng nǐ ~ I miss you.
+一|One. Its tone shifts: yí before a fourth tone (一个 yí ge), yì before the others (一天 yì tiān), yī when counting or alone.|一个 ~ yí ge ~ one, a|一起 ~ yìqǐ ~ together
+二|Two in counting and in numbers (二十 twenty, 第二 second). Before a measure word say 两.|两个人 ~ liǎng ge rén ~ two people|二月 ~ èr yuè ~ February
+两|Two, before measure words (两本书). For counting and long numbers use 二.|两本书 ~ liǎng běn shū ~ two books
+点|O'clock (三点); a little (一点); to order (点菜). 一点儿 after an adjective means a bit more.|三点半 ~ sān diǎn bàn ~ half past three|快一点儿 ~ kuài yìdiǎnr ~ a bit faster
+下|Down, below; next (下个月 next month); 一下 after a verb softens it: just briefly.|等一下。 ~ děng yíxià ~ Wait a moment.|下周 ~ xià zhōu ~ next week
+上|Up, on; last (上个月 last month); to go to, to attend (上班 go to work).|在桌子上 ~ zài zhuōzi shang ~ on the table|上个星期 ~ shàng ge xīngqī ~ last week
+怎么|How (怎么走? how do I get there?); why, how come (with surprise).|你怎么来了？ ~ nǐ zěnme lái le ~ What are you doing here?

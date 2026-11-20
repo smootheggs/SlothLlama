@@ -1,0 +1,462 @@
+# adjectives: word|adj|gloss|f=..;mpl=..;fpl=..
+grand|adj|big; tall; great
+petit|adj|small; little
+bon|adj|good|f=bonne
+mauvais|adj|bad|mpl=mauvais
+beau|adj|beautiful; handsome|f=belle;mpl=beaux;fpl=belles;alt=bel
+joli|adj|pretty
+nouveau|adj|new|f=nouvelle;mpl=nouveaux;fpl=nouvelles;alt=nouvel
+vieux|adj|old|f=vieille;mpl=vieux;fpl=vieilles;alt=vieil
+jeune|adj|young
+autre|adj|other
+même|adj|same; even (adv)
+seul|adj|alone; only
+premier|adj|first|f=première
+dernier|adj|last|f=dernière
+prochain|adj|next
+certain|adj|certain; sure
+tout|adj|all; every; whole|f=toute;mpl=tous;fpl=toutes
+chaque|adj|each; every|f=chaque;mpl=-;fpl=-
+plusieurs|adj|several|f=plusieurs;mpl=plusieurs;fpl=plusieurs
+quelque|adj|some (quelques: a few)
+aucun|adj|no; none
+tel|adj|such|f=telle
+vrai|adj|true; real
+faux|adj|false; wrong|f=fausse;mpl=faux;fpl=fausses
+possible|adj|possible
+impossible|adj|impossible
+important|adj|important
+simple|adj|simple
+facile|adj|easy
+difficile|adj|difficult
+long|adj|long|f=longue
+court|adj|short
+haut|adj|high; tall
+bas|adj|low|f=basse;mpl=bas
+gros|adj|big; fat|f=grosse;mpl=gros
+fort|adj|strong; loud
+faible|adj|weak
+plein|adj|full
+vide|adj|empty
+libre|adj|free
+cher|adj|dear; expensive|f=chère
+gratuit|adj|free (no cost)
+riche|adj|rich
+pauvre|adj|poor
+heureux|adj|happy|f=heureuse;mpl=heureux
+malheureux|adj|unhappy|f=malheureuse;mpl=malheureux
+content|adj|pleased
+triste|adj|sad
+fatigué|adj|tired
+malade|adj|ill; sick
+mort|adj|dead
+vivant|adj|alive
+prêt|adj|ready
+sûr|adj|sure; safe
+clair|adj|clear; light
+noir|adj|black; dark
+blanc|adj|white|f=blanche
+rouge|adj|red
+bleu|adj|blue|mpl=bleus
+vert|adj|green
+jaune|adj|yellow
+gris|adj|grey|mpl=gris
+brun|adj|brown
+rose|adj|pink
+chaud|adj|hot; warm
+froid|adj|cold
+frais|adj|fresh; cool|f=fraîche;mpl=frais
+doux|adj|soft; sweet; mild|f=douce;mpl=doux
+dur|adj|hard
+léger|adj|light|f=légère
+lourd|adj|heavy
+rapide|adj|fast
+lent|adj|slow
+propre|adj|clean; own
+sale|adj|dirty
+nécessaire|adj|necessary
+utile|adj|useful
+inutile|adj|useless
+intéressant|adj|interesting
+ennuyeux|adj|boring|f=ennuyeuse;mpl=ennuyeux
+drôle|adj|funny
+sérieux|adj|serious|f=sérieuse;mpl=sérieux
+gentil|adj|kind; nice|f=gentille
+méchant|adj|nasty
+poli|adj|polite
+calme|adj|calm
+tranquille|adj|quiet; peaceful
+célèbre|adj|famous
+connu|adj|known
+inconnu|adj|unknown
+étranger|adj|foreign|f=étrangère
+français|adj|French|mpl=français
+anglais|adj|English|mpl=anglais
+américain|adj|American
+chinois|adj|Chinese|mpl=chinois
+national|adj|national|mpl=nationaux
+international|adj|international|mpl=internationaux
+général|adj|general|mpl=généraux
+social|adj|social|mpl=sociaux
+politique|adj|political
+économique|adj|economic
+public|adj|public|f=publique
+privé|adj|private
+personnel|adj|personal|f=personnelle
+humain|adj|human
+naturel|adj|natural|f=naturelle
+normal|adj|normal|mpl=normaux
+spécial|adj|special|mpl=spéciaux
+principal|adj|main|mpl=principaux
+actuel|adj|current|f=actuelle
+ancien|adj|former; old|f=ancienne
+moderne|adj|modern
+récent|adj|recent
+prochain|-|-
+passé|adj|past; last
+futur|adj|future
+entier|adj|whole; entire|f=entière
+complet|adj|complete; full|f=complète
+parfait|adj|perfect
+juste|adj|fair; right; just
+exact|adj|exact
+correct|adj|correct
+différent|adj|different
+pareil|adj|alike; the same|f=pareille
+semblable|adj|similar
+seul|-|-
+proche|adj|close; near
+loin|-|-
+lointain|adj|distant
+large|adj|wide
+étroit|adj|narrow
+profond|adj|deep
+beau|-|-
+magnifique|adj|magnificent
+superbe|adj|superb
+merveilleux|adj|wonderful|f=merveilleuse;mpl=merveilleux
+terrible|adj|terrible; terrific
+horrible|adj|horrible
+excellent|adj|excellent
+meilleur|adj|better; best
+pire|adj|worse; worst
+moyen|adj|average; medium|f=moyenne
+énorme|adj|huge
+immense|adj|immense
+minuscule|adj|tiny
+seul|-|-
+capable|adj|capable
+incroyable|adj|incredible
+étrange|adj|strange
+bizarre|adj|weird
+évident|adj|obvious
+réel|adj|real|f=réelle
+vrai|-|-
+précis|adj|precise|mpl=précis
+grave|adj|serious
+dangereux|adj|dangerous|f=dangereuse;mpl=dangereux
+amoureux|adj|in love|f=amoureuse;mpl=amoureux
+jaloux|adj|jealous|f=jalouse;mpl=jaloux
+fier|adj|proud|f=fière
+nerveux|adj|nervous|f=nerveuse;mpl=nerveux
+curieux|adj|curious|f=curieuse;mpl=curieux
+occupé|adj|busy
+désolé|adj|sorry
+d'accord|expr|OK; agreed
+ouvert|adj|open
+fermé|adj|closed
+nombreux|adj|numerous|f=nombreuse;mpl=nombreux
+premier|-|-
+deuxième|adj|second
+cher|-|-
+# adverbs
+pas|adv|not (ne ... pas)
+plus|adv|more; no more (ne ... plus)
+très|adv|very
+bien|adv|well; good
+mal|adv|badly
+trop|adv|too; too much
+peu|adv|little; not much
+beaucoup|adv|a lot; much
+assez|adv|enough; fairly
+moins|adv|less
+aussi|adv|also; too; as
+encore|adv|again; still; yet
+toujours|adv|always; still
+jamais|adv|never (ne ... jamais)
+souvent|adv|often
+parfois|adv|sometimes
+quelquefois|adv|sometimes
+déjà|adv|already
+bientôt|adv|soon
+tôt|adv|early
+tard|adv|late
+maintenant|adv|now
+aujourd'hui|adv|today
+hier|adv|yesterday
+demain|adv|tomorrow
+alors|adv|so; then
+ensuite|adv|then; next
+puis|adv|then
+enfin|adv|finally; at last
+ici|adv|here
+là|adv|there
+là-bas|adv|over there
+partout|adv|everywhere
+ailleurs|adv|elsewhere
+loin|adv|far
+près|adv|near
+dedans|adv|inside
+dehors|adv|outside
+ensemble|adv|together
+vite|adv|quickly
+lentement|adv|slowly
+vraiment|adv|really
+seulement|adv|only
+surtout|adv|above all; especially
+presque|adv|almost
+plutôt|adv|rather
+tellement|adv|so much; so
+tant|adv|so much; so many
+si|adv|so; yes (to a negative)
+comme|adv|as; like; how
+comment|adv|how
+pourquoi|adv|why
+quand|adv|when
+où|adv|where
+combien|adv|how much; how many
+oui|adv|yes
+non|adv|no
+peut-être|adv|maybe
+sans doute|adv|probably
+d'abord|adv|first
+après|adv|after; afterwards
+avant|adv|before
+longtemps|adv|for a long time
+autant|adv|as much
+mieux|adv|better
+exactement|adv|exactly
+évidemment|adv|obviously
+complètement|adv|completely
+simplement|adv|simply
+directement|adv|directly
+justement|adv|precisely; just
+également|adv|also; equally
+environ|adv|about; around
+debout|adv|standing
+ainsi|adv|thus; like this
+donc|adv|so; therefore
+cependant|adv|however
+pourtant|adv|yet; however
+quand même|adv|all the same
+au moins|adv|at least
+tout à fait|adv|absolutely; quite
+tout de suite|adv|straight away
+tout le monde|pron|everyone
+ne|adv|not (ne ... pas)
+y|pron|there; to it
+en|pron|of it; some; from there
+# pronouns
+je|pron|I|forms=j'
+tu|pron|you (familiar)
+il|pron|he; it
+elle|pron|she; it; her
+on|pron|one; we; people
+nous|pron|we; us
+vous|pron|you (polite or plural)
+ils|pron|they (m)
+elles|pron|they (f)
+me|pron|me; myself|forms=m'
+te|pron|you; yourself|forms=t'
+se|pron|himself; herself; themselves|forms=s'
+lui|pron|him; to him; to her
+leur|pron|to them; their
+moi|pron|me
+toi|pron|you
+eux|pron|them
+ce|pron|this; it (c'est)|forms=c'
+ça|pron|that; it|forms=ca
+cela|pron|that
+ceci|pron|this
+celui|pron|the one|forms=celle,ceux,celles
+qui|pron|who; which
+que|pron|what; that; which|forms=qu'
+quoi|pron|what
+dont|pron|of which; whose
+lequel|pron|which (one)|forms=laquelle,lesquels,lesquelles
+rien|pron|nothing (ne ... rien)
+personne|-|-
+quelqu'un|pron|someone
+quelque chose|pron|something
+chacun|pron|each one|forms=chacune
+tous|-|-
+# determiners
+le|det|the|forms=la,les,l'
+un|det|a; an; one|forms=une
+du|det|some; of the|forms=de la,des
+au|det|to the; at the|forms=aux
+ce|-|-
+cette|det|this; that|forms=cet,ces
+mon|det|my|forms=ma,mes
+ton|det|your (familiar)|forms=ta,tes
+son|det|his; her; its|forms=sa,ses
+notre|det|our|forms=nos
+votre|det|your|forms=vos
+leurs|-|-
+quel|det|which; what|forms=quelle,quels,quelles
+# prepositions
+de|prep|of; from|forms=d'
+à|prep|to; at; in
+en|prep|in; by; while
+dans|prep|in; into
+pour|prep|for; in order to
+par|prep|by; through
+sur|prep|on; about
+sous|prep|under
+avec|prep|with
+sans|prep|without
+chez|prep|at (someone's place)
+entre|prep|between
+contre|prep|against
+vers|prep|towards; around (time)
+depuis|prep|since; for (time)
+pendant|prep|during; for (time)
+jusque|prep|until; as far as (jusqu'à)|forms=jusqu'
+malgré|prep|despite
+selon|prep|according to
+parmi|prep|among
+devant|prep|in front of
+derrière|prep|behind
+avant|-|-
+après|-|-
+près de|prep|near
+loin de|prep|far from
+à côté de|prep|next to
+en face de|prep|opposite
+grâce à|prep|thanks to
+à cause de|prep|because of
+au lieu de|prep|instead of
+autour de|prep|around
+# conjunctions
+et|conj|and
+ou|conj|or
+mais|conj|but
+car|conj|because; for
+si|conj|if; whether|forms=s'
+parce que|conj|because
+puisque|conj|since (because)|forms=puisqu'
+lorsque|conj|when|forms=lorsqu'
+comme|-|-
+quand|-|-
+pendant que|conj|while
+bien que|conj|although (+ subjonctif)
+pour que|conj|so that (+ subjonctif)
+avant que|conj|before (+ subjonctif)
+ni|conj|neither; nor
+soit|conj|either; or
+# numbers
+deux|num|two
+trois|num|three
+quatre|num|four
+cinq|num|five
+six|num|six
+sept|num|seven
+huit|num|eight
+neuf|num|nine; new (adj)
+dix|num|ten
+vingt|num|twenty
+cent|num|hundred
+mille|num|thousand
+million|num|million
+zéro|num|zero
+# interjections and set phrases
+merci|interj|thank you
+bonjour|interj|hello; good morning
+bonsoir|interj|good evening
+salut|interj|hi; bye
+au revoir|interj|goodbye
+pardon|interj|sorry; excuse me
+s'il vous plaît|interj|please
+voilà|interj|there you are; that's it
+voici|interj|here is
+ah|interj|ah
+oh|interj|oh
+bon|interj|well; right
+bref|interj|in short
+lors|adv|at the time (lors de: during)
+dès|prep|from; as soon as
+notamment|adv|in particular
+dessus|adv|on top; above
+super|adj|great (informal)|f=super;mpl=super;fpl=super
+sinon|conj|otherwise; or else
+sauf|prep|except
+durant|prep|during
+particulier|adj|particular; private|f=particulière
+hors|prep|out of; outside (hors de)
+hein|interj|eh?; right?
+ok|interj|OK
+demi|adj|half
+finalement|adv|in the end
+quant à|prep|as for
+rapidement|adv|quickly
+particulièrement|adv|particularly
+double|adj|double
+second|adj|second
+contraire|adj|opposite (au contraire: on the contrary)
+tandis que|conj|while; whereas
+outre|prep|besides (en outre: moreover)
+désormais|adv|from now on
+total|adj|total|mpl=totaux
+actuellement|adv|currently
+toutefois|adv|however
+unique|adj|unique; only
+physique|adj|physical
+arrière|adv|back; behind
+probablement|adv|probably
+commun|adj|common; shared
+absolument|adv|absolutely
+soi|pron|oneself
+militaire|adj|military
+historique|adj|historic; historical
+généralement|adv|generally
+véritable|adj|true; real
+final|adj|final|mpl=finaux
+totalement|adv|totally
+facilement|adv|easily
+envers|prep|towards (feelings)
+divers|adj|various|mpl=divers
+direct|adj|direct
+classique|adj|classical; classic
+uniquement|adv|only
+supérieur|adj|upper; higher
+troisième|adj|third
+afin de|prep|in order to
+afin que|conj|so that (+ subjonctif)
+à travers|prep|through; across
+au sein de|prep|within
+ouais|interj|yeah (informal)
+ben|interj|well (informal)
+bah|interj|well; meh
+eh|interj|hey; eh
+merde|interj|damn; shit (vulgar)
+putain|interj|damn (vulgar)
+fou|adj|mad; crazy|f=folle;mpl=fous;alt=fol
+etc|expr|etc.
+autour|adv|around
+auprès de|prep|with; next to
+cool|adj|cool (informal)|f=cool;mpl=cool;fpl=cool
+allemand|adj|German
+européen|adj|European|f=européenne
+nul|adj|no; useless (informal)|f=nulle
+voire|adv|or even
+scientifique|adj|scientific
+parfaitement|adv|perfectly
+moindre|adj|least; slightest
+largement|adv|widely; easily
+quotidien|adj|daily|f=quotidienne
+néanmoins|adv|nevertheless
+extrême|adj|extreme
+davantage|adv|more
+clairement|adv|clearly
+certainement|adv|certainly
+dessous|adv|underneath

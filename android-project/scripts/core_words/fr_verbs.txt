@@ -1,0 +1,473 @@
+être|to be
+avoir|to have
+faire|to do; to make
+dire|to say; to tell
+pouvoir|can; to be able to
+aller|to go
+voir|to see
+savoir|to know (a fact); to know how to
+vouloir|to want
+venir|to come
+falloir|to be necessary (il faut: one must)
+devoir|must; to have to; to owe
+prendre|to take
+trouver|to find
+donner|to give
+parler|to speak; to talk
+mettre|to put; to put on
+passer|to pass; to spend (time); to stop by
+penser|to think
+croire|to believe
+aimer|to love; to like
+comprendre|to understand
+connaître|to know (be familiar with)
+rester|to stay; to remain
+attendre|to wait (for)
+demander|to ask (for)
+arriver|to arrive; to happen
+partir|to leave
+tenir|to hold
+sembler|to seem
+laisser|to let; to leave (something)
+entendre|to hear
+rendre|to give back; to make (+ adj)
+chercher|to look for
+porter|to carry; to wear
+appeler|to call
+s'appeler|to be called (je m'appelle: my name is)
+vivre|to live
+sortir|to go out
+écrire|to write
+devenir|to become
+revenir|to come back
+montrer|to show
+suivre|to follow
+commencer|to begin; to start
+compter|to count; to count on
+entrer|to enter; to come in
+perdre|to lose
+regarder|to look at; to watch
+sentir|to feel; to smell
+répondre|to answer
+reprendre|to take back; to resume
+continuer|to continue
+lire|to read
+jouer|to play
+mourir|to die
+tomber|to fall
+retrouver|to find again; to meet up with
+permettre|to allow
+servir|to serve; to be used for
+ouvrir|to open
+manger|to eat
+travailler|to work
+essayer|to try
+paraître|to seem; to appear
+recevoir|to receive
+garder|to keep
+apprendre|to learn; to teach
+changer|to change
+arrêter|to stop; to arrest
+oublier|to forget
+présenter|to present; to introduce
+expliquer|to explain
+offrir|to offer; to give (a gift)
+tourner|to turn
+rappeler|to remind; to call back
+se rappeler|to remember
+monter|to go up; to get on
+rentrer|to go home; to come back in
+dormir|to sleep
+courir|to run
+envoyer|to send
+acheter|to buy
+payer|to pay (for)
+boire|to drink
+souvenir|-
+se souvenir|to remember
+asseoir|-
+s'asseoir|to sit down
+lever|to raise; to lift
+se lever|to get up
+coucher|to put to bed
+se coucher|to go to bed
+choisir|to choose
+finir|to finish
+réussir|to succeed; to pass (an exam)
+agir|to act (il s'agit de: it's about)
+s'agir|to be about (il s'agit de)
+réfléchir|to think (it over); to reflect
+remplir|to fill (in)
+obtenir|to obtain; to get
+produire|to produce
+conduire|to drive; to lead
+construire|to build
+détruire|to destroy
+traduire|to translate
+dépendre|to depend
+vendre|to sell
+descendre|to go down; to get off
+défendre|to defend; to forbid
+tendre|to hold out; to tend to
+prétendre|to claim
+répandre|to spread
+entretenir|to maintain; to look after
+retenir|to hold back; to remember
+soutenir|to support
+appartenir|to belong
+maintenir|to maintain; to keep
+contenir|to contain
+découvrir|to discover
+couvrir|to cover
+souffrir|to suffer
+craindre|to fear
+plaindre|to pity
+se plaindre|to complain
+atteindre|to reach
+éteindre|to switch off; to put out
+peindre|to paint
+joindre|to join; to reach (someone)
+rejoindre|to join; to meet up with
+mentir|to lie (tell lies)
+naître|to be born
+plaire|to please (ça me plaît: I like it)
+rire|to laugh
+sourire|to smile
+décrire|to describe
+inscrire|to register; to write down
+interdire|to forbid
+prévoir|to plan; to foresee
+recevoir|to receive
+apercevoir|to catch sight of
+s'apercevoir|to realise; to notice
+décevoir|to disappoint
+battre|to beat
+se battre|to fight
+combattre|to fight; to combat
+convaincre|to convince
+vaincre|to defeat
+conclure|to conclude
+résoudre|to solve
+valoir|to be worth (il vaut mieux: it's better to)
+pleuvoir|to rain
+mouvoir|-
+émouvoir|to move (emotionally)
+promouvoir|to promote
+fuir|to flee
+s'enfuir|to run away
+acquérir|to acquire
+accueillir|to welcome
+cueillir|to pick (flowers, fruit)
+recueillir|to collect; to take in
+reconnaître|to recognise
+disparaître|to disappear
+apparaître|to appear
+mettre en|-
+admettre|to admit
+promettre|to promise
+remettre|to put back; to hand over
+soumettre|to submit
+transmettre|to pass on; to transmit
+commettre|to commit
+surprendre|to surprise
+entreprendre|to undertake
+poursuivre|to pursue; to continue
+survivre|to survive
+satisfaire|to satisfy
+taire|-
+se taire|to be quiet
+suffire|to be enough
+dire|-
+aider|to help
+utiliser|to use
+créer|to create
+jeter|to throw (away)
+préférer|to prefer
+espérer|to hope
+répéter|to repeat
+considérer|to consider
+posséder|to own
+céder|to give in; to give up
+compléter|to complete
+régler|to settle; to adjust
+protéger|to protect
+lancer|to throw; to launch
+avancer|to move forward
+annoncer|to announce
+placer|to place; to put
+remplacer|to replace
+prononcer|to pronounce
+renoncer|to give up
+menacer|to threaten
+bouger|to move
+nager|to swim
+voyager|to travel
+partager|to share
+ranger|to tidy; to put away
+juger|to judge
+obliger|to oblige; to force
+diriger|to direct; to manage
+exiger|to demand
+corriger|to correct
+loger|to stay; to house
+mener|to lead
+amener|to bring (someone)
+emmener|to take (someone)
+promener|to walk (a dog)
+se promener|to go for a walk
+peser|to weigh
+achever|to finish off
+élever|to raise (children)
+enlever|to remove; to take off
+geler|to freeze
+nettoyer|to clean
+employer|to use; to employ
+ennuyer|to bore; to bother
+s'ennuyer|to be bored
+appuyer|to press; to lean
+essuyer|to wipe
+renvoyer|to send back; to dismiss
+tutoyer|to address as tu
+vouvoyer|to address as vous
+habiter|to live (in a place)
+écouter|to listen (to)
+chanter|to sing
+danser|to dance
+marcher|to walk; to work (machine)
+tirer|to pull; to shoot
+pousser|to push; to grow
+toucher|to touch
+cacher|to hide
+fermer|to close
+lever|-
+gagner|to win; to earn
+dépenser|to spend (money)
+coûter|to cost
+compter|-
+raconter|to tell (a story)
+ajouter|to add
+quitter|to leave (a place, a person)
+visiter|to visit (a place)
+rencontrer|to meet
+inviter|to invite
+remercier|to thank
+étudier|to study
+préparer|to prepare
+cuisiner|to cook
+goûter|to taste
+laver|to wash
+se laver|to wash (oneself)
+habiller|to dress
+s'habiller|to get dressed
+réveiller|to wake (someone)
+se réveiller|to wake up
+reposer|to put down again
+se reposer|to rest
+dépêcher|-
+se dépêcher|to hurry
+occuper|to occupy
+s'occuper|to take care of; to deal with
+intéresser|to interest
+s'intéresser|to be interested (in)
+inquiéter|to worry (someone)
+s'inquiéter|to worry
+tromper|to deceive
+se tromper|to be mistaken
+trouver|-
+se trouver|to be (located)
+sentir|-
+se sentir|to feel (well, tired...)
+passer|-
+se passer|to happen
+rendre|-
+se rendre|to go; to surrender
+demander|-
+se demander|to wonder
+mettre|-
+se mettre|to start (to); to put oneself
+marier|to marry (off)
+se marier|to get married
+souhaiter|to wish
+désirer|to want; to desire
+refuser|to refuse
+accepter|to accept
+proposer|to suggest; to offer
+décider|to decide
+imaginer|to imagine
+supposer|to suppose
+deviner|to guess
+remarquer|to notice
+observer|to observe
+noter|to note
+signer|to sign
+copier|to copy
+envoyer|-
+recevoir|-
+appliquer|to apply
+indiquer|to indicate
+marquer|to mark; to score
+manquer|to miss; to be lacking
+risquer|to risk
+critiquer|to criticise
+fabriquer|to make; to manufacture
+communiquer|to communicate
+pratiquer|to practise
+rouler|to drive; to roll
+voler|to fly; to steal
+tuer|to kill
+sauver|to save; to rescue
+blesser|to injure
+soigner|to treat; to take care of
+guérir|to heal; to recover
+baisser|to lower
+augmenter|to increase
+diminuer|to decrease
+améliorer|to improve
+développer|to develop
+organiser|to organise
+installer|to install; to set up
+fonctionner|to work (function)
+réparer|to repair
+casser|to break
+brûler|to burn
+allumer|to switch on; to light
+apporter|to bring (something)
+emporter|to take away
+importer|to matter; to import
+exister|to exist
+dépasser|to overtake; to exceed
+traverser|to cross
+retourner|to return; to turn over
+lâcher|to let go
+tenter|to try; to tempt
+oser|to dare
+éviter|to avoid
+empêcher|to prevent
+permettre|-
+autoriser|to authorise
+assurer|to assure; to ensure
+confirmer|to confirm
+vérifier|to check
+prouver|to prove
+montrer|-
+représenter|to represent
+former|to form; to train
+transformer|to transform
+réaliser|to achieve; to realise
+fixer|to fix; to set
+signifier|to mean
+concerner|to concern
+compter|-
+ressembler|to look like
+tenir|-
+se tenir|to stand; to behave
+plaire|-
+détester|to hate
+adorer|to adore; to love
+préférer|-
+pleurer|to cry
+crier|to shout
+rêver|to dream
+espérer|-
+attendre|-
+s'attendre|to expect
+convenir|to suit; to agree
+prévenir|to warn
+intervenir|to intervene
+parvenir|to reach; to manage to
+souvenir|-
+définir|to define
+établir|to establish
+fournir|to supply
+saisir|to seize; to grasp
+remplir|-
+grandir|to grow up
+vieillir|to grow old
+rougir|to blush
+punir|to punish
+unir|to unite
+réunir|to gather; to bring together
+obéir|to obey
+nourrir|to feed
+ralentir|to slow down
+avertir|to warn
+investir|to invest
+garantir|to guarantee
+bâtir|to build
+fleurir|to flower
+envahir|to invade
+trahir|to betray
+haïr|to hate
+remettre|-
+mériter|to deserve
+profiter|to take advantage; to enjoy
+partager|-
+louer|to rent; to praise
+emprunter|to borrow
+prêter|to lend
+rembourser|to pay back
+économiser|to save (money)
+téléphoner|to phone
+répondre|-
+discuter|to discuss; to chat
+bavarder|to chat
+expliquer|-
+enseigner|to teach
+apprendre|-
+réviser|to revise
+dessiner|to draw
+photographier|to photograph
+filmer|to film
+imprimer|to print
+cliquer|to click
+télécharger|to download
+chercher|-
+naviguer|to sail; to browse
+conduire|-
+garer|to park
+réserver|to book
+annuler|to cancel
+commander|to order
+livrer|to deliver
+fêter|to celebrate
+célébrer|to celebrate
+inviter|-
+embrasser|to kiss; to hug
+serrer|to squeeze; to shake (hands)
+sourire|-
+saluer|to greet
+excuser|to excuse
+s'excuser|to apologise
+pardonner|to forgive
+mentir|-
+voter|to vote
+gérer|to manage
+négocier|to negotiate
+vendre|-
+acheter|-
+investir|-
+augmenter|-
+baisser|-
+financer|to finance
+produire|-
+consommer|to consume
+recycler|to recycle
+protéger|-
+polluer|to pollute
+attirer|to attract
+étonner|to surprise
+s'étonner|to be surprised
+amuser|to amuse
+s'amuser|to have fun
+reposer|-
+coucher|-
+habiller|-
+sécher|to dry
+mélanger|to mix
+couper|to cut
+verser|to pour
+remuer|to stir
+servir|-
+débarrasser|to clear away
+s'occuper|-
+oublier|-

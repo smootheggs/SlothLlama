@@ -1,0 +1,701 @@
+# Cantonese overrides: word|jyutping ('-' keeps the corpus's)|parts of speech ('-' keeps)|gloss
+# A gloss of '-' keeps CEDICT's; 'x' leaves the word out (corpus quirks: stock talk, times of day, sums).
+係|-|v|to be; yes, that's right (係呀)
+啊|-|part|(particle) softens or livens a sentence; ah, oh
+呢|ne1|part,pron|(particle) and ...? (你呢? and you?); this (呢個 this one)
+我|-|-|I; me
+噉|-|conj,pron|like this, like that; so, then (噉我哋走啦 then let's go)
+你|-|-|you
+喇|laa3|part|(particle) now, already: something has changed (夠喇 that's enough)
+啦|laa1|part|(particle) urging or agreeing: 走啦 let's go; 好啦 OK then
+佢|-|-|he, she, it; him, her
+都|-|-|also, too; all, both; even; still
+嘅|-|part|(particle) 's, of (我嘅 mine); ends a description; (at the end) that's how it is
+㗎|-|part|(particle) it's a fact, you know; asks with surprise or for confirmation
+唔|-|adv|not; no
+好|-|adv,adj|very; good, well; nice
+就|-|-|then; right away; just, only; exactly
+即係|-|conj|that is, I mean; in other words
+個|-|cl|(general measure word); (before a noun) the, that
+囉|-|part|(particle) obviously, that's how it is; fine then
+啲|-|cl,part|some, a little; (before a noun) the (plural); (after an adjective) -er: 快啲 faster
+有|-|-|to have; there is, there are
+一|-|-|one; a
+唔係|-|v,adv|isn't, not; no; otherwise, or else
+喎|-|part|(particle) passes on what was said, or notices something: you know, mind you
+又|-|-|again; also; and (又平又靚 cheap and nice)
+話|-|v,n|to say; to tell (someone off); words, speech
+到|-|part,v,prep|to arrive; to, until; (after a verb) achieved: 搵到 found
+咗|-|part|(particle) done, completed: 食咗 have eaten
+會|-|v|will, would; can (a learned skill); meeting
+嗰啲|-|pron|those
+去|-|-|to go
+但係|-|conj|but
+冇|-|v|not have, there isn't; didn't (冇去 didn't go)
+人|-|n|person, people
+噉樣|-|conj,pron|this way, like this; so, in that case
+幾|-|adv,num|quite, fairly (幾好 quite good); how (幾大 how big); several, a few
+嗎|-|part|(particle) yes/no question (formal; speech often uses 咩 or 未)
+覺得|-|v|to feel, to think (that)
+乜嘢|-|pron|what
+吖|-|part|(particle) a friendly urging or agreement: 好吖 sure
+講|-|v|to speak, to say, to talk
+要|-|v|to want; will, need to, must; to take (要呢個 I'll take this one)
+做|-|-|to do; to make; to work as
+真係|-|adv|really, truly
+嘢|-|n|thing, stuff; matter, business
+知|-|v|to know (a fact)
+睇|-|v|to look, to watch, to read; to see (a doctor); it depends (睇下)
+得|-|part,v|OK, can do (得唔得? is it OK?); (after a verb) able to; only (得三個 only three)
+來|-|-|to come
+俾|-|prep,v|to give; to let, to allow; by (passive: 俾人鬧 scolded by someone); for
+喺|-|prep,v|at, in, on; to be at (喺屋企 at home)
+咁|-|adv|so, this (much): 咁貴 so expensive
+其實|-|-|actually, in fact
+哦|-|interj|oh, I see
+嘞|-|part|(particle) done, now: a change has happened (得嘞 that'll do)
+嗰|-|pron|that (before a measure word: 嗰個 that one)
+我哋|-|pron|we, us
+呀|-|part|(particle) a softer 啊; asks, calls, lists
+咪|-|adv|then, isn't it (just): 咪係囉 that's it, isn't it; don't (= 唔好)
+下|-|part,cl,v|(after a verb) a bit, briefly: 睇下 have a look; down, below; next
+而家|-|n|now
+過|-|part,v|(after a verb) have done before: 去過 have been; to cross, to pass; than (高過我 taller than me)
+呢個|-|pron|this, this one
+嗰個|-|pron|that, that one
+因為|-|-|because
+返|-|part,v|to return, to go back; to go to (work, school): 返工; (after a verb) back, again: 攞返 take back
+諗|-|v|to think; to think over; to consider
+跟住|-|conj,v|then, next, after that; to follow
+可以|-|-|can, may
+如果|-|-|if
+多|-|adj|many, much, a lot
+點|-|pron,cl,v|how (點去? how to get there?); o'clock; dot, point; to order (food)
+好似|-|v,adv|to seem, as if; like, similar to
+買|-|-|to buy
+自己|-|-|oneself, one's own
+同埋|-|conj|and; also; with
+同|-|prep,conj|with; and; for (someone): 同我買 buy it for me; same
+佢哋|-|pron|they, them
+咩|-|part,pron|what; (particle) surprised question: 係咩? really?
+先|-|adv,part|first, before; (at the end) first: 你行先 you go first; only then
+住|-|part,v|to live, to stay; (after a verb) keep -ing: 揸住 holding; for now: 等住 wait for now
+啫|-|part|(particle) only, merely: that's all (三蚊啫 only three dollars)
+好多|-|num|many, a lot of; much (better)
+可能|-|-|may, maybe; possible; possibility
+晒|-|part|(after a verb) all, completely: 食晒 ate it all; very (多謝晒 thanks so much)
+想|-|-|to want to, would like to; to think
+所以|-|-|so, therefore
+揾|wan2|v|to look for, to find; to earn (揾錢 make money)
+譬如|-|-|for example
+重|zung6|adv|still; also, in addition; even more
+兩|-|-|two (before measure words); a couple
+隻|-|cl|(measure word for animals, one of a pair, many objects): 一隻雞, 一隻杯
+不過|-|-|but, however; only
+蚊|-|cl,n|dollar (in speech: 十蚊 ten dollars); mosquito
+嗰陣時|-|pron,n|at that time, back then
+已經|-|-|already
+未|-|adv|not yet; (at the end) yet? (食咗飯未? eaten yet?)
+最|-|-|most, -est
+食|-|v|to eat; to take (medicine); to smoke (食煙)
+或者|-|-|or; maybe, perhaps
+點解|-|pron|why
+乜|-|pron|what; (before a verb) why: 乜你唔嚟? why didn't you come?
+年|-|cl,n|year
+錢|-|n|money
+讀|-|v|to read; to study (讀書); to say aloud
+見|-|v|to see; to meet; to feel (見凍 feel cold)
+應該|-|-|should, ought to
+聽|-|v|to listen; to hear
+大|-|-|big; old (of age, 大過 older than)
+呢啲|-|pron|these
+識|-|v|to know how, can (識講 can speak); to know (a person)
+埋|-|part,v|(after a verb) also, as well: 食埋佢 eat it too; to finish off; close to (行埋 come closer)
+成日|-|adv|often, always, all the time
+喂|-|interj|hey; hello (on the phone)
+有冇|-|v|is there? have you? (有冇時間? got time?)
+度|-|loc,n,cl|place (呢度 here); degree; about (三十度 about thirty)
+成|-|num,adj|whole, all of (成日 all day); to become; ten percent
+鍾意|-|v|to like, to love
+問|-|-|to ask
+咋|-|part|(particle) only, just: 一個咋 only one
+間|-|cl|(measure word for buildings, rooms, shops): 一間屋
+吓|-|interj,part|huh? what?; (after a verb) a bit (= 下)
+日|-|cl,n|day
+出來|-|-|to come out
+次|-|cl|time, occurrence: 一次 once
+嗰度|-|pron|there
+死|-|v|to die; dead; (after an adjective) terribly: 攰死 dead tired
+玩|-|v|to play; to have fun; to tease
+喺度|-|adv,v|here, there (be at it); (before a verb) in the middle of: 佢喺度食飯 he's eating
+邊個|-|pron|who; which one
+緊|-|part|(after a verb) -ing, in progress: 食緊 eating
+攞|-|v|to take, to get, to fetch
+唔使|-|v,adv|no need to, don't have to; you're welcome (唔使客氣)
+完|-|part,v|finished; (after a verb) done: 做完 finished doing
+叫|-|-|to call; to be called; to ask (someone to do something); to order (food)
+開|-|v,part|to open; to turn on; to start; (after a verb) usually, used to: 用開 usually use
+即|-|conj|that is; immediately
+養|-|v|to raise (children, pets), to keep (a fish, a dog)
+用|-|-|to use; with
+出|-|-|to go out, to come out
+時候|-|-|time; when
+邊|-|pron|which; where (邊度); side (呢邊 this side)
+驚|-|v|to be afraid, to fear; afraid that
+梗係|-|adv|of course, certainly
+點樣|-|pron|how
+對|-|prep,v,cl|towards, to; right, correct; (measure word for pairs): 一對鞋
+你哋|-|pron|you (plural)
+搞|-|v|to do, to deal with; to mess with; to organise
+考|-|v|to take an exam; to test
+之後|-|-|after, afterwards; later
+樣|-|n,cl|look, appearance; kind (呢樣 this kind, this thing)
+飲|-|v|to drink
+三|-|-|three
+唉|-|interj|sigh; oh dear
+再|-|-|again; then; more
+貴|-|-|expensive; noble
+有啲|-|pron,adv|some; a bit, somewhat (有啲攰 a bit tired)
+同學|-|-|classmate
+嗱|-|interj,part|look, here (calling attention): 嗱, 俾你 here, for you
+份|-|cl|(measure word for jobs, newspapers, copies, portions)
+靚|-|adj|pretty, beautiful; good, fine (of quality)
+幫|-|v|to help; for (幫我買 buy for me)
+幾多|-|pron|how many, how much
+張|-|cl|(measure word for flat things: paper, tables, tickets, photos)
+十|-|-|ten
+一定|-|-|surely, certainly
+賣|-|-|to sell
+一啲|-|num|a little, some
+定|-|conj,v,part|or (in questions: 茶定咖啡? tea or coffee?); fixed, settled; calm
+人哋|-|pron|other people; (said of oneself, coyly) me
+啱|ngaam1|adj,adv|right, correct; to suit, to fit; just (啱啱 just now)
+唧|-|part|(particle) only, just (= 啫)
+快|-|-|fast, quick; soon
+條|-|cl|(measure word for long things: roads, fish, trousers; also questions)
+行|haang4|v|to walk; to go
+算|-|v|to count; to consider as; never mind (算啦)
+返來|faan1lai4|v|to come back
+屋企|-|n|home; family
+變|-|-|to change, to become
+本|-|cl|(measure word for books)
+唔好|-|v,adv|don't; not good
+月|-|-|month; moon
+打|-|v|to hit; to play (a sport, a game); to make (a call): 打電話
+電話|-|n|phone; phone call
+上|soeng5|v,loc|to go up, to get on (上車); up, on; last (上個月 last month)
+夠|-|v,adj|enough
+問題|-|-|question, problem
+時間|-|-|time
+比較|-|-|rather, comparatively; to compare
+鬼|-|adv,n|ghost; (before an adjective) very, damn: 鬼咁好 awfully good
+開心|-|adj|happy, glad
+哎吔|-|interj|ouch; oh dear
+原來|-|adv|so it turns out; originally
+另外|-|-|besides, in addition; other
+種|-|cl|kind, type
+請|-|v|to invite; to hire (請人); to treat (to a meal); please
+添|-|part|(particle) too, as well; what's more, surprisingly
+走|-|v|to leave, to go; to run, to run away
+工|-|n|work, job (揾工 look for work)
+太|-|-|too (much)
+魚|-|n|fish
+機|-|n|machine; plane
+難|-|-|difficult
+事|-|n|matter, thing
+部|-|cl|(measure word for machines, cars, films)
+平|peng4|adj|cheap; flat, level
+裏邊|-|loc|inside
+淨係|-|adv|only, just
+試|-|v|to try; to test
+以前|-|-|before, in the past
+高|-|-|tall, high
+少少|-|num|a little, a bit
+少|-|adj|few, little; less
+呢樣|-|pron|this (thing), this kind
+大家|-|-|everyone
+計|-|v,n|to count, to calculate; a plan, an idea (有計 there's a way)
+班|-|cl,n|class; group (一班朋友 a bunch of friends); shift
+帶|-|v|to bring, to take along; to lead
+收|-|v|to receive; to collect; to put away; to close (收工 finish work)
+信|-|v,n|letter; to believe, to trust
+呃|-|v,part|to cheat, to trick; (in speech) um
+亦都|-|adv|also, too
+整|-|v|to make, to fix; to get (someone) to
+其他|-|-|other, else
+剪|-|v|to cut (with scissors): 剪頭髮 get a haircut
+唔同|-|adj|different
+開始|-|-|to begin; beginning
+耐|-|adj|long (in time): 好耐 a long time
+落去|-|v|to go down; (after a verb) on, continuing: 講落去 go on talking
+知道|-|-|to know
+辛苦|-|-|hard, tiring; hard work
+冇得|-|v|can't, no way to; there's none (冇得食 nothing to eat)
+通常|-|-|usually
+有時|-|-|sometimes
+着|zoek3|v,part|to wear, to put on (clothes, shoes); (after a verb) achieved: 瞓着 fell asleep
+新|-|-|new
+起|-|v,part|to rise; to build; (after a verb) up: 諗起 recall
+第一|-|-|first; best
+書|-|-|book
+車|-|-|car, vehicle
+唔記得|-|v|to forget
+套|-|cl|(measure word for films, sets, suits)
+落|-|v|to go down, to get off (落車); to put in (落鹽 add salt); to fall (落雨 rain)
+正|-|adj|great, cool (好正); straight; just, exactly
+四|-|-|four
+差唔多|-|adv|almost; about the same
+一齊|-|adv|together
+邊度|-|pron|where
+學|-|-|to learn, to study
+影|-|v|to take (a photo): 影相
+科|-|cl,n|subject (at school); department
+叫做|-|v|to be called; reasonably, more or less
+細|-|adj|small; young (細個 when young)
+之前|-|-|before, earlier
+教|gaau3|v|to teach
+第二|-|-|second; other, another (第二個 someone else)
+地方|-|n|place
+入|-|v|to enter, to go in; to put in
+學校|-|-|school
+幾時|-|pron|when
+放|-|-|to put; to let go; to be off (放工 finish work)
+犀利|-|adj|amazing, impressive; formidable
+旅行|-|-|to travel; a trip
+等|-|v|to wait; to let (等我嚟 let me do it)
+慘|-|adj|terrible, awful; miserable
+掂|-|adj|done, sorted; going well (搞掂 sorted); straight
+一係|-|adv,conj|either ... or; or else, maybe
+分|-|cl,v|minute; mark, point; to divide; to share
+揀|-|v|to choose, to pick
+即刻|-|adv|right away, immediately
+使|-|v|to need (唔使 no need); to spend (使錢); to use
+根本|-|adv|simply, at all; basically
+而|-|-|and; but
+特別|-|-|special; especially
+歲|-|cl|year (of age): 三歲
+件|-|cl|(measure word for clothes, matters): 一件衫
+翻版|-|n|pirated copy
+頭先|-|n,adv|just now, a moment ago
+字|-|n|character, word; writing
+信心|-|-|confidence
+不如|-|v,adv|why not, how about (不如去飲茶? how about yum cha?); not as good as
+然之後|-|conj|and then, after that
+禮拜|-|n|week; Sunday (禮拜日)
+五|-|-|five
+以為|-|v|to think (wrongly), to assume
+衰|-|adj|bad, nasty; (of luck) bad; to lose, to fail
+啱啱|-|adv|just, just now; exactly
+嘅話|-|conj,part|if (at the end of a condition: 你去嘅話 if you go)
+半|-|-|half
+每|-|-|each, every
+直程|-|adv|simply, downright
+嗰邊|-|pron,loc|that side, over there
+坐|-|v|to sit; to ride (坐車 take the bus, car)
+生|-|v,adj|to give birth; raw; to grow
+賺|-|v|to earn
+鐘|-|n|clock; o'clock (三點鐘); hour (兩個鐘 two hours)
+繼續|-|-|to continue
+有得|-|v|can, there's a way to; there is (有得賣 it's on sale)
+一樣|-|-|same, alike
+碟|-|n,cl|plate, dish; (measure word for dishes of food)
+當|-|adv,v|as, to treat as (當佢朋友 treat him as a friend); when
+好睇|-|adj|good-looking; worth watching
+六|-|-|six
+全部|-|-|all, whole
+儲|-|v|to save, to collect (儲錢 save money)
+戲|-|n|film, show (睇戲 watch a film)
+返工|-|v|to go to work
+緊要|-|adj|important; serious (唔緊要 it doesn't matter)
+頭|-|n,loc|head; top, end
+錯|-|-|wrong; mistake
+讀書|-|v|to study; to go to school
+先至|-|adv|only then, not until
+出去|-|-|to go out
+轉|-|v|to turn; to change
+傾|-|v|to chat, to talk (傾偈)
+今日|-|n|today
+字典|-|-|dictionary
+遠|-|-|far
+感覺|-|-|feeling; to feel
+八|-|-|eight
+呢度|-|pron|here
+𠺝|-|part|(particle) is it so? I'm asking: 係咪𠺝?
+實|-|adv,adj|surely, certainly (實得 sure to work); solid, tight
+需要|-|-|to need; need
+凍|-|adj|cold
+由|-|-|from; by
+個個|-|cl|everyone, each one
+早|-|-|early; morning (早晨 good morning)
+換|-|-|to change, to exchange
+位|-|cl,n|(polite measure word for people); seat, place
+理由|-|-|reason
+爭|-|v|to owe (爭你錢 owe you money); to lack, short of; to compete, to argue
+朋友|-|-|friend
+跟|-|v|to follow; with
+七|-|-|seven
+悶|-|adj|bored; boring; stuffy
+但|-|-|but
+版|-|cl,n|page; edition; version
+嘍|-|part|(particle) that's it (= 囉)
+細個|-|adj|young; when (I was) little
+肥|-|-|fat
+更加|-|-|even more
+學生|-|-|student
+女仔|-|n|girl
+仔|-|n|son; boy; (suffix) little: 狗仔 puppy
+情況|-|-|situation
+零|-|-|zero
+人工|-|n,adj|wages, salary; artificial
+所謂|-|-|so-called
+嘿|-|-|hey
+望|-|v|to look; to hope
+方面|-|-|aspect, side
+考試|-|-|exam; to take an exam
+食飯|-|v|to eat, to have a meal
+記得|-|-|to remember
+今年|-|-|this year
+分鐘|-|-|minute
+差|-|adj|poor, bad; to lack (差少少 just short)
+狗|-|-|dog
+架|-|cl|(measure word for cars, planes, machines)
+名|-|n|name
+電腦|-|-|computer
+搭|-|v|to take (a bus, a ferry): 搭車; to put up
+手|-|-|hand
+介紹|-|-|to introduce; to recommend
+一路|-|adv|all along, all the way; (with 一路) while (一路行一路講 talk while walking)
+後尾|-|loc,n|later, afterwards; the back, the end
+呵|-|part,interj|(particle) isn't it? (gently seeking agreement)
+基本上|-|-|basically
+大佬|-|n|elder brother; boss, big shot
+郵票|-|-|stamp
+炒|-|v|to stir-fry; to fire (from a job: 炒魷魚); to speculate (炒股)
+希望|-|-|to hope; hope
+完全|-|-|completely
+跑|-|-|to run; to race
+搞笑|-|-|funny
+明|-|v|to understand (明唔明? got it?)
+袋|-|n,v|bag; pocket; to put in a bag or pocket
+抵|-|adj,v|good value, worth it (好抵); deserves it (抵死)
+長|-|-|long
+未必|-|-|not necessarily
+意思|-|-|meaning; idea
+嗰時|-|pron,n|at that time, back then
+總之|-|-|anyway, in short
+短|-|-|short
+小學|-|-|primary school
+上邊|-|loc|above, on top
+估|-|v|to guess; to think, to reckon
+勁|-|adj|great, amazing; strong
+起碼|-|-|at least
+加|-|v|to add; plus
+理|-|v|to care about, to pay attention to (唔理佢 ignore him)
+廿|-|-|twenty
+好玩|-|-|fun
+洗|-|v|to wash; to spend (洗錢)
+奶茶|-|-|milk tea
+借|-|-|to lend, to borrow
+上次|-|-|last time
+最近|-|-|recently; nearest
+連|-|adv,v,cl|even (連佢都 even he); to link, together with
+老細|-|n|boss
+講真|-|v,adv|honestly, to be honest
+啩|-|part|(particle) I guess, probably
+去到|-|v|to get to, to reach
+做嘢|-|v|to work; to do things
+入邊|-|loc|inside
+入去|-|v|to go in
+係噉|-|adv|like this, that way; just (so)
+嗰日|-|pron|that day
+返學|-|v|to go to school
+好彩|-|adj|lucky; luckily
+返去|-|v|to go back
+得閒|-|v,adj|free (not busy)
+只係|-|adv|only, just
+有陣時|-|adv|sometimes
+除咗|-|prep|apart from, except
+係唔係|-|v|is it or not? (係唔係真㗎? is it true?)
+唓|-|interj|tch, pfft (dismissive)
+嗰樣|-|pron|that (thing), that kind
+出邊|-|loc|outside
+定係|-|conj|or (in questions)
+男仔|-|n|boy
+點知|-|pron,adv|who knows; unexpectedly, but then
+話時話|-|expr|come to think of it; by the way
+聽日|-|n|tomorrow
+裏面|-|loc|inside
+不嬲|-|adv|always, all along
+為咗|-|prep|for, in order to
+遲啲|-|n,adv|later, a bit later
+揾工|-|v|to look for a job
+唔通|-|adv|could it be that ...?
+冇錯|-|v,adj|that's right
+個八|-|-|x
+毫子|-|cl,n|ten cents (a coin); money, cash
+𠿪|-|part|(particle) a questioning 㗎: is it?
+點算|-|pron,v|what to do? what now?
+琴日|-|n|yesterday
+傾偈|-|v|to chat
+直頭|-|adv|simply, downright
+噉樣樣|-|-|x
+朝頭早|-|n|morning
+老豆|-|n|dad, father
+講嘢|-|v|to talk, to speak
+琴晚|-|n|last night
+電芯|-|n|battery
+入來|-|v|to come in
+老奉|-|adv,expr|taken for granted, as of right
+嗰陣|-|pron|at that time
+咁上下|-|adv|about, roughly
+咓|-|-|x
+幾耐|-|pron|how long
+係咪|-|v|is it? isn't it? (係咪你? is it you?)
+邊啲|-|pron|which (ones)
+捱|-|v|to endure, to struggle through (捱夜 stay up late)
+舖頭|-|n|shop
+初頭|-|n,adv|at first, the beginning
+核突|-|adj|ugly, disgusting
+屋企人|-|n|family members
+下年|-|n|next year
+咁滯|-|adv|almost, nearly
+硬係|-|adv|just, simply (insist on)
+第時|-|n|in future, later on
+特登|-|adv|on purpose
+上堂|-|v|to go to class
+唔見|-|v|to lose, to be missing (唔見咗 lost it)
+褸尾|-|-|x
+甚至乎|-|adv|even
+紅籌|-|-|x
+諗法|-|n|idea, way of thinking
+一次過|-|adv|all at once
+噃|-|part|(particle) mind you, you know (a reminder)
+小全章|-|-|x
+第日|-|n,adv|some other day, some day
+收埋|-|v|to hide, to put away
+就噉|-|adv|just like that
+落來|-|v|to come down
+啝|-|part|(particle) passes on what someone said (= 喎)
+乜鬼|-|pron|what the heck
+下下|-|cl|every time
+部份|-|n|part, section
+間唔中|-|adv|now and then, occasionally
+啊吓|-|interj|huh?
+重有|-|v|there's also, and also
+令到|-|v|to make, to cause
+好食|-|adj|tasty, delicious
+非常之|-|adv|extremely, very
+是但|-|adv|whatever, any (is fine)
+嗰次|-|pron|that time
+出街|-|v|to go out
+啡色|-|n|brown
+得滯|-|adv,part|too (much): 熱得滯 too hot
+九點半|-|-|x
+七點|-|-|x
+嚿|-|cl|lump, piece (一嚿石 a rock)
+傻瓜機|-|-|x
+藍籌|-|-|x
+廿五|-|-|x
+冚唪唥|-|num|altogether, the whole lot
+些少|-|num|a little
+前嗰排|-|n|a while ago, recently
+晏晝|-|n|afternoon; lunchtime
+冇事|-|v|it's nothing, I'm fine; nothing to do
+肥仔|-|n|fatty, chubby boy
+一陣間|-|n,adv|in a moment, a little while
+對唔住|-|expr|sorry
+唔好意思|-|expr|excuse me, sorry
+大部份|-|num|most, the majority
+牌費|-|-|x
+龍吐珠|-|-|x
+搞掂|-|v|to sort out, to get done
+咭|-|n|card
+好飲|-|adj|nice to drink
+好味|-|adj|tasty
+五點|-|-|x
+梳打粉|-|-|x
+索償|-|-|x
+次次|-|cl,pron|every time
+烏蠅|-|n|fly (insect)
+雀仔|-|n|small bird
+至到|-|prep|until; up to
+總言之|-|adv|in short, anyway
+千祈|-|adv|be sure to (千祈唔好 whatever you do, don't)
+唔該|-|expr|please; thank you (for a service); excuse me
+𡁜|-|part|(particle) passes on news, with surprise (= 喎)
+行街|-|v|to go shopping, to stroll around
+戇居|-|adj|silly, foolish
+電視台|-|n|TV station
+大個|-|adj|grown up; big
+書展|-|n|book fair
+爭啲|-|adv|almost, nearly
+秘書台|-|-|x
+六點|-|-|x
+掹|-|v|to pull, to tug
+唔錯|-|adj|not bad, pretty good
+佔|-|v|to take up, to occupy
+睇戲|-|v|to watch a film
+第二啲|-|pron|others, other ones
+廿四|-|-|x
+好揾|-|adj|easy to find
+冇用|-|adj|useless
+揦|-|v|to grab
+橫掂|-|adv,conj|anyway, since (it's so) anyway
+影相|-|v|to take photos
+大鑊|-|adj|big trouble
+七點鐘|-|-|x
+薯仔|-|n|potato
+鋼線|-|-|x
+擺落|-|v|to put down (in)
+鬼馬|-|adj|cheeky, funny
+嗰頭|-|pron|that end, over there
+唔緊要|-|expr|never mind, it doesn't matter
+古仔|-|n|story
+套摺|-|-|x
+猛咁|-|adv|nonstop, frantically
+呢排|-|pron|these days, lately
+個半|-|-|x
+忽然間|-|adv|suddenly
+冇所謂|-|v|I don't mind, whatever
+熱天|-|n|summer, hot weather
+幾廿|-|num|dozens
+試過|-|v|have tried; once (試過一次 once before)
+㗳|-|-|x
+早排|-|n|some time ago
+買嘢|-|v|to shop, to buy things
+痴線|-|adj|crazy
+一啲啲|-|pron|a tiny bit
+冚|-|-|x
+朝早|-|n|morning
+五點半|-|-|x
+得人驚|-|adj|scary
+𠝹手|-|-|x
+直情|-|adv|simply, downright
+私校|-|n|private school
+理論上|-|adv|in theory
+好嘢|-|adj|great! well done
+就係|-|adv|that is, exactly
+講笑|-|v|to joke
+細佬|-|n|younger brother
+近排|-|n|lately, these days
+高解像|-|-|x
+借書|-|v|to borrow books
+太嫲|-|-|x
+𠮨|-|-|x
+相當之|-|adv|quite, rather
+大單|-|-|x
+薯蓉|-|n|mashed potato
+私隱權|-|-|x
+限量|-|-|x
+㧬|-|-|x
+求其|-|adj|casual, sloppy; whatever (求其啦)
+唔只|-|adv|not only
+跌打|-|-|x
+㷫|-|v|angry, furious
+屋村|-|n|housing estate
+難食|-|adj|not tasty
+等如|-|v|to be the same as, to equal
+就來|-|adv|about to, soon
+九點|-|-|x
+踎|-|v|to squat
+廿一|-|-|x
+飛去|-|v|to fly to
+不過不失|-|expr|so-so, passable
+揸|-|v|to hold; to drive (揸車)
+老|-|-|old; (before a surname, friendly) 老陳
+號|-|-|number; date, day of the month
+擺|-|v|to put, to place; to set out
+交|-|v|to hand in, to pay
+得意|-|adj|cute; interesting, funny
+今|-|-|now, this (今日, 今年)
+阿媽|-|n|mum, mother
+雀|-|n|bird
+神|-|-|god, spirit
+聽講|-|v|I hear that, they say
+底|-|-|bottom; underneath
+叻|-|adj|clever, smart, capable
+衫|-|n|clothes; top, shirt
+報|-|-|newspaper; to report; to sign up (報名)
+親|-|part|(after a verb) every time: 一食親就肚痛; to hurt oneself (整親)
+興|-|-|popular, in fashion
+覆|-|v|to reply (覆電話 call back)
+越|-|adv|the more ... (越嚟越 more and more)
+齊|-|adj,adv|all present; complete; together
+數|-|v,n|number; maths; to count
+假|-|-|fake, false; holiday (放假)
+企|-|v|to stand
+瞓|-|v|to sleep; to lie down
+拎|-|v|to take, to carry; to fetch
+隔離|-|loc|next door, beside
+嗌|-|v|to shout; to order (food); to quarrel (嗌交)
+覺|-|n|sleep (瞓覺)
+嘥|-|v|to waste
+答|-|-|to answer
+比|-|-|to compare; than (= 過 in speech)
+噏|-|v|to mumble, to blather
+剝|-|v|to peel
+甩|-|v|to come off, to drop off
+笪|-|cl|(measure word for places, patches)
+扮|-|v|to pretend, to dress up as
+貨櫃|-|n|shipping container
+酒店|-|n|hotel
+老闆|-|n|boss
+生意|-|n|business
+大學|-|n|university
+冷氣|-|n|air conditioning
+好處|-|n|advantage, benefit
+場|-|cl|(measure word for events, games, films)
+口|-|-|mouth
+梗|-|adv|surely (= 梗係)
+哋|-|-|(plural for pronouns: 我哋, 你哋, 佢哋)
+相|-|n|photo
+舖|-|n|shop
+缸|-|n|tank, jar (魚缸 fish tank)
+水草|-|-|x
+中|-|-|middle; China
+為|-|-|for; because of
+還|-|v|to return, to pay back
+法|-|-|method, way; law; France
+面|-|-|face; side, surface
+咯|-|part|(particle) that's how it is, then (= 囉)
+追|-|v|to chase, to run after; to catch up
+偈|-|n|chat (傾偈 have a chat)
+舋|-|-|x
+拃|-|-|x
+郁|-|v|to move (唔好郁 don't move)
+掣|-|n|switch, button; brake
+焗|-|v,adj|to bake; stuffy, close (好焗)
+慳|-|v,adj|to save (money, energy); thrifty
+阿爸|-|n|dad, father
+錄|-|v|to record
+熄|-|v|to switch off (熄燈); to put out
+二|-|-|two (in counting; before a measure word say 兩)
+飯|-|n|rice (cooked); a meal
+將|-|-|(marks the object, like 把: 將佢放低 put it down); will
+先生|-|n|Mr.; husband; teacher; sir
+一號|-|-|the first (of the month)
+會考|-|n|the old school certificate exam (HKCEE)
+至|-|adv|most; only then (= 先至)
+乖|-|adj|good, well-behaved (of a child)
+揾笨|-|v|to con, to take advantage of (someone)
+肉酸|-|adj|ugly, gross
+開叉|-|-|x
+十二點|-|-|x
+九五年|-|-|x
+首日封|-|-|x
+鼎沸|-|-|x
+壯士|-|-|x
+波|-|n|ball (踢波 play football); gear (in a car)
+錫|-|v|to kiss; to dote on
+鮓|-|adj|lousy, poor quality
+成功|-|-|success; to succeed
+的|-|part|(written) 's, of (in speech say 嘅)
+曬|-|v|to dry in the sun; to bask
+大隻|-|adj|muscular, big
+煲|-|n,v|pot; to boil, to simmer
+蝕|-|v|to lose (money)
+聖經|-|n|the Bible
+雞|-|n|chicken
+鴨|-|n|duck
+白色|-|n|white
+講法|-|n|way of putting it; view

@@ -1,0 +1,24 @@
+# French notes: word|note|example ~  ~ English
+de|Of, from. Joins with le and les: du, des. Also the partitive, some (du pain, de l'eau), which becomes de after a negative (pas de pain).|le livre de Marie ~  ~ Marie's book|Je n'ai pas de temps. ~  ~ I have no time.
+le|The (masculine); la (feminine); l' before a vowel or mute h; les (plural). As an object pronoun: him, her, it, them, before the verb.|Je le vois. ~  ~ I see him.|l'hôtel ~  ~ the hotel
+à|To, at, in (a town). Joins with le and les: au, aux. Also for what something is for or has (une tasse à café, la fille aux yeux bleus).|Je vais à Paris. ~  ~ I'm going to Paris.|au cinéma ~  ~ at the cinema
+en|In (a country, a month, a language: en France, en mai); by (en train). As a pronoun: some, of it, of them; from there.|J'en veux deux. ~  ~ I want two of them.|en voiture ~  ~ by car
+y|There (to a place already named); also stands for à + a thing.|J'y vais. ~  ~ I'm going (there).|Il y a ~  ~ there is, there are
+que|That (je pense que ...); than (plus grand que); what (Que veux-tu?). Shortens to qu' before a vowel. Ne ... que means only.|Je crois qu'il vient. ~  ~ I think he's coming.|Je n'ai que dix euros. ~  ~ I only have ten euros.
+qui|Who (Qui est là?); also that, which, when it is the subject in the clause that follows.|l'homme qui parle ~  ~ the man who's talking
+ne|Half of most negatives: ne ... pas (not), ne ... jamais (never), ne ... rien (nothing), ne ... personne (nobody), ne ... plus (no longer). In speech the ne often drops.|Je ne sais pas. ~  ~ I don't know.|Il ne mange jamais de viande. ~  ~ He never eats meat.
+ce|This, that (ce livre); cet before a vowel, cette (feminine), ces (plural). C'est: it is, this is.|C'est vrai. ~  ~ It's true.|cette semaine ~  ~ this week
+se|Oneself, himself, herself, themselves: makes a verb reflexive (se lever, to get up) or reciprocal (ils s'aiment, they love each other). Me, te, se, nous, vous, se by person.|Je me lève à sept heures. ~  ~ I get up at seven.
+on|One, people; in speech mostly we. Takes the il form of the verb.|On y va ? ~  ~ Shall we go?
+tu|You (one person you know well); vous for several people or politely to one.|Tu viens ? ~  ~ Are you coming?|Vous êtes prêts ? ~  ~ Are you (all) ready?
+être|To be. Also the helper verb for the passé composé of verbs of movement and change (aller, venir, partir, naître, mourir ...) and of every reflexive verb; the past participle then agrees with the subject.|Elle est partie. ~  ~ She has left.|Nous nous sommes levés tôt. ~  ~ We got up early.
+avoir|To have. The helper verb for most passé composé forms. Also for age (j'ai trente ans), and for hunger, thirst, heat, cold, fear (avoir faim, avoir peur).|J'ai fini. ~  ~ I've finished.|Il a froid. ~  ~ He's cold.
+aller|To go. Aller + infinitive is the everyday near future.|Je vais partir. ~  ~ I'm going to leave.|Ça va ? ~  ~ How are things?
+faire|To do, to make. Also the weather (il fait beau), and faire + infinitive: to have something done (faire réparer).|Il fait froid. ~  ~ It's cold.|Je fais réparer la voiture. ~  ~ I'm having the car repaired.
+falloir|Only in the il form: il faut, one must, it takes. With que it takes the subjonctif.|Il faut partir. ~  ~ We have to go.|Il faut que tu viennes. ~  ~ You must come.
+venir|To come. Venir de + infinitive: to have just done.|Je viens de manger. ~  ~ I've just eaten.
+pouvoir|Can, to be able; may (Puis-je ...? in formal questions).|Tu peux m'aider ? ~  ~ Can you help me?
+vouloir|To want. Je voudrais (conditionnel) is the polite I'd like.|Je voudrais un café. ~  ~ I'd like a coffee.
+devoir|Must, to have to; to owe. In the conditionnel, should (tu devrais).|Je dois partir. ~  ~ I must go.|Tu devrais dormir. ~  ~ You should sleep.
+savoir|To know (a fact, how to). Connaître is to know a person or a place.|Je sais nager. ~  ~ I can swim.|Je connais Paris. ~  ~ I know Paris.
+dont|Of which, whose, about which: replaces de + noun in a clause.|le livre dont je parle ~  ~ the book I'm talking about

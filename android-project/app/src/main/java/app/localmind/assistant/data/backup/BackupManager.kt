@@ -281,6 +281,6 @@ class BackupManager @Inject constructor(
         private const val PBKDF2_ROUNDS = 310_000
         private const val CIPHER = "AES/GCM/NoPadding"
         /** Settings worth carrying over (appearance, Chinese, assistant, persona models). */
-        private val SETTINGS_FILES = listOf("appearance", "chinese_style", "assistant", "persona_models", "tutor_levels", "notes", "memory", "home")
+        private val SETTINGS_FILES = listOf("appearance", "chinese_style", "assistant", "persona_models", "tutor_levels", "notes", "memory", "home", "core_words")
     }
 }

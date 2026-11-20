@@ -1,0 +1,50 @@
+# Cantonese grammar notes: word|note|example ~ jyutping ~ English
+係|To be (links two nouns). Also the everyday yes. 係唔係 asks is it or isn't it; 係咪 is the quick form.|我係老師。 ~ ngo5 hai6 lou5si1 ~ I'm a teacher.|係咪你呀？ ~ hai6 mai6 nei5 aa3 ~ Is that you?
+喺|At, in, on (Mandarin 在). 喺度 before a verb means in the middle of doing.|我喺屋企。 ~ ngo5 hai2 uk1kei2 ~ I'm at home.|佢喺度食飯。 ~ keoi5 hai2dou6 sik6faan6 ~ He's eating.
+唔|Not (Mandarin 不). 唔係 isn't; 唔好 don't; 唔使 no need.|我唔食辣。 ~ ngo5 m4 sik6 laat6 ~ I don't eat spicy food.|唔好走！ ~ m4hou2 zau2 ~ Don't go!
+冇|Not have, there isn't (Mandarin 沒有); also didn't, for the past.|我冇錢。 ~ ngo5 mou5 cin2 ~ I've no money.|我冇去。 ~ ngo5 mou5 heoi3 ~ I didn't go.
+未|Not yet. At the end of a question: yet? Answer 未 (not yet) or the verb + 咗 (done).|你食咗飯未？ ~ nei5 sik6 zo2 faan6 mei6 ~ Have you eaten yet?|我未去過。 ~ ngo5 mei6 heoi3 gwo3 ~ I haven't been yet.
+咗|After a verb: done, completed (like Mandarin 了 after a verb).|我食咗喇。 ~ ngo5 sik6 zo2 laa3 ~ I've eaten.|佢走咗。 ~ keoi5 zau2 zo2 ~ He's left.
+緊|After a verb: in progress, -ing.|我食緊飯。 ~ ngo5 sik6 gan2 faan6 ~ I'm eating.|落緊雨。 ~ lok6 gan2 jyu5 ~ It's raining.
+過|After a verb: have done before, an experience. Also than: 高過我 taller than me.|我去過日本。 ~ ngo5 heoi3 gwo3 jat6bun2 ~ I've been to Japan.|佢高過我。 ~ keoi5 gou1 gwo3 ngo5 ~ He's taller than me.
+住|After a verb: keep doing, a state that holds (揸住 holding). Also for now: 等住 wait for now.|佢揸住把遮。 ~ keoi5 zaa1 zyu6 baa2 ze1 ~ She's holding an umbrella.|你坐住先。 ~ nei5 co5 zyu6 sin1 ~ Have a seat for now.
+嘅|'s, of (Mandarin 的): 我嘅 mine. At the end of a sentence it says this is how it is.|我嘅電話 ~ ngo5 ge3 din6waa2 ~ my phone|佢唔會嚟嘅。 ~ keoi5 m4 wui5 lei4 ge3 ~ He won't come, you'll see.
+個|The everyday measure word. Cantonese can start with measure word + noun to mean the: 個仔 the son, 本書 the book.|呢個 ~ ni1 go3 ~ this one|個人好好。 ~ go3 jan4 hou2 hou2 ~ The person is really nice.
+啲|Some, a little; before a noun, the (for plural or uncountable: 啲人 the people). After an adjective: -er (快啲 faster).|啲嘢 ~ di1 je5 ~ the things|行快啲！ ~ haang4 faai3 di1 ~ Walk faster!
+俾|To give; to let (俾我睇 let me see); by, in the passive (俾人鬧 got told off).|俾杯水我。 ~ bei2 bui1 seoi2 ngo5 ~ Give me a glass of water.|我俾人呃咗。 ~ ngo5 bei2 jan4 ngaak1 zo2 ~ I've been cheated.
+先|First, before. Often at the end: 你行先 you go first.|食飯先。 ~ sik6faan6 sin1 ~ Let's eat first.|你講先。 ~ nei5 gong2 sin1 ~ You speak first.
+添|At the end: too, as well; also adds surprise (what's more!).|再嚟一碗添。 ~ zoi3 lai4 jat1 wun2 tim1 ~ One more bowl, too.|落雨添！ ~ lok6 jyu5 tim1 ~ It's raining, of all things!
+晒|After a verb: all, completely (食晒 ate it all). Also very: 多謝晒 thanks so much.|錢使晒喇。 ~ cin2 sai2 saai3 laa3 ~ The money's all spent.|唔該晒！ ~ m4goi1 saai3 ~ Thanks so much!
+埋|After a verb: also, as well, finish off (做埋佢 do this too). As a verb: to come close, to close up.|食埋佢啦。 ~ sik6 maai4 keoi5 laa1 ~ Finish it off.|行埋啲。 ~ haang4 maai4 di1 ~ Come closer.
+返|To return; to go to work or school (返工, 返學). After a verb: back, again (攞返 take back).|我返屋企。 ~ ngo5 faan1 uk1kei2 ~ I'm going home.|俾返我。 ~ bei2 faan1 ngo5 ~ Give it back to me.
+到|To arrive; after a verb, achieved: 搵到 found, 聽到 heard.|我搵唔到。 ~ ngo5 wan2 m4 dou2 ~ I can't find it.
+得|OK, can do (得唔得? does that work?); only (得三個 only three left); after a verb, can (去得 can go).|得喇！ ~ dak1 laa3 ~ That's fine!|得我一個。 ~ dak1 ngo5 jat1 go3 ~ Just me.
+咁|So (with an adjective): 咁貴 so expensive. 噉 (said gam2) means like this, so then.|點解咁貴？ ~ dim2gaai2 gam3 gwai3 ~ Why is it so expensive?
+噉|Like this, in this way; then, in that case (噉我走先 then I'll go). Many writers use 咁 for both.|噉樣做 ~ gam2 joeng2 zou6 ~ do it this way|噉好啦。 ~ gam2 hou2 laa1 ~ All right, then.
+呢|This (呢個 this one, 呢度 here). As a particle (ne1): and ...? or a softer question.|呢個幾錢？ ~ ni1 go3 gei2 cin2 ~ How much is this one?|你呢？ ~ nei5 ne1 ~ And you?
+嗰|That (嗰個 that one, 嗰度 there).|嗰間鋪頭 ~ go2 gaan1 pou3tau2 ~ that shop
+邊|Which (邊個 who, which one; 邊度 where).|你去邊度？ ~ nei5 heoi3 bin1dou6 ~ Where are you going?
+乜嘢|What. Shortened in speech to 乜 or 咩.|你做乜嘢？ ~ nei5 zou6 mat1je5 ~ What are you doing?
+咩|What (= 乜嘢); at the end, a surprised question: really?|係咩？ ~ hai6 me1 ~ Really?|你唔知咩？ ~ nei5 m4 zi1 me1 ~ You didn't know?
+啦|Urges or agrees: 走啦 come on, let's go; 好啦 OK then.|快啲啦！ ~ faai3 di1 laa1 ~ Hurry up!
+喇|Something is now so, a change (= Mandarin 了 at the end).|夠喇。 ~ gau3 laa3 ~ That's enough.|我走喇。 ~ ngo5 zau2 laa3 ~ I'm off.
+囉|Obviously, that's how it is; a slightly impatient so then.|係囉。 ~ hai6 lo1 ~ Exactly.|噉咪去囉。 ~ gam2 mai6 heoi3 lo1 ~ Then just go.
+㗎|States a fact firmly (you know); with a question, asks in surprise or for confirmation.|好貴㗎！ ~ hou2 gwai3 gaa3 ~ It's expensive, you know!|係真㗎？ ~ hai6 zan1 gaa4 ~ Is it really true?
+喎|Passes on what someone said (they say), or notices something (oh, mind you).|佢話唔嚟喎。 ~ keoi5 waa6 m4 lei4 wo5 ~ He says he's not coming.|好味喎！ ~ hou2 mei6 wo3 ~ Oh, this is tasty!
+啩|I guess, probably: a soft guess.|佢唔嚟啩。 ~ keoi5 m4 lei4 gwaa3 ~ I guess he isn't coming.
+吖|Light and friendly: agreeing or offering.|好吖！ ~ hou2 aa1 ~ Sure!
+啫|Only, merely: that's all there is to it.|十蚊啫。 ~ sap6 man1 ze1 ~ It's only ten dollars.
+咋|Only, just (a bit stronger than 啫).|得一個咋。 ~ dak1 jat1 go3 zaa3 ~ There's only one.
+咪|Isn't it just ... (咪係囉 that's it, isn't it); also don't (= 唔好).|咪即係囉。 ~ mai6 zik1hai6 lo1 ~ That's just it.|咪郁！ ~ mai5 juk1 ~ Don't move!
+下|After a verb (said haa5): a bit, briefly. 睇下 have a look.|試下。 ~ si3 haa5 ~ Give it a try.
+吓|Huh? what? (said haa2, surprised).|吓？你講乜？ ~ haa2 nei5 gong2 mat1 ~ Huh? What did you say?
+定|Or, in questions (定係 in full).|茶定咖啡？ ~ caa4 ding6 gaa3fe1 ~ Tea or coffee?
+同|With; and; for (同我買 buy it for me).|我同你去。 ~ ngo5 tung4 nei5 heoi3 ~ I'll go with you.|同我拎住。 ~ tung4 ngo5 ling1 zyu6 ~ Hold this for me.
+識|To know how, can (a skill: 識游水 can swim); to know a person.|你識唔識講廣東話？ ~ nei5 sik1 m4 sik1 gong2 gwong2dung1waa2 ~ Can you speak Cantonese?
+鍾意|To like, to love (Mandarin 喜歡).|我好鍾意食點心。 ~ ngo5 hou2 zung1ji3 sik6 dim2sam1 ~ I love dim sum.
+唔該|Please, thanks (for a service or help); excuse me. 多謝 thanks for a gift.|唔該，埋單。 ~ m4goi1, maai4daan1 ~ The bill, please.
+佢|He, she, it; him, her. Plural 佢哋. 哋 makes any pronoun plural: 我哋 we.|佢哋係我朋友。 ~ keoi5dei6 hai6 ngo5 pang4jau5 ~ They're my friends.
+睇|To look, to watch, to read (Mandarin 看). 睇醫生 see a doctor; 睇下 it depends, let's see.|睇戲 ~ tai2 hei3 ~ watch a film
+食|To eat; also to drink soup, to take medicine, to smoke.|食藥 ~ sik6 joek6 ~ take medicine
+攞|To take, to get, to fetch (Mandarin 拿).|攞俾我。 ~ lo2 bei2 ngo5 ~ Get it for me.
+揾|To look for, to find (Mandarin 找). 揾工 look for a job; 揾錢 make money.|我揾唔到鎖匙。 ~ ngo5 wan2 m4 dou2 so2si4 ~ I can't find my keys.

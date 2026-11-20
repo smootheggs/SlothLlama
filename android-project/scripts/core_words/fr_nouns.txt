@@ -1,0 +1,740 @@
+temps|m|time; weather
+an|m|year
+année|f|year
+jour|m|day
+journée|f|day (its length)
+fois|f|time (occasion)
+homme|m|man
+femme|f|woman; wife
+enfant|mf|child
+gens|m|people|pl=gens
+personne|f|person
+monde|m|world; people
+vie|f|life
+chose|f|thing
+main|f|hand
+pays|m|country|pl=pays
+ville|f|town; city
+maison|f|house; home
+famille|f|family
+père|m|father
+mère|f|mother
+fils|m|son|pl=fils
+fille|f|daughter; girl
+frère|m|brother
+sœur|f|sister
+ami|m|friend
+amie|f|friend (female)
+copain|m|friend; boyfriend
+copine|f|friend; girlfriend
+mari|m|husband
+parent|m|parent
+garçon|m|boy
+bébé|m|baby
+nom|m|name; noun
+prénom|m|first name
+mot|m|word
+parole|f|word; speech
+langue|f|language; tongue
+question|f|question
+réponse|f|answer
+problème|m|problem
+idée|f|idea
+raison|f|reason
+moment|m|moment
+heure|f|hour; o'clock
+minute|f|minute
+seconde|f|second
+semaine|f|week
+mois|m|month|pl=mois
+matin|m|morning
+soir|m|evening
+soirée|f|evening; party
+nuit|f|night
+midi|m|noon; lunchtime
+après-midi|m|afternoon|pl=après-midi
+lendemain|m|the next day
+week-end|m|weekend
+siècle|m|century
+histoire|f|story; history
+fin|f|end
+début|m|beginning
+place|f|place; seat; square
+lieu|m|place|pl=lieux
+endroit|m|place; spot
+côté|m|side
+part|f|share; part (de la part de: from)
+partie|f|part; game
+point|m|point; full stop
+coup|m|blow; knock; go (un coup de fil: a call)
+cas|m|case|pl=cas
+état|m|state
+façon|f|way; manner
+manière|f|way; manner
+sorte|f|sort; kind
+genre|m|kind; gender
+exemple|m|example
+travail|m|work; job|pl=travaux
+emploi|m|job; use
+métier|m|trade; job
+entreprise|f|company
+bureau|m|office; desk|pl=bureaux
+argent|m|money; silver
+prix|m|price; prize|pl=prix
+euro|m|euro
+dollar|m|dollar
+compte|m|account
+banque|f|bank
+affaire|f|matter; deal (affaires: business; belongings)
+marché|m|market
+client|m|customer
+service|m|service; favour
+projet|m|project; plan
+plan|m|plan; map
+équipe|f|team
+réunion|f|meeting
+chef|m|boss; chef
+patron|m|boss
+collègue|mf|colleague
+école|f|school
+classe|f|class
+cours|m|class; course; price (rate)|pl=cours
+élève|mf|pupil
+étudiant|m|student
+professeur|m|teacher; professor
+université|f|university
+examen|m|exam
+livre|m|book
+livre|f|pound
+lettre|f|letter
+page|f|page
+papier|m|paper
+journal|m|newspaper; diary|pl=journaux
+article|m|article
+nouvelle|f|piece of news; short story
+information|f|information (les infos: the news)
+télévision|f|television
+radio|f|radio
+film|m|film
+photo|f|photo
+musique|f|music
+chanson|f|song
+art|m|art
+jeu|m|game|pl=jeux
+sport|m|sport
+match|m|match
+voiture|f|car
+train|m|train
+avion|m|plane
+bus|m|bus|pl=bus
+vélo|m|bike
+bateau|m|boat|pl=bateaux
+gare|f|station
+aéroport|m|airport
+route|f|road
+rue|f|street
+chemin|m|path; way
+voyage|m|trip; journey
+vacances|f|holidays|pl=vacances
+billet|m|ticket; banknote
+hôtel|m|hotel
+chambre|f|bedroom; room
+salle|f|room; hall
+cuisine|f|kitchen; cooking
+porte|f|door
+fenêtre|f|window
+mur|m|wall
+table|f|table
+chaise|f|chair
+lit|m|bed
+clé|f|key
+étage|m|floor; storey
+appartement|m|flat; apartment
+immeuble|m|building
+quartier|m|neighbourhood
+centre|m|centre
+magasin|m|shop
+boutique|f|shop
+restaurant|m|restaurant
+café|m|coffee; café
+eau|f|water|pl=eaux
+pain|m|bread
+vin|m|wine
+bière|f|beer
+lait|m|milk
+thé|m|tea
+viande|f|meat
+poisson|m|fish
+poulet|m|chicken
+fromage|m|cheese
+fruit|m|fruit
+pomme|f|apple
+légume|m|vegetable
+repas|m|meal|pl=repas
+petit-déjeuner|m|breakfast|pl=petits-déjeuners
+déjeuner|m|lunch
+dîner|m|dinner
+dessert|m|dessert
+plat|m|dish
+assiette|f|plate
+verre|m|glass
+bouteille|f|bottle
+sucre|m|sugar
+sel|m|salt
+corps|m|body|pl=corps
+tête|f|head
+visage|m|face
+œil|m|eye|pl=yeux
+yeux|-|-
+bouche|f|mouth
+nez|m|nose|pl=nez
+oreille|f|ear
+bras|m|arm|pl=bras
+jambe|f|leg
+pied|m|foot
+dos|m|back|pl=dos
+cœur|m|heart
+cheveu|m|hair (a hair)|pl=cheveux
+sang|m|blood
+santé|f|health
+maladie|f|illness
+médecin|m|doctor
+hôpital|m|hospital|pl=hôpitaux
+douleur|f|pain
+mort|f|death
+peur|f|fear
+amour|m|love
+joie|f|joy
+plaisir|m|pleasure
+bonheur|m|happiness
+envie|f|wish; urge (avoir envie de: to feel like)
+besoin|m|need (avoir besoin de: to need)
+espoir|m|hope
+souvenir|m|memory; souvenir
+rêve|m|dream
+sentiment|m|feeling
+esprit|m|mind; spirit
+âme|f|soul
+âge|m|age
+air|m|air; look (avoir l'air: to seem)
+feu|m|fire; traffic light|pl=feux
+lumière|f|light
+soleil|m|sun
+lune|f|moon
+ciel|m|sky|pl=cieux
+étoile|f|star
+mer|f|sea
+plage|f|beach
+montagne|f|mountain
+campagne|f|countryside; campaign
+forêt|f|forest
+arbre|m|tree
+fleur|f|flower
+jardin|m|garden
+terre|f|earth; ground; land
+pluie|f|rain
+neige|f|snow
+vent|m|wind
+chaleur|f|heat
+froid|m|cold
+saison|f|season
+printemps|m|spring|pl=printemps
+été|m|summer
+automne|m|autumn
+hiver|m|winter
+animal|m|animal|pl=animaux
+chien|m|dog
+chat|m|cat
+oiseau|m|bird|pl=oiseaux
+cheval|m|horse|pl=chevaux
+nature|f|nature
+couleur|f|colour
+bruit|m|noise
+voix|f|voice|pl=voix
+son|m|sound
+image|f|picture; image
+forme|f|shape; form
+ordre|m|order
+règle|f|rule; ruler
+loi|f|law
+droit|m|right; law
+justice|f|justice
+police|f|police
+guerre|f|war
+paix|f|peace|pl=paix
+armée|f|army
+pouvoir|m|power
+gouvernement|m|government
+président|m|president
+ministre|m|minister
+politique|f|politics; policy
+parti|m|party (political)
+élection|f|election
+état|-|-
+société|f|society; company
+public|m|public; audience
+population|f|population
+peuple|m|people; nation
+groupe|m|group
+membre|m|member
+force|f|strength; force
+effet|m|effect (en effet: indeed)
+cause|f|cause (à cause de: because of)
+résultat|m|result
+but|m|goal; aim
+objectif|m|objective
+moyen|m|means; way
+solution|f|solution
+choix|m|choice|pl=choix
+décision|f|decision
+action|f|action; share
+activité|f|activity
+situation|f|situation
+condition|f|condition
+niveau|m|level|pl=niveaux
+nombre|m|number
+numéro|m|number (phone, house)
+chiffre|m|figure; digit
+partie|-|-
+moitié|f|half
+reste|m|rest
+tour|m|turn; tour
+tour|f|tower
+ligne|f|line
+système|m|system
+programme|m|programme
+site|m|website; site
+ordinateur|m|computer
+téléphone|m|telephone
+portable|m|mobile phone; laptop
+écran|m|screen
+réseau|m|network|pl=réseaux
+message|m|message
+courriel|m|email
+internet|m|internet
+données|f|data|pl=données
+recherche|f|research; search
+science|f|science
+étude|f|study
+connaissance|f|knowledge; acquaintance
+culture|f|culture
+langage|m|language (way of speaking)
+sens|m|sense; meaning; direction|pl=sens
+vérité|f|truth
+mensonge|m|lie
+erreur|f|mistake
+faute|f|fault; mistake
+attention|f|attention
+aide|f|help
+chance|f|luck; chance
+risque|m|risk
+danger|m|danger
+sécurité|f|safety; security
+liberté|f|freedom
+droit|-|-
+devoir|m|duty; homework
+travail|-|-
+vacance|-|-
+fête|f|party; holiday
+anniversaire|m|birthday; anniversary
+cadeau|m|present; gift|pl=cadeaux
+mariage|m|wedding; marriage
+naissance|f|birth
+enfance|f|childhood
+jeunesse|f|youth
+avenir|m|future
+passé|m|past
+présent|m|present
+futur|m|future (tense)
+semaine|-|-
+dimanche|m|Sunday
+lundi|m|Monday
+samedi|m|Saturday
+vendredi|m|Friday
+mardi|m|Tuesday
+mercredi|m|Wednesday
+jeudi|m|Thursday
+janvier|m|January
+mai|m|May
+juin|m|June
+juillet|m|July
+septembre|m|September
+octobre|m|October
+décembre|m|December
+monsieur|m|sir; Mr; gentleman|pl=messieurs
+madame|f|madam; Mrs|pl=mesdames
+mademoiselle|f|Miss|pl=mesdemoiselles
+dame|f|lady
+roi|m|king
+reine|f|queen
+dieu|m|god|pl=dieux
+église|f|church
+vêtement|m|garment (vêtements: clothes)
+robe|f|dress
+chemise|f|shirt
+pantalon|m|trousers
+chaussure|f|shoe
+sac|m|bag
+poche|f|pocket
+lunettes|f|glasses|pl=lunettes
+montre|f|watch
+objet|m|object
+outil|m|tool
+machine|f|machine
+moteur|m|engine
+pièce|f|room; coin; play; part
+boîte|f|box; nightclub
+carte|f|card; map; menu
+cadre|m|frame; setting; executive
+fond|m|bottom; back; background
+bout|m|end; bit
+milieu|m|middle; environment|pl=milieux
+face|f|face (en face de: opposite)
+haut|m|top
+bas|m|bottom|pl=bas
+droite|f|right (side)
+gauche|f|left (side)
+nord|m|north
+sud|m|south
+est|m|east
+ouest|m|west
+espace|m|space
+distance|f|distance
+kilomètre|m|kilometre
+mètre|m|metre
+poids|m|weight|pl=poids
+taille|f|size; height
+vitesse|f|speed
+direction|f|direction; management
+retour|m|return
+départ|m|departure
+arrivée|f|arrival
+entrée|f|entrance; starter
+sortie|f|exit; outing
+passage|m|passage
+pas|m|step|pl=pas
+geste|m|gesture
+regard|m|look; gaze
+visite|f|visit
+rencontre|f|meeting; encounter
+rendez-vous|m|appointment; date|pl=rendez-vous
+invitation|f|invitation
+nouvelle|-|-
+lettre|-|-
+mot|-|-
+discours|m|speech|pl=discours
+conversation|f|conversation
+discussion|f|discussion
+avis|m|opinion|pl=avis
+opinion|f|opinion
+accord|m|agreement (d'accord: OK)
+doute|m|doubt
+confiance|f|trust; confidence
+relation|f|relationship
+contact|m|contact
+intérêt|m|interest
+valeur|f|value
+qualité|f|quality
+différence|f|difference
+changement|m|change
+développement|m|development
+économie|f|economy
+industrie|f|industry
+production|f|production
+commerce|m|trade; shop
+crise|f|crisis
+impôt|m|tax
+salaire|m|salary
+prix|-|-
+coût|m|cost
+achat|m|purchase
+vente|f|sale
+offre|f|offer
+demande|f|request; demand
+contrat|m|contract
+document|m|document
+dossier|m|file
+liste|f|list
+note|f|note; mark; bill
+titre|m|title
+sujet|m|subject; topic
+thème|m|theme
+version|f|version
+modèle|m|model
+type|m|type; guy
+style|m|style
+mode|f|fashion
+mode|m|mode; way
+goût|m|taste
+odeur|f|smell
+rôle|m|role
+scène|f|stage; scene
+spectacle|m|show
+théâtre|m|theatre
+musée|m|museum
+cinéma|m|cinema
+concert|m|concert
+roman|m|novel
+auteur|m|author
+écrivain|m|writer
+artiste|mf|artist
+acteur|m|actor
+joueur|m|player
+ville|-|-
+village|m|village
+région|f|region
+capitale|f|capital
+frontière|f|border
+monde|-|-
+planète|f|planet
+pierre|f|stone
+bois|m|wood|pl=bois
+fer|m|iron
+or|m|gold
+verre|-|-
+papier|-|-
+feuille|f|leaf; sheet
+herbe|f|grass; herb
+champ|m|field
+rivière|f|river
+fleuve|m|river (to the sea)
+lac|m|lake
+île|f|island
+pont|m|bridge
+port|m|port
+voisin|m|neighbour
+enfant|-|-
+adulte|mf|adult
+jeune|mf|young person
+vieux|-|-
+docteur|m|doctor
+avocat|m|lawyer; avocado
+ingénieur|m|engineer
+ouvrier|m|worker
+paysan|m|farmer; peasant
+soldat|m|soldier
+policier|m|police officer
+juge|mf|judge
+directeur|m|director; manager
+responsable|mf|person in charge
+employé|m|employee
+secrétaire|mf|secretary
+vendeur|m|salesperson
+serveur|m|waiter
+cuisinier|m|cook
+habitant|m|inhabitant
+citoyen|m|citizen
+étranger|m|foreigner; abroad (à l'étranger)
+inconnu|m|stranger
+hôte|m|host; guest
+invité|m|guest
+foule|f|crowd
+couple|m|couple
+mariée|f|bride
+fiancé|m|fiancé
+enfant|-|-
+naissance|-|-
+nouvelle|-|-
+tour|-|-
+sommeil|m|sleep
+faim|f|hunger (avoir faim: to be hungry)
+soif|f|thirst
+rire|m|laugh
+larme|f|tear
+silence|m|silence
+calme|m|calm
+colère|f|anger
+honte|f|shame
+courage|m|courage
+patience|f|patience
+caractère|m|character; temper
+habitude|f|habit (d'habitude: usually)
+expérience|f|experience; experiment
+occasion|f|opportunity; bargain
+moyen|-|-
+façon|-|-
+semaine|-|-
+dernier|-|-
+suite|f|rest; sequel (tout de suite: right away; par la suite: later)
+rapport|m|report; relationship (par rapport à: compared with)
+conseil|m|advice; council
+base|f|base; basis
+grâce|f|grace (grâce à: thanks to)
+truc|m|thing; thingy (informal)
+vidéo|f|video
+série|f|series
+époque|f|era; time
+peine|f|sorrow; penalty (à peine: hardly; ce n'est pas la peine: no need)
+mesure|f|measure (dans la mesure où: insofar as)
+terme|m|term; end
+gars|m|guy; lad|pl=gars
+mec|m|guy (informal)
+propos|m|remark (à propos: by the way; about)|pl=propos
+période|f|period
+date|f|date
+origine|f|origin
+mouvement|m|movement
+intérieur|m|inside; interior
+lien|m|link; bond
+plupart|f|most (la plupart de)
+cour|f|courtyard; court
+texte|m|text
+poste|m|post; position; set (TV)
+poste|f|post office
+succès|m|success|pl=succès
+position|f|position
+contrôle|m|check; control
+appel|m|call; appeal
+impression|f|impression; printing
+fonction|f|function; role
+création|f|creation
+zone|f|zone; area
+présence|f|presence
+organisation|f|organisation
+œuvre|f|work (of art)
+réalité|f|reality
+presse|f|press
+compagnie|f|company
+taux|m|rate|pl=taux
+victoire|f|victory
+domaine|m|field; domain; estate
+communauté|f|community
+sol|m|ground; floor
+matière|f|subject; material
+honneur|m|honour
+énergie|f|energy
+technique|f|technique
+mission|f|mission
+construction|f|construction
+terrain|m|ground; pitch; plot
+bord|m|edge; side (au bord de: on the edge of)
+majorité|f|majority
+instant|m|moment
+défense|f|defence
+élément|m|element
+vol|m|flight; theft
+assemblée|f|assembly
+éducation|f|education; upbringing
+prison|f|prison
+preuve|f|proof
+maître|m|master; teacher
+attaque|f|attack
+adresse|f|address; skill
+principe|m|principle
+soutien|m|support
+secteur|m|sector
+respect|m|respect
+espèce|f|species; kind
+durée|f|length (of time)
+carrière|f|career
+analyse|f|analysis
+mémoire|f|memory
+parc|m|park
+maire|m|mayor
+environnement|m|environment
+application|f|app; application
+transport|m|transport
+limite|f|limit
+enquête|f|investigation; survey
+évolution|f|evolution
+volonté|f|will
+religion|f|religion
+puissance|f|power
+pression|f|pressure
+lutte|f|struggle; fight
+importance|f|importance
+débat|m|debate
+usage|m|use; usage
+secret|m|secret
+tendance|f|tendency; trend
+tableau|m|painting; board; table|pl=tableaux
+révolution|f|revolution
+gaz|m|gas|pl=gaz
+fil|m|thread; wire (un coup de fil: a call)
+expression|f|expression
+chaîne|f|chain; channel
+épisode|m|episode
+victime|f|victim
+surface|f|surface
+peau|f|skin|pl=peaux
+communication|f|communication
+boulot|m|job; work (informal)
+source|f|source; spring
+mars|m|March|pl=mars
+avril|m|April
+août|m|August
+novembre|m|November
+février|m|February
+formation|f|training; education
+charge|f|load; responsibility (en charge de: in charge of)
+accès|m|access|pl=accès
+code|m|code
+administration|f|administration
+régime|m|diet; regime
+médias|m|media|pl=médias
+territoire|m|territory
+édition|f|edition; publishing
+ouverture|f|opening
+gestion|f|management
+course|f|race; errand (les courses: shopping)
+concours|m|competition; exam|pl=concours
+protection|f|protection
+comité|m|committee
+traitement|m|treatment; processing
+opération|f|operation
+utilisation|f|use
+émission|f|programme (TV, radio); emission
+absence|f|absence
+procès|m|trial|pl=procès
+côte|f|coast; rib
+siège|m|seat; headquarters
+retraite|f|retirement; pension
+ressource|f|resource
+enseignement|m|teaching
+consommation|f|consumption
+budget|m|budget
+arrêt|m|stop
+processus|m|process|pl=processus
+opposition|f|opposition
+hauteur|f|height
+extérieur|m|outside; exterior
+contexte|m|context
+capacité|f|ability; capacity
+acte|m|act; deed
+télé|f|TV (informal)
+tribunal|m|court|pl=tribunaux
+Noël|m|Christmas
+faveur|f|favour (en faveur de: in favour of)
+candidat|m|candidate
+approche|f|approach
+possibilité|f|possibility
+perte|f|loss
+journaliste|mf|journalist
+accident|m|accident
+violence|f|violence
+somme|f|sum
+responsabilité|f|responsibility
+parcours|m|route; career path|pl=parcours
+identité|f|identity
+coin|m|corner
+théorie|f|theory
+retard|m|delay (en retard: late)
+personnage|m|character
+lycée|m|secondary school
+football|m|football
+foi|f|faith
+conférence|f|conference; lecture
+beauté|f|beauty
+événement|m|event
+échange|m|exchange
+propriétaire|mf|owner
+maman|f|mum
+papa|m|dad
+lecture|f|reading
+influence|f|influence
+détail|m|detail
+croissance|f|growth
+conscience|f|conscience; awareness
+autorité|f|authority
+assurance|f|insurance; confidence
+agence|f|agency

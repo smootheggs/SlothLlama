@@ -14,3 +14,7 @@ android-project/app/libs/*.part
 android-project/third_party/opencl/
 # Built by android-project/scripts/fetch-dictionary.sh
 android-project/app/src/main/assets/dictionary/
+
+# Core words build sources (see android-project/scripts/core_words/SOURCES.md)
+android-project/scripts/core_words/sources/
+__pycache__/

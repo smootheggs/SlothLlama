@@ -7,7 +7,7 @@ mailbox folder with SlothLlama and never anything more.
 
 **Three pillars.** Everything in the app belongs to one of them.
 - **Learn:** tutors for Mandarin, Cantonese, Japanese, French, German, Spanish and Italian;
-  flashcards, speaking practice, the dictionary.
+  flashcards, speaking practice, the dictionary, Core words.
 - **Know:** the Library (your books and documents, offline Wikipedia), Notes.
 - **Do:** offline tools (sums, units, time zones, dates, timers, calendar), the Lobster.
 
@@ -78,6 +78,18 @@ model too big for the GPU falls back to the CPU on its own.
   save it as a flashcard. Drawer → Dictionary searches by characters, pinyin (`nihao`,
   `ni3 hao3`) or English. Built from CC-CEDICT (CC BY-SA 4.0) with Jyutping from ToJyutping;
   CI fetches both at pinned checksums (`scripts/fetch-dictionary.sh`).
+- **Core words.** Home → Core words: the most-used words of Mandarin (2,500, with HSK 3.0
+  levels), Cantonese (1,500, from spoken Hong Kong Cantonese) and French (1,575), ranked by
+  frequency and sorted by part of speech (nouns, verbs, adjectives, measure words, particles…).
+  Cut the list to the top 100, 500, 1,000 or 2,000; search by any form (`allons`, `yeux`), by
+  Pinyin or Jyutping, or by English. Each word's card has its reading, Listen and Practise, a
+  gloss, your mark (new, learning, known), Add to flashcards and Ask the teacher (the tutor's
+  chat opens with the question in the box). French verbs show every tense (présent through
+  passé simple, with the passé composé's auxiliary and agreement), nouns their gender and
+  plural, adjectives their four forms; Mandarin words their measure words and other readings;
+  the little words (了, 嘅, 咗, que, en…) a short note with examples. Marks are in backups, and a
+  line shows how much of everyday text your known words cover. The lists are built by
+  `scripts/core_words/` (sources and licences in its `SOURCES.md`) and ship inside the app.
 - **Repeat after me.** The 🗣 button under a tutor reply (or Practise in the dictionary): pick a
   sentence, tap Listen, then Say it. It stops listening when you pause, then colours each
   character green (heard) or red (missed) with a score. Homophones the recogniser picks still

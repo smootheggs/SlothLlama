@@ -1,0 +1,14 @@
+Core words lists (fr.json, zh.json, yue.json)
+
+French: word frequencies from wordfreq 3.1.1 (data CC BY-SA 4.0, https://github.com/rspeer/wordfreq).
+Word list, meanings, notes and conjugation written for SlothLlama.
+
+Mandarin: words, ranks, parts of speech, HSK levels and measure words from complete-hsk-vocabulary
+(MIT, https://github.com/drkameleon/complete-hsk-vocabulary); meanings from CC-CEDICT
+(CC BY-SA 4.0, https://cc-cedict.org), some rewritten; frequencies from wordfreq (CC BY-SA 4.0).
+
+Cantonese: words, counts, parts of speech and Jyutping from the Hong Kong Cantonese Corpus
+(HKCanCor, CC BY 4.0; Luke and Wong 2015); meanings from CC-CEDICT (CC BY-SA 4.0) or written
+for SlothLlama.
+
+These lists are shared under CC BY-SA 4.0 (https://creativecommons.org/licenses/by-sa/4.0/).

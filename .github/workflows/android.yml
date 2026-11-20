@@ -132,6 +132,7 @@ jobs:
           if unzip -l "$APK" | grep -q 'lib/arm64-v8a/libOpenCL.so'; then echo "::error::libOpenCL.so must not be packaged"; exit 1; fi
           echo "GPU backend packaged; OpenCL comes from the tablet's driver"
           unzip -l "$APK" | grep -q 'assets/dictionary/dictionary.db' || { echo "::error::The dictionary is missing from the APK"; exit 1; }
+          for list in fr zh yue; do unzip -l "$APK" | grep -q "assets/core/$list.json" || { echo "::error::The Core words list $list.json is missing from the APK"; exit 1; }; done
           unzip -l "$APK" | grep -q 'lib/arm64-v8a/libkiwix.so' || { echo "::error::libkiwix (Wikipedia files) is missing from the APK"; exit 1; }
 
       # The offline promise, checked on the finished app: it must never be able to go online.

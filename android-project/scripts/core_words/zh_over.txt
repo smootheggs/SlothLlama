@@ -1,0 +1,278 @@
+# Mandarin overrides: word|reading (numeric pinyin, '-' keeps the chosen one)|gloss ('-' keeps the data's)
+# The data lists every reading a character has; these pick the everyday one and a learner's gloss.
+的|de5|(possessive / linking particle) 's; of; (ends a description: 我的 mine, 红的 the red one)
+了|le5|(particle) done, completed; (at the end) now, a change of state
+是|-|to be (links two nouns); yes, right
+在|-|at; in; on; to be (somewhere); (before a verb) in the middle of doing
+有|-|to have; there is, there are
+不|-|not; no
+他|-|he; him
+这|-|this; these
+就|-|then; right away; just, only; exactly
+和|he2|and; with; together with
+说|shuo1|to say; to speak; to talk
+要|yao4|to want; will, going to; need to; must
+个|ge4|(general measure word); individual
+好|hao3|good; well; fine, OK; very
+一|-|one; a, an
+也|-|also, too; (with 不) not ... either
+会|hui4|can (a learned skill); will, likely to; meeting
+都|dou1|all, both; already; even
+对|-|right, correct; towards, to; (measure word for pairs)
+上|shang4|up, above, on; last, previous; to go up, to get on
+到|-|to arrive, to reach; to, until; (after a verb) achieved, got
+来|-|to come; (after a verb) towards the speaker
+很|-|very; quite
+还|hai2|still; also, in addition; even more; or (in questions: 还是)
+着|zhe5|(particle) -ing, an ongoing state (坐着 sitting)
+去|-|to go; to leave
+想|-|to think; to want to, would like to; to miss (someone)
+能|-|can, be able to; may
+给|gei3|to give; for, to (someone)
+啊|a5|(particle) ah, oh; softens or stresses what is said
+那|na4|that; those; then, in that case
+把|ba3|(marks the object before the verb: 把门关上 shut the door); to hold; (measure word for things with a handle)
+看|kan4|to look at, to watch, to read; to visit; it depends; (after a verb) try and see
+做|-|to do; to make
+被|-|(marks the passive) by; quilt
+让|-|to let, to allow; to make (someone do something)
+为|wei4|for; because of; (wéi) as, to act as
+得|de5|(links a verb to how it is done: 跑得快 runs fast); (dé) to obtain; (děi) must
+吧|ba5|(particle) suggestion or guess: let's ..., ... right?
+点|-|o'clock; a little, a bit; point, dot; to order (food); to nod
+过|guo4|to pass, to cross; to spend (time); (particle, guo) have done before
+没|mei2|not (for the past, and with 有); not have
+大|-|big; large; old (of age); very, greatly
+从|-|from; since
+下|-|down, below; next (下个月 next month); to go down, to get off
+中|zhong1|middle, centre; in, among; China, Chinese
+而|-|and; but, yet; and so
+里|li3|in, inside; li (half a kilometre)
+真|-|really, truly; real, true
+年|nian2|year
+用|-|to use; with
+多|-|many, much; more; how (多大 how old); (after numbers) odd, over
+两|-|two (before measure words); a couple, a few
+吗|ma5|(particle) turns a statement into a yes/no question
+等|deng3|to wait; and so on, etc.; class, grade
+天|-|day; sky; heaven
+出|-|to go out, to come out; to produce; to happen
+太|-|too (much); extremely
+最|-|most; -est
+又|-|again (in the past); both ... and ...
+再|-|again (in the future); then, after that; more
+可|-|can, may; but; really, indeed
+呢|ne5|(particle) and ...? (你呢? and you?); ongoing action; softens a question
+只|zhi3|only, just; (zhī: measure word for animals, one of a pair)
+次|-|time, occurrence (measure word); next; second-rate
+将|jiang1|will, shall; (literary) marks the object, like 把
+小|-|small; little; young
+走|-|to walk; to go; to leave
+事|-|matter, thing, affair; business
+后|-|after; behind, back; later
+时|-|time; hour; when, while
+家|-|home; family; (measure word for businesses); -ist, specialist (作家 writer)
+更|geng4|more, even more; further
+前|-|front; before, ago; former
+地|di4|ground, earth; place; (particle, de) -ly: 慢慢地 slowly
+才|cai2|only then, not until; just (now); only; talent
+跟|-|with; and; to follow
+谁|-|who
+与|yu3|and; with; to give
+并|-|and; also; (before 不/没) not at all
+新|-|new; newly
+像|-|to look like, to be like; such as; image, portrait
+快|-|fast, quick; soon, about to; quickly
+打|da3|to hit; to play (a ball game); to make (a phone call); to open (an umbrella); from (dialect)
+当|dang1|to be, to serve as; when, at the time of; ought to
+比|-|than; to compare; (in scores) to
+话|-|words, speech; what someone says; language
+所|-|(measure word for buildings); place; (with 以) so; (before a verb) that which
+向|-|towards, to; to face
+起|-|to rise, to get up; to start; (measure word for cases, incidents)
+带|-|to bring, to take along; belt, band; zone
+死|-|to die; dead; extremely (饿死了 starving)
+位|-|(polite measure word for people); place, seat
+见|jian4|to see; to meet
+几|ji3|how many (under ten); a few, several
+种|zhong3|kind, type, sort; seed; (zhòng) to plant
+车|che1|car, vehicle
+听|ting1|to listen; to hear
+手|-|hand; (measure word for skills); person skilled at something (歌手 singer)
+开|-|to open; to drive; to turn on; to hold (a meeting); to start
+却|-|but, yet, however
+叫|-|to call, to be called; to shout; to ask (someone to do something)
+别|bie2|don't; other, another; to leave
+请|-|please; to invite; to treat (to a meal); to ask
+钱|-|money
+本|-|(measure word for books); this, one's own; root, origin
+回|-|to return, to go back; (measure word for times, occasions); to reply
+成|-|to become; to succeed; to finish; ten percent
+名|-|name; (measure word for people, in ranks); famous; place in a ranking
+长|chang2|long; (zhǎng) to grow; chief, head
+啦|la5|(particle) 了 and 啊 run together: excitement, a change
+老|-|old; always, all the time; very; (before surnames, friendly) 老王
+行|xing2|to be all right, OK; capable; to walk, to go; (háng) row, line; trade, firm
+条|-|(measure word for long, thin things: roads, fish, trousers); item, clause
+号|hao4|number; date, day of the month; size
+场|chang3|(measure word for games, shows, events); field, ground; scene
+心|-|heart; mind; centre
+件|-|(measure word for clothes, matters, items)
+正|zheng4|just (now), in the middle of; straight, upright; right, correct
+先|-|first; before, in advance
+或|-|or; maybe
+张|-|(measure word for flat things: paper, tables, beds, tickets); to open, to spread
+头|tou2|head; top; first; chief; (measure word for cattle, pigs)
+总|-|always; in total; general, overall
+进|-|to enter, to come in; to advance
+无|-|not have, without; no
+周|-|week; circle, all around; thorough
+由|-|by (someone); from; because of
+女|-|woman, female; daughter
+分|fen1|minute; cent, point (in a score); to divide; to share out
+日|-|day; sun; date
+完|-|to finish; finished, done; whole
+如|-|as, like; such as; if
+站|-|station, stop; to stand
+发|fa1|to send, to post; to issue; to grow, to become; (fà) hair
+全|-|whole, all; completely
+连|-|even (连他都 even he); to link, to join; in a row
+部|-|part, section; department; (measure word for films, machines)
+干|gan4|to do; (gān) dry; to drink a toast
+道|-|road, path; way, principle; to say; (measure word for questions, dishes, doors)
+作|zuo4|to do, to make; to write, to compose; to act as
+处|chu4|place, spot; office, department; (chǔ) to get along with, to deal with
+转|zhuan3|to turn, to change; to pass on, to forward; (zhuàn) to spin, to revolve
+强|qiang2|strong; powerful; better
+少|shao3|few, little; less; to lack; (shào) young
+难|nan2|difficult, hard; (nàn) disaster
+间|jian1|(measure word for rooms); between, among
+哪|na3|which; where (哪儿); how (could)
+跑|pao3|to run; to run away
+生|-|to be born, to give birth; life; raw, uncooked; student
+片|pian4|slice, piece; film (as 片子); (measure word for flat pieces, stretches of land)
+重|zhong4|heavy; important; (chóng) again, to repeat
+子|zi3|child, son; seed; (as the suffix zi) makes nouns: 桌子, 杯子
+卡|ka3|card; truck; (qiǎ) to get stuck
+因|-|because; cause, reason
+面|-|face; side, surface; noodles; (measure word for flat things: flags, mirrors)
+口|-|mouth; opening, entrance; (measure word for people in a family, bites)
+首|-|(measure word for songs, poems); head; first; capital (首都)
+米|-|rice; metre
+双|-|pair, double; (measure word for shoes, chopsticks)
+差|cha4|lacking, short of; poor, bad; (chā) difference; (chāi) errand
+教|jiao1|to teach; (jiào) religion, teaching
+应|ying1|should, ought to; (yìng) to answer, to respond
+便|bian4|then, as soon as; convenient; (pián: 便宜 cheap)
+空|kong1|empty; sky, air; (kòng) free time; to leave empty
+价|jia4|price; value
+胖|pang4|fat, plump
+雨|yu3|rain
+云|yun2|cloud
+单|-|single, alone; only; list, bill, form
+台|-|(measure word for machines, TVs); platform, stage; Taiwan
+算|-|to count, to calculate; to consider as; to plan; never mind (算了)
+法|-|law; method, way; French (法国)
+套|-|(measure word for sets, suites); cover, case; to put on a cover
+店|-|shop, store; inn
+局|-|office, bureau; situation; (measure word for games)
+挺|-|quite, rather (挺好 pretty good); to straighten
+克|-|gram; to overcome
+装|-|to install, to load, to pack; to pretend; clothing
+元|-|yuan (unit of money); first; primary
+座|-|(measure word for mountains, bridges, buildings); seat
+包|-|bag; package; bun (包子); to wrap; to include
+气|-|air; gas; breath; anger; weather
+令|ling4|to order, to make (someone feel); order, command
+倒|dao3|to fall, to collapse; to change (trains); (dào) to pour; on the contrary
+约|yue1|about, around; to arrange to meet; appointment
+光|-|light; bare; only, just; used up
+边|bian1|side; edge; (as a suffix, bian) -side: 这边 this side
+底|di3|bottom; base; end (of a month, year)
+数|shu4|number; (shǔ) to count
+度|du4|degree; time (measure word, as in 一度); to spend (time)
+离|li2|from (a distance away); to leave
+弄|nong4|to do, to make; to fix; to get
+第|-|(before numbers) -th: 第一 first
+报|-|newspaper; report; to report
+读|du2|to read; to study
+脚|jiao3|foot
+王|wang2|king; surname Wang
+亲|qin1|parent; relative; dear, close; to kiss
+假|jia3|false, fake; (jià) holiday, leave
+省|sheng3|province; to save, to economise
+称|cheng1|to call, to name; to weigh
+画|-|painting, picture; to draw, to paint
+关|-|to close, to shut; to turn off; pass; concerning (关于)
+通|tong1|to go through; to connect; to understand; (measure word for calls)
+照|-|to shine; to take (a photo); according to; photo
+根|-|root; (measure word for long, thin things: sticks, cigarettes)
+节|-|festival, holiday; section; (measure word for classes, train carriages)
+累|lei4|tired
+待|dai4|to treat; to wait; (dāi) to stay
+传|chuan2|to pass on, to spread; to transmit
+喂|wei4|hello (on the phone); hey; to feed
+冲|chong1|to rush, to dash; to rinse; to make (coffee, tea)
+朝|chao2|towards, facing; dynasty; (zhāo) morning
+表|-|watch; table, form; to express; cousin (on the mother's side)
+系|xi4|department (of a university); system; (jì) to tie, to fasten
+落|luo4|to fall, to drop; to set (sun); to be left behind
+调|diao4|to transfer; tune, tone; (tiáo) to adjust
+安|-|safe; calm; to install
+圈|quan1|circle, ring; lap
+藏|cang2|to hide; to store; (zàng) Tibet
+占|zhan4|to occupy, to take up
+乐|le4|happy, glad; to laugh; (yuè) music
+背|bei4|back (of the body); to recite from memory; (bēi) to carry on the back
+合|he2|to close; to join, to combine; to suit, to fit
+服|fu2|clothes; to serve; to obey; to be convinced
+理|-|reason, logic; to put in order; to pay attention to (理他)
+切|qie1|to cut, to slice; (qiè) close to; eager
+板|ban3|board, plank; boss (老板)
+混|hun4|to mix; to muddle along
+吓|xia4|to frighten, to scare
+色|se4|colour; look, appearance
+解|jie3|to untie; to explain; to solve
+觉|jue2|to feel; to sense; (jiào) sleep (睡觉)
+结|jie2|to tie, a knot; to settle; to bear (fruit, as jiē)
+卷|juan3|to roll up; roll; (juàn) volume
+量|liang4|amount, quantity; (liáng) to measure
+赚|zhuan4|to earn; to make a profit
+塞|sai1|to stuff, to squeeze in; (sāi) a stopper
+骑|qi2|to ride (a bike, a horse)
+汤|tang1|soup
+挑|tiao1|to choose, to pick; to carry on a pole; (tiǎo) to provoke
+厂|chang3|factory
+角|jiao3|corner; angle; horn; jiao (a tenth of a yuan)
+页|ye4|page
+侧|ce4|side
+足|zu2|foot; enough
+弹|tan2|to play (a stringed instrument, piano); to flick; (dàn) bullet
+杆|gan1|pole; (gǎn) stick, rod
+刺|ci4|thorn; to stab, to prick
+露|lu4|dew; to show, to reveal (lòu)
+答|da2|to answer, to reply
+降|jiang4|to fall, to drop, to come down
+臭|chou4|smelly, to stink
+散|san4|to break up, to scatter; to take a walk (散步); (sǎn) loose
+乘|cheng2|to ride, to take (a bus, a plane); to multiply
+晕|yun1|dizzy; (yùn) to feel sick (晕车)
+划|hua2|to row; to scratch; (huà) to plan, to mark off
+蒙|meng2|to cover; to be kept in the dark
+刷|shua1|to brush; to swipe (a card)
+炸|zha4|to explode, to blow up; (zhá) to deep-fry
+档|dang4|file, record; grade
+趟|tang4|(measure word for trips: 去一趟 go once)
+挡|dang3|to block, to keep off
+喷|pen1|to spray, to spout
+折|zhe2|to fold; to break; discount (打折)
+扎|zha1|to prick; to pitch (a tent); (zā) to tie
+作为|-|as, in the role of; to regard as; conduct
+东西|-|thing, stuff; (dōngxī) east and west
+地区|-|area, region, district
+一般|-|ordinary, usual; generally; so-so
+大家|-|everyone, everybody
+起来|-|to get up; (after a verb) begins and goes on; (看起来) it looks as if
+下来|-|to come down; (after a verb) down, fixed in place, kept
+出来|-|to come out; (after a verb) out, emerging
+过去|-|the past; to go over (there); (after a verb) over, past

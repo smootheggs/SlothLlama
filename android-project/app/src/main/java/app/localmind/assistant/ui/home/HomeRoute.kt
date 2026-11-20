@@ -14,6 +14,7 @@ import androidx.compose.material.icons.outlined.ShowChart
 import androidx.compose.material.icons.outlined.Shield
 import androidx.compose.material.icons.outlined.StickyNote2
 import androidx.compose.material.icons.outlined.Style
+import androidx.compose.material.icons.outlined.FormatListNumbered
 import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -53,6 +54,8 @@ fun HomeRoute(
     onOpenChats: () -> Unit,
     onFlashcards: () -> Unit,
     onDictionary: () -> Unit,
+    /** The Core words lists. */
+    onCoreWords: () -> Unit = {},
     onPersonas: () -> Unit,
     onModels: () -> Unit,
     onSettings: () -> Unit,
@@ -190,6 +193,7 @@ fun HomeRoute(
         HomeTile(Icons.Outlined.ChatBubbleOutline, "Chats", "", onOpenChats),
         HomeTile(Icons.Outlined.PersonOutline, "Personas", "", onPersonas),
         HomeTile(Icons.Outlined.Translate, "Dictionary", "", onDictionary),
+        HomeTile(Icons.Outlined.FormatListNumbered, "Core words", "", onCoreWords),
         HomeTile(Icons.Outlined.Memory, "Models", ui.activeModelName.ifBlank { "choose one" }, onModels)
     )
 

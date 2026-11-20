@@ -39,6 +39,10 @@ import app.localmind.assistant.data.persona.ChineseStyleStore
 import app.localmind.assistant.data.attachments.AttachmentStore
 import kotlinx.coroutines.launch
 import app.localmind.assistant.ui.dictionary.DictionaryScreen
+import app.localmind.assistant.ui.core.CoreWordsScreen
+import app.localmind.assistant.ui.core.CoreWordsViewModel
+import app.localmind.assistant.ui.home.drillTutor
+import app.localmind.assistant.ui.home.tutorGroups
 import app.localmind.assistant.ui.library.LibraryScreen
 import app.localmind.assistant.ui.library.LibraryViewModel
 import app.localmind.assistant.ui.lobster.LobsterScreen
@@ -205,7 +209,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES, LOBSTER, READER, DESK }
+private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES, LOBSTER, READER, DESK, CORE }
 
 /**
  * Home (or the last chat, per Settings) on a fresh start. Screens open on top of each other and
@@ -311,6 +315,7 @@ private fun SlothRoot(
                     },
                     onFlashcards = { navigate(Destination.FLASHCARDS) },
                     onDictionary = { navigate(Destination.DICTIONARY) },
+                    onCoreWords = { navigate(Destination.CORE) },
                     onPersonas = { navigate(Destination.PERSONAS) },
                     onModels = { navigate(Destination.MODELS) },
                     onSettings = { navigate(Destination.SETTINGS) },
@@ -350,6 +355,19 @@ private fun SlothRoot(
                 Destination.MODELS -> ModelsScreen(viewModel = hiltViewModel<ModelsViewModel>(), onBack = goHome)
                 Destination.FLASHCARDS -> FlashcardsScreen(viewModel = hiltViewModel<FlashcardsViewModel>(), onBack = goHome)
                 Destination.DICTIONARY -> DictionaryScreen(viewModel = hiltViewModel<DictionaryViewModel>(), onBack = goHome)
+                Destination.CORE -> CoreWordsScreen(
+                    viewModel = hiltViewModel<CoreWordsViewModel>(),
+                    onBack = goHome,
+                    onAsk = { language, prompt ->
+                        // The language's tutor, with the question in the box to send or edit.
+                        val tutor = tutorGroups(chatViewModel.uiState.value.personas)
+                            .firstOrNull { it.language == language }
+                            ?.let(::drillTutor)
+                        if (tutor != null) chatViewModel.startConversationWith(tutor.id) else chatViewModel.createNewConversation()
+                        chatViewModel.onInputTextChanged(prompt)
+                        goToChat()
+                    }
+                )
                 Destination.LIBRARY -> LibraryScreen(
                     viewModel = hiltViewModel<LibraryViewModel>(),
                     onBack = goHome,
