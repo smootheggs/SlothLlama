@@ -41,7 +41,7 @@ import app.localmind.assistant.ui.trading.Pill
 import app.localmind.assistant.ui.trading.QuietButton
 
 /** Which tutor a country's chat goes to, by badge (null: the assistant). */
-private fun tutorBadge(id: String?): String? = when (id) {
+internal fun tutorBadge(id: String?): String? = when (id) {
     "persona-mandarin-partner" -> "普"
     "persona-cantonese-partner" -> "粵"
     "persona-japanese-partner" -> "日"
@@ -66,6 +66,7 @@ internal fun CountryPage(info: CountryInfo, world: AtlasWorld, vm: AtlasViewMode
     val regionPaths by vm.regionPaths.collectAsStateWithLifecycle()
     val pickedSub by vm.pickedSub.collectAsStateWithLifecycle()
     val frame by vm.frame.collectAsStateWithLifecycle()
+    val relief by vm.relief.collectAsStateWithLifecycle()
     val c = info.country
     val lang = prefs.labels
     val subs = regions?.takeIf { it.a3 == c.a3 }?.subdivisions.orEmpty()
@@ -90,6 +91,7 @@ internal fun CountryPage(info: CountryInfo, world: AtlasWorld, vm: AtlasViewMode
                 AtlasMap(
                     world, paths, regions, regionPaths, c.a3, pickedSub, emptyMap(), lang, colors, frame,
                     modifier = Modifier.fillMaxSize(),
+                    relief = if (prefs.relief) relief else null,
                     onTap = { a3 -> if (a3 != null && a3 != c.a3) vm.pick(a3, frame = true) },
                     onTapSub = { i -> vm.pickSub(if (i == pickedSub) null else i) }
                 )

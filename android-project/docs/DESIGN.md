@@ -110,12 +110,27 @@ sleepy z's) are decoration: hidden from TalkBack and switchable in Settings → 
 ## Atlas
 
 - A map, not a street map: Equal Earth (equal-area, so areas measured on it are true), Natural
-  Earth's seven map colours so neighbours never match, muted on black or soft on the white map.
-  The picked country is moss-outlined; its subdivisions draw inside it.
+  Earth's seven map colours so neighbours never match. The sea is drawn (with the globe's edge
+  and a 30° grid, 15° closer in), so countries never float on black.
+- Three looks of its own, whatever the app's theme (1.35): **Night** (muted land on an ink-blue
+  sea, moss for the picked country), **White** (pale land, flat and quick to read) and **Paper**
+  (an old school atlas: cream land, sepia lettering, grey-green seas with two water lines along
+  every coast, sepia-red for the picked country). The page's own colours follow the look.
+- **Shaded relief** is a switch (on by default): Natural Earth's shaded relief, projected to
+  Equal Earth, as light and shadow over the land, so mountains read in any look. It's an image
+  of about 3 MB in the app, drawn only for the part in view.
+- Lettering as an atlas sets it: countries in spaced serif capitals on a soft halo, oceans in
+  spaced italics, seas in italics from a little closer, capitals as small rings. The picked
+  country lifts (a soft glow and a firm line) and the rest dim a little; its subdivisions are
+  dashed inside it. A scale bar for the middle of the view and the data's credit sit in the
+  bottom corners.
 - Labels thin out as you zoom out (Natural Earth's label rank decides) and never overlap; capitals
   appear from a little closer. English is always there: the card's title, the list's first column.
   The map's labels can switch to a tutor's language.
-- Sideways, the card sits beside the map; upright, under it. "Open" gives the country its page:
+- Upright, the map takes the top half edge to edge and the card fills the rest: the picked
+  country's (facts as small tiles, neighbours as pills to hop to, talk, quiz, open its page), or
+  with nothing picked the world's (search, your places, the quizzes). Sideways, the card sits
+  beside the map. "Open" gives the country its page:
   its own map of subdivisions, facts each with where they come from, neighbours to hop to, today's
   stories and your books set there, and the tutor of its language to talk about it with.
 - Places in the edition and the Reader are quiet accent links ("Guangdong ›"); they open the
@@ -128,8 +143,8 @@ sleepy z's) are decoration: hidden from TalkBack and switchable in Settings → 
   markets strip, top stories, sections), the desk and the language corners on the right.
   Upright, one column.
 - Stories are serif titles with one line of summary and faint small print (outlet, "3 outlets",
-  "2 h"; Hacker News's points and comments). A tap marks a story read (it goes faint); + has the
-  Lobster fetch it to Later. No links shown.
+  "2 h"; Hacker News's points and comments). A tap marks a story read (it goes faint); the bookmark has
+  the Lobster fetch it to Later. No links shown.
 - The markets strip is worked out on the tablet from SlothDesk's prices: last close and the move,
   muted, with ▲ ▼ rather than red and green.
 - The desk is one card per desk persona (the Trader to start; any persona can be seated). Its notes

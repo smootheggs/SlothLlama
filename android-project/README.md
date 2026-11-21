@@ -132,6 +132,10 @@ model too big for the GPU falls back to the CPU on its own.
   put the icon beside the name, so the page fits upright without scrolling. **The Sloth Express**
   reads like a paper: a masthead with its motto, a contents bar that stays in view with unread
   counts and jumps to each part, "Mark read" per section, and read stories folded to their title.
+- **The Atlas's looks** (1.35). Night, White or Paper (an old atlas's cream and sepia), each with
+  the sea, the globe's grid and atlas lettering; shaded relief (Natural Earth's, public domain,
+  about 3 MB) switches on and off. Upright, the map takes the top half and the country's card,
+  or the world's, the rest.
 - **Organising SlothBooks.** The default shelves (All, Reading, Up next, To read, Read,
   Reference) are always there; make your own with **+ New shelf**, rename or remove them from
   their ⋯ (the books stay), and put a book on any of them from its card. **Group by** author,

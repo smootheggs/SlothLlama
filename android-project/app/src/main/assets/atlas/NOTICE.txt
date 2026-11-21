@@ -4,6 +4,9 @@ Borders, names, capitals, places, subdivisions and population estimates: Natural
 (naturalearthdata.com), public domain. Made with Natural Earth. Borders are drawn de facto,
 as Natural Earth draws them: who holds the ground.
 
+Shaded relief (relief.webp): Natural Earth's 1:50m Shaded Relief Basic (SR_50M, from
+downsampled SRTM Plus elevation data), public domain, projected here to Equal Earth.
+
 Flags: flag-icons by Panayiotis Lipiridis and contributors (github.com/lipis/flag-icons),
 MIT License:
 
@@ -15,4 +18,4 @@ MIT License:
   copyright notice and this permission notice shall be included in all copies or substantial
   portions of the Software. THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND.
 
-Built by scripts/atlas/build_atlas.py.
+Built by scripts/atlas/build_atlas.py; the relief by scripts/atlas/build_relief.py.

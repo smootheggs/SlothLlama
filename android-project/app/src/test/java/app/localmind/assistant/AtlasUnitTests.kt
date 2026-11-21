@@ -107,4 +107,54 @@ class AtlasUnitTests {
         val provinces = AtlasQuiz.subdivisions("CHN", subs.filter { it.a3 == "CHN" }, 10, random)
         assertTrue(provinces.all { q -> q.options[q.answer] == subs.filter { it.a3 == "CHN" }[q.subIndex].english })
     }
+
+    // --- 1.35: the map's looks and the shaded relief ---
+
+    @Test
+    fun `every population and count reads as a whole number`() {
+        // Natural Earth gave Somalia's as 10192317.3, which once stopped the whole map opening.
+        assertTrue(countries.all { it.pop >= 0 && it.popYear >= 0 })
+    }
+
+    @Test
+    fun `latitude comes back from the map's y`() {
+        for (lat in listOf(-85.0, -60.0, -33.3, 0.0, 12.5, 47.5, 72.0, 85.0)) {
+            assertEquals(lat, EqualEarth.latOf(EqualEarth.y(lat)), 1e-6)
+        }
+        assertEquals(EqualEarth.Y_MAX, EqualEarth.y(-90.0), 1e-9)
+    }
+
+    @Test
+    fun `the scale bar measures true along a parallel`() {
+        // Ten degrees of longitude: about 1,112 km at the equator, about 556 at 60°.
+        assertEquals(1111.95, EqualEarth.x(10.0, 0.0) * EqualEarth.kmPerUnit(0.0), 0.5)
+        assertEquals(555.97, (EqualEarth.x(10.0, 60.0) - EqualEarth.x(0.0, 60.0)) * EqualEarth.kmPerUnit(60.0), 0.5)
+    }
+
+    @Test
+    fun `the relief is a lossless WebP the shape of the map`() {
+        val bytes = File(dir, "relief.webp").readBytes()
+        assertEquals("RIFF", String(bytes, 0, 4, Charsets.US_ASCII))
+        assertEquals("WEBPVP8L", String(bytes, 8, 8, Charsets.US_ASCII))
+        assertEquals(0x2f, bytes[20].toInt() and 0xFF)
+        val bits = (bytes[21].toInt() and 0xFF) or ((bytes[22].toInt() and 0xFF) shl 8) or
+            ((bytes[23].toInt() and 0xFF) shl 16) or ((bytes[24].toInt() and 0xFF) shl 24)
+        val width = (bits and 0x3FFF) + 1
+        val height = ((bits shr 14) and 0x3FFF) + 1
+        assertEquals(5120, width)
+        assertEquals(EqualEarth.HALF_WIDTH / EqualEarth.Y_MAX, width.toDouble() / height, 0.002)
+        assertTrue("about 3 MB", bytes.size in 1_000_000..4_000_000)
+    }
+
+    @Test
+    fun `seas are named over water`() {
+        assertTrue(AtlasFacts.SEAS.isNotEmpty())
+        val projected = shapes.map(EqualEarth::project)
+        for (sea in AtlasFacts.SEAS) {
+            val x = EqualEarth.x(sea.lon, sea.lat)
+            val y = EqualEarth.y(sea.lat)
+            val onLand = projected.any { EqualEarth.contains(it, x.toFloat(), y.toFloat()) }
+            assertFalse("${sea.name} sits on land", onLand)
+        }
+    }
 }

@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import app.localmind.assistant.data.ask.AskInbox
 import app.localmind.assistant.data.ask.LaunchRequest
 import app.localmind.assistant.data.atlas.AtlasPrefs
+import app.localmind.assistant.data.atlas.AtlasStyle
 import app.localmind.assistant.data.atlas.AtlasRegions
 import app.localmind.assistant.data.atlas.AtlasRepository
 import app.localmind.assistant.data.atlas.AtlasWorld
@@ -144,6 +145,7 @@ class AtlasViewModel @Inject constructor(
             _paths.value = withContext(Dispatchers.Default) { w.outlines.map(::pathOf) }
             _world.value = w
             _picked.value?.let { describe(it) }
+            if (prefs.value.relief) loadRelief()
         }
     }
 
@@ -151,7 +153,21 @@ class AtlasViewModel @Inject constructor(
 
     fun flag(code: String): suspend () -> ImageBitmap? = { repo.flag(code) }
 
-    fun setLight(on: Boolean) = repo.setLight(on)
+    fun setStyle(style: AtlasStyle) = repo.setStyle(style)
+
+    fun setRelief(on: Boolean) {
+        repo.setRelief(on)
+        if (on) loadRelief()
+    }
+
+    private val _relief = MutableStateFlow<ImageBitmap?>(null)
+    /** The shaded relief, once it's read (only when it's switched on). */
+    val relief: StateFlow<ImageBitmap?> = _relief.asStateFlow()
+
+    private fun loadRelief() {
+        if (_relief.value != null) return
+        viewModelScope.launch { _relief.value = repo.relief() }
+    }
 
     fun setLabels(lang: String) = repo.setLabels(lang)
 

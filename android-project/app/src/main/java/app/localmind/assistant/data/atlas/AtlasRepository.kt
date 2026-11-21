@@ -1,6 +1,7 @@
 package app.localmind.assistant.data.atlas
 
 import android.content.Context
+import android.graphics.Bitmap
 import android.graphics.BitmapFactory
 import android.util.Log
 import android.util.LruCache
@@ -41,8 +42,17 @@ class AtlasWorld(
 /** A country's subdivisions and their outlines, in the same order. */
 class AtlasRegions(val a3: String, val subdivisions: List<AtlasSubdivision>, val outlines: List<Outline>)
 
-/** The Atlas's settings: the map in white, and the language of its labels. */
-data class AtlasPrefs(val light: Boolean = false, val labels: String = "en")
+/** The map's look: Night (dark), White, or Paper (an old atlas's cream and sepia). */
+enum class AtlasStyle(val key: String, val label: String) {
+    NIGHT("night", "Night"), WHITE("white", "White"), PAPER("paper", "Paper");
+
+    companion object {
+        fun of(key: String?): AtlasStyle = entries.firstOrNull { it.key == key } ?: NIGHT
+    }
+}
+
+/** The Atlas's settings: its look, the shaded relief, and the language of its labels. */
+data class AtlasPrefs(val style: AtlasStyle = AtlasStyle.NIGHT, val relief: Boolean = true, val labels: String = "en")
 
 /**
  * The Atlas's data, from the app's own assets (nothing is downloaded): Natural Earth's countries,
@@ -60,12 +70,42 @@ class AtlasRepository @Inject constructor(@ApplicationContext private val contex
     private val flags = object : LruCache<String, ImageBitmap>(80) {}
     private val prefs = context.getSharedPreferences("atlas", Context.MODE_PRIVATE)
 
-    private val _prefs = MutableStateFlow(AtlasPrefs(prefs.getBoolean(KEY_LIGHT, false), prefs.getString(KEY_LABELS, "en") ?: "en"))
+    // Before 1.35 the map was dark or white ("light"); that choice carries over.
+    private val _prefs = MutableStateFlow(
+        AtlasPrefs(
+            style = prefs.getString(KEY_STYLE, null)?.let(AtlasStyle::of)
+                ?: if (prefs.getBoolean(KEY_LIGHT, false)) AtlasStyle.WHITE else AtlasStyle.NIGHT,
+            relief = prefs.getBoolean(KEY_RELIEF, true),
+            labels = prefs.getString(KEY_LABELS, "en") ?: "en"
+        )
+    )
     val settings: StateFlow<AtlasPrefs> = _prefs.asStateFlow()
 
-    fun setLight(on: Boolean) {
-        prefs.edit().putBoolean(KEY_LIGHT, on).apply()
-        _prefs.value = _prefs.value.copy(light = on)
+    fun setStyle(style: AtlasStyle) {
+        prefs.edit().putString(KEY_STYLE, style.key).apply()
+        _prefs.value = _prefs.value.copy(style = style)
+    }
+
+    fun setRelief(on: Boolean) {
+        prefs.edit().putBoolean(KEY_RELIEF, on).apply()
+        _prefs.value = _prefs.value.copy(relief = on)
+    }
+
+    private val reliefLock = Mutex()
+    private var reliefImage: ImageBitmap? = null
+
+    /**
+     * Natural Earth's shaded relief, already projected to Equal Earth (5120 × 2492): white where
+     * slopes catch the light, black where they're in shadow, clear on flat land and water. Kept in
+     * graphics memory (a hardware bitmap), read once.
+     */
+    suspend fun relief(): ImageBitmap? = reliefLock.withLock {
+        reliefImage ?: withContext(Dispatchers.IO) {
+            runCatching {
+                val options = BitmapFactory.Options().apply { inPreferredConfig = Bitmap.Config.HARDWARE }
+                context.assets.open("atlas/relief.webp").use { BitmapFactory.decodeStream(it, null, options) }?.asImageBitmap()
+            }.onFailure { Log.w(TAG, "The shaded relief didn't open", it) }.getOrNull()
+        }.also { reliefImage = it }
     }
 
     fun setLabels(lang: String) {
@@ -141,6 +181,8 @@ class AtlasRepository @Inject constructor(@ApplicationContext private val contex
     companion object {
         private const val TAG = "AtlasRepository"
         private const val KEY_LIGHT = "light"
+        private const val KEY_STYLE = "style"
+        private const val KEY_RELIEF = "relief"
         private const val KEY_LABELS = "labels"
     }
 }

@@ -216,6 +216,29 @@ object EqualEarth {
         return -th * (A1 + A2 * t2 + t6 * (A3 + A4 * t2))
     }
 
+    /** How far down the map runs: 90°S is at +Y_MAX, 90°N at -Y_MAX (y grows downward). */
+    val Y_MAX: Double = -y(90.0)
+
+    /** The latitude at a (downward) [yDown]: the inverse of [y], by Newton's method. */
+    fun latOf(yDown: Double): Double {
+        val target = -yDown.coerceIn(-Y_MAX, Y_MAX)
+        var th = target / A1
+        repeat(12) {
+            val t2 = th * th
+            val t6 = t2 * t2 * t2
+            th -= (th * (A1 + A2 * t2 + t6 * (A3 + A4 * t2)) - target) / (A1 + 3 * A2 * t2 + t6 * (7 * A3 + 9 * A4 * t2))
+        }
+        return asin((sin(th) / M).coerceIn(-1.0, 1.0)) * 180 / PI
+    }
+
+    /** Kilometres along the parallel at [lat] for one unit of x: what a scale bar there measures. */
+    fun kmPerUnit(lat: Double): Double {
+        val th = asin(M * sin(lat * PI / 180))
+        val t2 = th * th
+        val t6 = t2 * t2 * t2
+        return EARTH_KM * cos(lat * PI / 180) * M * (A1 + 3 * A2 * t2 + t6 * (7 * A3 + 9 * A4 * t2)) / cos(th)
+    }
+
     /** Rings projected: the same layout, x and y in projection units. */
     fun project(rings: Rings): Rings = rings.map { r ->
         FloatArray(r.size).also { out ->
@@ -539,6 +562,20 @@ object AtlasFacts {
         else -> null
     }
 
+    /** Oceans (from the whole world) and seas (from a little closer), named where their water is widest. */
+    val SEAS = listOf(
+        SeaLabel("Pacific Ocean", -150.0, 5.0, true), SeaLabel("Pacific Ocean", 165.0, 25.0, true),
+        SeaLabel("Atlantic Ocean", -35.0, 22.0, true), SeaLabel("Atlantic Ocean", -18.0, -25.0, true),
+        SeaLabel("Indian Ocean", 78.0, -22.0, true), SeaLabel("Arctic Ocean", 0.0, 82.0, true), SeaLabel("Southern Ocean", 60.0, -58.0, true),
+        SeaLabel("South China Sea", 114.0, 14.0), SeaLabel("East China Sea", 126.0, 29.0), SeaLabel("Sea of Japan", 135.0, 40.5),
+        SeaLabel("Philippine Sea", 133.0, 18.0), SeaLabel("Bay of Bengal", 89.0, 15.0), SeaLabel("Arabian Sea", 64.0, 15.0),
+        SeaLabel("Caspian Sea", 50.5, 41.5), SeaLabel("Mediterranean Sea", 18.0, 34.5), SeaLabel("Black Sea", 34.0, 43.3),
+        SeaLabel("Red Sea", 38.5, 20.0), SeaLabel("North Sea", 3.0, 56.0), SeaLabel("Baltic Sea", 18.5, 56.8),
+        SeaLabel("Bay of Biscay", -5.5, 45.3), SeaLabel("Gulf of Mexico", -90.0, 25.0), SeaLabel("Caribbean Sea", -75.0, 15.0),
+        SeaLabel("Hudson Bay", -85.0, 60.0), SeaLabel("Coral Sea", 155.0, -17.0), SeaLabel("Tasman Sea", 160.0, -38.0),
+        SeaLabel("Bering Sea", -178.0, 58.0), SeaLabel("Persian Gulf", 51.5, 27.0), SeaLabel("Gulf of Guinea", 3.0, 1.0)
+    )
+
     /** The regions the map can frame, by Natural Earth's continent. */
     val REGIONS = listOf("World", "Africa", "Americas", "Asia", "Europe", "Oceania")
 
@@ -553,6 +590,9 @@ object AtlasFacts {
 
     fun label(english: String, names: AtlasNames, lang: String): String = if (lang == "en") english else names.of(lang) ?: english
 }
+
+/** A body of water's name on the map: oceans from far out, seas from closer in. */
+data class SeaLabel(val name: String, val lon: Double, val lat: Double, val ocean: Boolean = false)
 
 /** A quiz question: what's shown, the options, and which is right. */
 data class AtlasQuestion(
