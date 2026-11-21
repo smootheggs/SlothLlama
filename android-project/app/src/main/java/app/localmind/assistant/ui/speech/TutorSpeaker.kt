@@ -50,7 +50,9 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
     private var refreshed = false
     /** A word tapped while the engine was still starting: said as soon as it's ready. */
     private var pending: Pair<String, SpeechLanguage>? = null
-    @Volatile private var tts: TextToSpeech = start(null)
+    /** The engine you picked when this speaker started (null: the tablet's default). */
+    private var chosen: String? = SpeechEngine.preferred(appContext)
+    @Volatile private var tts: TextToSpeech = start(chosen)
 
     private fun start(engine: String?): TextToSpeech {
         tried += engine
@@ -74,17 +76,31 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
         }
         val engines = enginesOnTablet()
         Log.w(TAG, "Text-to-speech didn't start (status $status) with ${tried.lastOrNull() ?: "the default engine"}; engines: $engines")
-        val next = engines.sortedByDescending { it == GOOGLE_ENGINE }.firstOrNull { it !in tried }
         runCatching { tts.shutdown() }
+        // Your pick first (if any), then the tablet's default (null), then the others, Google's first.
+        if (null !in tried) {
+            tts = start(null)
+            return
+        }
+        val next = engines.sortedByDescending { it == GOOGLE_ENGINE }.firstOrNull { it !in tried }
         if (next != null) {
             tts = start(next)
-        } else {
-            state = State.FAILED
-            if (pending != null) {
-                pending = null
-                failedHelp()
-            }
+            return
         }
+        state = State.FAILED
+        if (pending != null) {
+            pending = null
+            failedHelp()
+        }
+    }
+
+    /** Starts the engine again (your pick first), saying [then] once it's up. */
+    private fun restart(then: Pair<String, SpeechLanguage>?) {
+        pending = then
+        tried.clear()
+        state = State.STARTING
+        runCatching { tts.shutdown() }
+        tts = start(chosen)
     }
 
     /** The text-to-speech engines installed, asked of the system (an engine that failed can't be asked). */
@@ -99,6 +115,13 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
     }
 
     fun speak(text: String, language: SpeechLanguage) {
+        // Picked another engine in Settings since this speaker started: switch to it first.
+        val now = SpeechEngine.preferred(appContext)
+        if (now != chosen) {
+            chosen = now
+            restart(text to language)
+            return
+        }
         when (state) {
             State.STARTING -> {
                 // Say it the moment the engine is up, instead of asking for another tap.
@@ -108,10 +131,7 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
             State.FAILED -> {
                 failedHelp()
                 // Try again from the top next time (a voice may have been installed meanwhile).
-                tried.clear()
-                state = State.STARTING
-                runCatching { tts.shutdown() }
-                tts = start(null)
+                restart(null)
                 return
             }
             State.READY -> Unit
@@ -123,11 +143,7 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
                 // until it starts again. So restart once and try again before saying none is there.
                 if (!refreshed) {
                     refreshed = true
-                    pending = text to language
-                    tried.clear()
-                    state = State.STARTING
-                    runCatching { tts.shutdown() }
-                    tts = start(null)
+                    restart(text to language)
                     return
                 }
                 refreshed = false
@@ -253,12 +269,16 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
     private fun isUsable(result: Int) =
         result != TextToSpeech.LANG_MISSING_DATA && result != TextToSpeech.LANG_NOT_SUPPORTED
 
+    /** The voice installer of the engine in use (yours if you picked one), else the tablet's default's. */
     private fun openVoiceInstaller() {
+        val engine = runCatching { tts.defaultEngine }.getOrNull()
         runCatching {
             appContext.startActivity(
-                Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA)
+                Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).apply { (chosen ?: engine)?.let { setPackage(it) } }
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             )
+        }.onFailure {
+            runCatching { appContext.startActivity(Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
         }
     }
 
@@ -270,7 +290,7 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
         /** A little slower than normal speech, for learners. */
         const val LEARNER_RATE = 0.85f
         private const val TAG = "TutorSpeaker"
-        private const val GOOGLE_ENGINE = "com.google.android.tts"
+        private const val GOOGLE_ENGINE = SpeechEngine.GOOGLE
         private val HAN = Regex("[\\u3400-\\u4DBF\\u4E00-\\u9FFF\\uF900-\\uFAFF]")
         private val NOT_CHINESE = Regex("[^\\u3000-\\u303F\\u3400-\\u4DBF\\u4E00-\\u9FFF\\uF900-\\uFAFF\\uFF00-\\uFFEF]+")
 

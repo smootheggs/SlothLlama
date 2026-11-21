@@ -22,7 +22,8 @@ class ReadAloud(
 
     private val appContext = context.applicationContext
     private val main = Handler(Looper.getMainLooper())
-    private val tts = TextToSpeech(appContext, this)
+    // The engine picked in Settings → Voice (null: the tablet's default).
+    private val tts = TextToSpeech(appContext, this, app.localmind.assistant.ui.speech.SpeechEngine.preferred(appContext))
     @Volatile private var ready = false
     private var texts: List<String> = emptyList()
     /** Each block's language, when the caller knows it (the edition's corners); null = guess from the text. */

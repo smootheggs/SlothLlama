@@ -173,6 +173,9 @@ model too big for the GPU falls back to the CPU on its own.
   text online). Cantonese is only read by a real Cantonese voice: without one, it says so instead
   of reading in Mandarin. To add one: Speech Services by Google → Install voice data →
   Chinese (Hong Kong).
+- **Which engine reads** (1.35.6). Settings → Voice: Automatic (the tablet's default, trying the
+  others if it won't start) or a particular engine, such as Google's or the tablet maker's, with a
+  Mandarin sample to try it. Google's Mandarin voices (labelled "cmn") are recognised.
 - **Core words.** Home → Core words: the most-used words of Mandarin (2,500, with HSK 3.0
   levels), Cantonese (1,500, from spoken Hong Kong Cantonese) and French (1,575), ranked by
   frequency and sorted by part of speech (nouns, verbs, adjectives, measure words, particles…).

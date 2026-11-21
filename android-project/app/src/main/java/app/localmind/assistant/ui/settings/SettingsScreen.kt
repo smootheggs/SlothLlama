@@ -241,6 +241,8 @@ fun SettingsScreen(
                     }
                 }
 
+                VoiceSettingsSection()
+
                 Section("Privacy") {
                     val context = LocalContext.current
                     val networkBlocked = remember {
