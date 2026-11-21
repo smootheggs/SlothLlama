@@ -48,6 +48,10 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
     private val tried = mutableSetOf<String?>()
     /** Whether the engine was just restarted to look for a newly installed voice. */
     private var refreshed = false
+    /** The engine running now (its package), so a missing voice can be blamed on the right one. */
+    private var inUse: String? = null
+    /** Engines already asked for the voice of the word being said (Automatic only). */
+    private val askedForVoice = mutableSetOf<String?>()
     /** A word tapped while the engine was still starting: said as soon as it's ready. */
     private var pending: Pair<String, SpeechLanguage>? = null
     /** The engine you picked when this speaker started (null: the tablet's default). */
@@ -56,6 +60,7 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
 
     private fun start(engine: String?): TextToSpeech {
         tried += engine
+        inUse = engine ?: SpeechEngine.tabletDefault(appContext)
         return TextToSpeech(appContext, this, engine).also { it.setOnUtteranceProgressListener(progress) }
     }
 
@@ -95,13 +100,18 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
     }
 
     /** Starts the engine again (your pick first), saying [then] once it's up. */
-    private fun restart(then: Pair<String, SpeechLanguage>?) {
+    private fun restart(then: Pair<String, SpeechLanguage>?) = restartWith(chosen, then)
+
+    private fun restartWith(engine: String?, then: Pair<String, SpeechLanguage>?) {
         pending = then
         tried.clear()
         state = State.STARTING
         runCatching { tts.shutdown() }
-        tts = start(chosen)
+        tts = start(engine)
     }
+
+    private fun engineLabel(pkg: String?): String =
+        SpeechEngine.installed(appContext).firstOrNull { it.pkg == pkg }?.label ?: "this engine"
 
     /** The text-to-speech engines installed, asked of the system (an engine that failed can't be asked). */
     private fun enginesOnTablet(): List<String> = runCatching {
@@ -146,7 +156,19 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
                     restart(text to language)
                     return
                 }
+                // That engine has no voice for it. On Automatic, ask the other engines on the tablet
+                // (Google's first) before giving up: the tablet's own may lack a language Google has.
+                if (chosen == null) {
+                    askedForVoice += inUse
+                    val next = enginesOnTablet().sortedByDescending { it == GOOGLE_ENGINE }.firstOrNull { it !in askedForVoice }
+                    if (next != null) {
+                        restartWith(next, text to language)
+                        return
+                    }
+                }
+                val checked = engineLabel(inUse)
                 refreshed = false
+                askedForVoice.clear()
                 if (language == SpeechLanguage.CANTONESE) {
                     toast(
                         "No Cantonese voice on this tablet, so it isn't read in Mandarin instead. " +
@@ -154,12 +176,17 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
                         long = true
                     )
                 } else {
-                    toast("No ${language.label} voice installed. Opening voice settings…")
+                    toast(
+                        if (chosen == null) "No ${language.label} voice on this tablet's engines. Opening voice settings…"
+                        else "No ${language.label} voice in $checked. Opening its voice settings… (Settings → Voice picks another engine.)",
+                        long = chosen != null
+                    )
                 }
                 openVoiceInstaller()
             }
             is Prepared.Ready -> {
                 refreshed = false
+                askedForVoice.clear()
                 tts.speak(p.text, TextToSpeech.QUEUE_FLUSH, null, "tutor-reply")
             }
         }
@@ -271,10 +298,11 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
 
     /** The voice installer of the engine in use (yours if you picked one), else the tablet's default's. */
     private fun openVoiceInstaller() {
-        val engine = runCatching { tts.defaultEngine }.getOrNull()
+        val google = enginesOnTablet().firstOrNull { it == GOOGLE_ENGINE }
+        val engine = chosen ?: google ?: inUse
         runCatching {
             appContext.startActivity(
-                Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).apply { (chosen ?: engine)?.let { setPackage(it) } }
+                Intent(TextToSpeech.Engine.ACTION_INSTALL_TTS_DATA).apply { engine?.let { setPackage(it) } }
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             )
         }.onFailure {
