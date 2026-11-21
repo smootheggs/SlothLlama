@@ -5,7 +5,7 @@ package app.localmind.assistant.domain.persona
  * tried in order) and heard with the offline voice models ([speechCode]).
  */
 enum class SpeechLanguage(val label: String, val localeTags: List<String>, val speechCode: String) {
-    MANDARIN("Mandarin", listOf("zh-CN"), "zh"),
+    MANDARIN("Mandarin", listOf("zh-CN", "cmn-CN"), "zh"),
     // Engines name Cantonese differently; try each in order.
     CANTONESE("Cantonese", listOf("yue-HK", "zh-HK"), "yue"),
     JAPANESE("Japanese", listOf("ja-JP"), "ja"),

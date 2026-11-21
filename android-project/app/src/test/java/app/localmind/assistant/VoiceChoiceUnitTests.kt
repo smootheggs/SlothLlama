@@ -35,6 +35,13 @@ class VoiceChoiceUnitTests {
     }
 
     @Test
+    fun `Google's cmn voices count as Mandarin, never its yue ones`() {
+        val google = listOf(voice("yue-hk-x-jar-local", "yue-HK"), voice("cmn-tw-x-ctc-local", "cmn-TW"), voice("cmn-cn-x-ccc-local", "cmn-CN"))
+        assertEquals("cmn-cn-x-ccc-local", VoiceChoice.pick(SpeechLanguage.MANDARIN, google))
+        assertEquals("yue-hk-x-jar-local", VoiceChoice.pick(SpeechLanguage.CANTONESE, google))
+    }
+
+    @Test
     fun `only installed voices on the tablet are picked`() {
         val voices = listOf(
             voice("fr-fr-x-network", "fr-FR", network = true, quality = 500),

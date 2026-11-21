@@ -46,6 +46,8 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
     @Volatile private var state = State.STARTING
     /** Engines already tried since the last start: the tablet's default first (null), then others. */
     private val tried = mutableSetOf<String?>()
+    /** Whether the engine was just restarted to look for a newly installed voice. */
+    private var refreshed = false
     /** A word tapped while the engine was still starting: said as soon as it's ready. */
     private var pending: Pair<String, SpeechLanguage>? = null
     @Volatile private var tts: TextToSpeech = start(null)
@@ -117,6 +119,18 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
         when (val p = prepare(text, language)) {
             Prepared.NothingToSay -> toast("Nothing to read aloud in this reply")
             Prepared.NoVoice -> {
+                // An engine lists its voices when it starts: one installed since then isn't seen
+                // until it starts again. So restart once and try again before saying none is there.
+                if (!refreshed) {
+                    refreshed = true
+                    pending = text to language
+                    tried.clear()
+                    state = State.STARTING
+                    runCatching { tts.shutdown() }
+                    tts = start(null)
+                    return
+                }
+                refreshed = false
                 if (language == SpeechLanguage.CANTONESE) {
                     toast(
                         "No Cantonese voice on this tablet, so it isn't read in Mandarin instead. " +
@@ -128,7 +142,10 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
                 }
                 openVoiceInstaller()
             }
-            is Prepared.Ready -> tts.speak(p.text, TextToSpeech.QUEUE_FLUSH, null, "tutor-reply")
+            is Prepared.Ready -> {
+                refreshed = false
+                tts.speak(p.text, TextToSpeech.QUEUE_FLUSH, null, "tutor-reply")
+            }
         }
     }
 
@@ -376,7 +393,14 @@ object VoiceChoice {
         val locale = c.locale ?: return false
         // Mandarin from a Cantonese voice would be the same mistake the other way round.
         if (language == SpeechLanguage.MANDARIN && isCantonese(locale, c.name)) return false
-        return language.localeTags.any { tag -> Locale.forLanguageTag(tag).language == locale.language }
+        val lang = family(locale.language)
+        return language.localeTags.any { tag -> family(Locale.forLanguageTag(tag).language) == lang }
+    }
+
+    /** Google labels Mandarin voices "cmn" (cmn-CN, cmn-TW); others say "zh". Both are Mandarin here. */
+    private fun family(language: String): String = when (language.lowercase()) {
+        "cmn" -> "zh"
+        else -> language.lowercase()
     }
 
     /** The name of the voice to use, or null to leave it to the engine. */
