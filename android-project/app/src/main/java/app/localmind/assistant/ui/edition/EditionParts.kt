@@ -1,5 +1,8 @@
 package app.localmind.assistant.ui.edition
 
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -91,55 +94,81 @@ internal fun SectionHead(name: String, note: String? = null, modifier: Modifier 
 }
 
 /**
- * A story: its title, a line or two of summary, the small print, and a bookmark to have the
- * Lobster fetch it to Later. A tap marks it read or not; once read it folds to a faint title.
+ * A news story. A tap opens it: its page, through the Lobster, or its clean text when its outlet
+ * is set that way. A long press opens the menu ([onMenu]); sideways the menu is a popover beside
+ * the row ([popover], while [popoverOpen]). The bookmark saves it for later.
  */
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 internal fun StoryRow(
     story: EdStory,
     big: Boolean,
     read: Boolean,
     now: Long,
-    onRead: () -> Unit,
+    onOpen: () -> Unit,
+    onMenu: () -> Unit,
     onLater: () -> Unit,
+    shelved: Boolean = false,
+    tapsClean: Boolean = false,
     /** The place the story names most (found on the tablet), and opening it in the Atlas. */
     place: String? = null,
-    onPlace: () -> Unit = {}
+    onPlace: () -> Unit = {},
+    popoverOpen: Boolean = false,
+    onPopoverDismiss: () -> Unit = {},
+    popover: @Composable () -> Unit = {}
 ) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(10.dp))
-            .clickable(onClickLabel = if (read) "Mark as unread" else "Mark as read", role = Role.Checkbox, onClick = onRead)
-            .padding(vertical = if (big) 12.dp else 10.dp),
-        verticalAlignment = Alignment.Top
-    ) {
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                story.title, color = if (read) P.Faint else P.Text, fontFamily = SERIF,
-                fontSize = if (big) 23.sp else 17.sp, lineHeight = if (big) 29.sp else 23.sp
-            )
-            if (story.summary.isNotBlank() && !read) {
-                Text(story.summary, color = P.Muted, fontSize = 14.sp, lineHeight = 20.sp, maxLines = if (big) 4 else 2, overflow = TextOverflow.Ellipsis)
+    Box {
+        Row(
+            Modifier
+                .fillMaxWidth()
+                .clip(RoundedCornerShape(10.dp))
+                .combinedClickable(
+                    onClickLabel = if (tapsClean) "Read it clean" else "Open the page",
+                    onLongClickLabel = "More for this story",
+                    onClick = onOpen,
+                    onLongClick = onMenu
+                )
+                .padding(vertical = if (big) 12.dp else 10.dp),
+            verticalAlignment = Alignment.Top
+        ) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                Text(
+                    story.title, color = if (read) P.Faint else P.Text, fontFamily = SERIF,
+                    fontSize = if (big) 23.sp else 17.sp, lineHeight = if (big) 29.sp else 23.sp
+                )
+                if (story.summary.isNotBlank() && !read) {
+                    Text(story.summary, color = P.Muted, fontSize = 14.sp, lineHeight = 20.sp, maxLines = if (big) 4 else 2, overflow = TextOverflow.Ellipsis)
+                }
+                val small = Editions.smallPrint(story, now)
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    if (read) Icon(Icons.Outlined.Check, contentDescription = "Read", tint = P.Faint, modifier = Modifier.size(14.dp).padding(end = 4.dp))
+                    if (small.isNotBlank()) Text(small, color = P.Faint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    if (tapsClean) Text("  ·  clean", color = P.Faint, fontSize = 12.sp, maxLines = 1)
+                    if (place != null) PlaceLink(place, onPlace)
+                }
             }
-            val small = Editions.smallPrint(story, now)
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                if (read) Icon(Icons.Outlined.Check, contentDescription = "Read", tint = P.Faint, modifier = Modifier.size(14.dp).padding(end = 4.dp))
-                if (small.isNotBlank()) Text(small, color = P.Faint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                if (place != null) PlaceLink(place, onPlace)
+            if (story.url.isNotBlank()) {
+                Box(
+                    Modifier
+                        .padding(start = 10.dp)
+                        .size(44.dp)
+                        .clip(CircleShape)
+                        .clickable(enabled = !shelved, onClickLabel = "Save for later", role = Role.Button, onClick = onLater)
+                        .semantics { contentDescription = if (shelved) "On your Later shelf" else "Save for later" },
+                    contentAlignment = Alignment.Center
+                ) {
+                    Icon(Icons.Outlined.BookmarkBorder, contentDescription = null, tint = if (shelved) P.Accent else P.Faint, modifier = Modifier.size(20.dp))
+                }
             }
         }
-        if (story.url.isNotBlank()) {
-            Box(
-                Modifier
-                    .padding(start = 10.dp)
-                    .size(44.dp)
-                    .clip(CircleShape)
-                    .clickable(onClickLabel = "Have the Lobster fetch it to Later", role = Role.Button, onClick = onLater)
-                    .semantics { contentDescription = "Fetch to Later" },
-                contentAlignment = Alignment.Center
-            ) {
-                Icon(Icons.Outlined.BookmarkBorder, contentDescription = null, tint = P.Faint, modifier = Modifier.size(20.dp))
+        if (popoverOpen) {
+            Box(Modifier.align(Alignment.TopEnd)) {
+                DropdownMenu(
+                    expanded = true, onDismissRequest = onPopoverDismiss,
+                    modifier = Modifier.width(380.dp).background(P.Card)
+                ) {
+                    Column(Modifier.padding(horizontal = 16.dp, vertical = 8.dp)) { popover() }
+                }
             }
         }
     }

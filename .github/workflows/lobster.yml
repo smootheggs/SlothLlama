@@ -98,7 +98,7 @@ jobs:
               exit 1
             fi
           done
-          echo "Only network, notifications and staying awake: as intended."
+          echo "Only network, notifications, staying awake and the hand-off with SlothLlama: as intended."
 
       - name: Read the version
         id: version

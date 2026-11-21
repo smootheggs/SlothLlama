@@ -16,14 +16,16 @@ android {
         applicationId = "app.localmind.assistant"
         minSdk = 33 // required by the llama.cpp module
         targetSdk = 35
-        versionCode = 58
-        versionName = "1.42.0"
+        versionCode = 59
+        versionName = "1.43.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
             useSupportLibrary = true
         }
         manifestPlaceholders["appLabel"] = "SlothLlama"
+        // The SlothLobster this build pairs with (its hand-off permission): dev builds pair with dev.
+        manifestPlaceholders["lobsterId"] = "app.slothlobster"
         ndk {
             abiFilters += listOf("arm64-v8a")
         }
@@ -77,6 +79,7 @@ android {
             isMinifyEnabled = false
             applicationIdSuffix = ".debug"
             manifestPlaceholders["appLabel"] = "SlothLlama Dev"
+            manifestPlaceholders["lobsterId"] = "app.slothlobster.debug"
             signingConfig = signingConfigs.getByName("debug")
         }
     }

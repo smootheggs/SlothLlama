@@ -75,8 +75,12 @@ data class EdStory(
     val outlets: Int = 1,
     /** The other outlets' names. */
     val also: List<String> = emptyList(),
-    /** The story itself, for a language corner. */
-    val paras: List<EdPara> = emptyList()
+    /** The story itself: a language corner's, or (1.11) any story read clean with the paper. */
+    val paras: List<EdPara> = emptyList(),
+    /** The story's own lead picture, drawn again here as a small JPEG, in base64 (1.11). */
+    val pic: String = "",
+    /** Why there's no clean text, when there isn't ("a paywall or a page that needs its script"). */
+    val pageOnly: String = ""
 )
 
 @Serializable

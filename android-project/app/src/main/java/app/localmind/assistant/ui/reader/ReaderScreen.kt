@@ -1,5 +1,12 @@
 package app.localmind.assistant.ui.reader
 
+import kotlinx.coroutines.withContext
+import kotlinx.coroutines.Dispatchers
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.foundation.Image
 import android.content.ClipData
 import android.content.ClipboardManager
 import android.content.Context
@@ -348,16 +355,21 @@ private fun Shelf(viewModel: ReaderViewModel, selectedKey: String?, onOpen: (Rea
 
 // --- reading ---
 
+/**
+ * One text open for reading. Also the Express's clean view (1.43): [onOpenPage] opens an Express
+ * story's page through the Lobster.
+ */
 @OptIn(FlowPreview::class)
 @Composable
-private fun Reading(
+internal fun Reading(
     viewModel: ReaderViewModel,
     doc: ReaderDoc,
     onBack: () -> Unit,
     onCatchToLibrary: (String) -> Unit,
     onCatchToNotes: (String) -> Unit,
     onCatchDismiss: (String) -> Unit,
-    onPlace: (String) -> Unit
+    onPlace: (String) -> Unit,
+    onOpenPage: ((String) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val scale by viewModel.scale.collectAsStateWithLifecycle()
@@ -380,6 +392,8 @@ private fun Reading(
     val extraSources = remember(doc) { doc.sources.filter { s -> s.url.isNotBlank() && !doc.text.contains(s.url) } }
     val laterItems by viewModel.laterItems.collectAsStateWithLifecycle()
     val laterItem = if (doc.source == ReaderSource.LATER) laterItems.firstOrNull { it.id == doc.ref } else null
+    val express = doc.source == ReaderSource.EXPRESS
+    val onShelf = express && laterItems.any { it.url == doc.url && !it.archived }
 
     // Read aloud: the page follows the paragraph being read.
     var listening by remember(doc.key) { mutableStateOf(false) }
@@ -423,7 +437,7 @@ private fun Reading(
 
     Column(Modifier.fillMaxSize()) {
         SlothTopBar(
-            title = "Reader",
+            title = if (express) "Read clean" else "Reader",
             subtitle = doc.meta,
             onBack = onBack,
             actions = {
@@ -501,6 +515,10 @@ private fun Reading(
                     Column {
                         Text(doc.title, color = P.Text, fontSize = (24 * scale).sp, lineHeight = (31 * scale).sp, fontWeight = FontWeight.SemiBold)
                         Text("${doc.meta} · about ${readingMinutes(doc.text)} min", color = P.Faint, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+                        if (express) {
+                            ExpressActions(doc, onShelf, onOpenPage, onSave = viewModel::keepClean)
+                            doc.picture?.let { StoryPicture(viewModel, it) }
+                        }
                         if (places.isNotEmpty()) {
                             Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {
                                 Text("Places", color = P.Faint, fontSize = 12.sp, modifier = Modifier.padding(end = 4.dp))
@@ -551,7 +569,16 @@ private fun Reading(
                         }
                     }
                 }
-                if (extraSources.isNotEmpty()) {
+                if (express && blocks.isNotEmpty()) {
+                    item(key = "express-end") {
+                        Column(Modifier.fillMaxWidth().padding(top = 24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                            HorizontalDivider(color = P.Border, modifier = Modifier.padding(bottom = 20.dp))
+                            Text("The end of the clean text", color = P.Faint, fontSize = 13.sp)
+                            ExpressActions(doc, onShelf, onOpenPage, onSave = viewModel::keepClean)
+                        }
+                    }
+                }
+                if (extraSources.isNotEmpty() && !express) {
                     item(key = "sources") {
                         Column(Modifier.padding(top = 8.dp)) {
                             Text("SOURCES", color = P.Faint, fontSize = 11.sp, letterSpacing = 1.2.sp)
@@ -846,6 +873,33 @@ private fun Chip(label: String, selected: Boolean, onClick: () -> Unit) {
             .clickable(onClick = onClick)
             .padding(horizontal = 12.dp, vertical = 6.dp)
     )
+}
+
+/** An Express story's two ways on: its page (through the Lobster), or the Later shelf. */
+@Composable
+private fun ExpressActions(doc: ReaderDoc, onShelf: Boolean, onOpenPage: ((String) -> Unit)?, onSave: () -> Unit) {
+    Row(Modifier.padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+        if (onOpenPage != null && doc.url.isNotBlank()) Action("Open the page") { onOpenPage(doc.url) }
+        if (onShelf) Text("On your Later shelf", color = P.Faint, fontSize = 13.sp, modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp))
+        else Action("Save for later", onClick = onSave)
+    }
+}
+
+/** A story's lead picture, kept beside its paper, decoded off the main thread at the width it's shown. */
+@Composable
+private fun StoryPicture(viewModel: ReaderViewModel, name: String) {
+    BoxWithConstraints(Modifier.fillMaxWidth().padding(top = 12.dp)) {
+        val px = with(LocalDensity.current) { maxWidth.toPx() }.toInt().coerceIn(200, 1_440)
+        val bmp by produceState<android.graphics.Bitmap?>(null, name, px) {
+            value = withContext(Dispatchers.IO) { runCatching { viewModel.pictures.load(name, px) }.getOrNull() }
+        }
+        bmp?.let { b ->
+            Image(
+                b.asImageBitmap(), contentDescription = null, contentScale = ContentScale.FillWidth,
+                modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(10.dp))
+            )
+        }
+    }
 }
 
 @Composable

@@ -22,6 +22,11 @@
     <uses-permission android:name="com.android.alarm.permission.SET_ALARM" />
     <uses-permission android:name="android.permission.READ_CALENDAR" />
 
+    <!-- "Open the page" in the Express: the SlothLobster opens the story in Chrome's in-app view,
+         so this app still has no network at all. The Lobster's hand-off permission is
+         signature-level: only an app signed with your key holds it, both ways. -->
+    <uses-permission android:name="${lobsterId}.permission.HAND_OFF" />
+
     <!-- Android 11+ package visibility: lets the app bind the text-to-speech engine -->
     <queries>
         <intent>
@@ -30,6 +35,9 @@
         <!-- Ourjong, the mahjong app (release and dev builds): only so Home can open it. Nothing is shared with it. -->
         <package android:name="app.ourjong" />
         <package android:name="app.ourjong.debug" />
+        <!-- The SlothLobster: only to hand it a story's link to open. -->
+        <package android:name="app.slothlobster" />
+        <package android:name="app.slothlobster.debug" />
     </queries>
 
     <application
@@ -105,6 +113,17 @@
                 <data android:mimeType="text/*" />
             </intent-filter>
         </activity>
+
+        <!-- The Lobster's Chrome tab coming back: "Read it clean in SlothLlama" and "Save for
+             later". Only the SlothLobster can start it (its signature-level permission), and only
+             stories already in a paper here are acted on. -->
+        <activity
+            android:name=".FromLobsterActivity"
+            android:exported="true"
+            android:permission="${lobsterId}.permission.HAND_OFF"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
 
         <!-- Custom Hilt WorkerFactory initialization -->
         <provider

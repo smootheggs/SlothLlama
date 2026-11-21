@@ -143,8 +143,23 @@ sleepy z's) are decoration: hidden from TalkBack and switchable in Settings → 
   markets strip, top stories, sections), the desk and the language corners on the right.
   Upright, one column.
 - Stories are serif titles with one line of summary and faint small print (outlet, "3 outlets",
-  "2 h"; Hacker News's points and comments). A tap marks a story read (it goes faint); the bookmark has
-  the Lobster fetch it to Later. No links shown.
+  "2 h"; Hacker News's points and comments). No links shown.
+- Reading (1.43). A tap opens the story's page in a Chrome tab, opened by the Lobster (SlothLlama
+  stays offline), and marks it read; Back returns to the paper. Chrome's own ⋮ has Refresh, Find in
+  page and Open in Chrome; the Lobster adds Save for later (also the tab's toolbar button) and Read
+  it clean in SlothLlama. The tab is full screen: a side-by-side tab would sit over the Lobster's
+  hand-off, not the paper, so the paper beside it wouldn't answer touch (Android's split screen
+  still puts them side by side).
+- The clean text is the Reader's own page (text size, white page, read aloud, find, Ask, places),
+  titled "Read clean", with the story's lead picture and "Open the page" / "Save for later" at the
+  top and the end. Upright it has the screen; sideways it sits beside the paper, which goes to one
+  column. A tap on an outlet set to "clean text" opens it instead of the page ("· clean" in the
+  small print); the choice is per outlet, kept on the tablet, and starts as the page.
+- A long press opens the story's menu: Open the page, Read it clean (or "Page only:" and why),
+  Save for later, Ask about it in a chat, Show it on the Atlas, Mark as read or unread, and what a
+  tap on this outlet opens. Upright a sheet from the bottom; sideways a popover beside the row.
+- The bookmark saves for later: at once when the clean text is here (it goes gold), otherwise the
+  Lobster fetches the article.
 - The markets strip is worked out on the tablet from SlothDesk's prices: last close and the move,
   muted, with ▲ ▼ rather than red and green.
 - The desk is one card per desk persona (the Trader to start; any persona can be seated). Its notes

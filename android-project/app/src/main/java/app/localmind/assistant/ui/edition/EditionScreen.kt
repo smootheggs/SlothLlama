@@ -1,5 +1,12 @@
 package app.localmind.assistant.ui.edition
 
+import app.localmind.assistant.ui.reader.Reading
+import app.localmind.assistant.ui.reader.ReaderDoc
+import app.localmind.assistant.ui.reader.ReaderSource
+import app.localmind.assistant.ui.reader.ReaderViewModel
+import app.localmind.assistant.data.lobster.LobsterHandOff
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.material3.VerticalDivider
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -89,7 +96,13 @@ private enum class EditionPage { PAPER, ARCHIVE, SETTINGS }
  * the settings that are sent to the Lobster.
  */
 @Composable
-fun EditionScreen(viewModel: EditionViewModel, onBack: () -> Unit, onPlace: (String) -> Unit = {}) {
+fun EditionScreen(
+    viewModel: EditionViewModel,
+    /** The Express's own reader (not the Reader screen's): a story read clean. */
+    reader: ReaderViewModel,
+    onBack: () -> Unit,
+    onPlace: (String) -> Unit = {}
+) {
     val shown by viewModel.shown.collectAsStateWithLifecycle()
     val latest by viewModel.latest.collectAsStateWithLifecycle()
     val setup by viewModel.setup.collectAsStateWithLifecycle()
@@ -98,6 +111,10 @@ fun EditionScreen(viewModel: EditionViewModel, onBack: () -> Unit, onPlace: (Str
     val story by viewModel.story.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val personas by viewModel.personas.collectAsStateWithLifecycle()
+    val shelved by viewModel.shelved.collectAsStateWithLifecycle()
+    val openAsk by viewModel.openAsk.collectAsStateWithLifecycle()
+    val readerDoc by reader.doc.collectAsStateWithLifecycle()
+    val readerMessage by reader.message.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     var page by rememberSaveable { mutableStateOf(EditionPage.PAPER) }
 
@@ -107,10 +124,63 @@ fun EditionScreen(viewModel: EditionViewModel, onBack: () -> Unit, onPlace: (Str
             viewModel.clearMessage()
         }
     }
+    LaunchedEffect(readerMessage) {
+        readerMessage?.let {
+            snackbar.showSnackbar(it)
+            reader.clearMessage()
+        }
+    }
     LaunchedEffect(Unit) { viewModel.start() }
 
-    // The listen version: Android's own voices, offline, each corner in its language.
     val context = LocalContext.current
+
+    // Reading a story: its page through the Lobster (SlothLlama never goes online), or its clean
+    // text here. If the Lobster can't open it, the clean text is the way in when there is one.
+    fun readClean(st: EdStory) {
+        val ref = viewModel.cleanRef(st)
+        if (ref == null) {
+            viewModel.say(st.pageOnly.ifBlank { "This one can only be read on its page" }.replaceFirstChar { it.uppercase() })
+            return
+        }
+        viewModel.setRead(st, true)
+        page = EditionPage.PAPER
+        reader.open(ReaderSource.EXPRESS, ref)
+    }
+    fun openPage(st: EdStory) {
+        viewModel.setRead(st, true)
+        val problem = LobsterHandOff.open(context, st.url, Editions.hasClean(st)) ?: return
+        if (viewModel.cleanRef(st) != null) {
+            readClean(st)
+            viewModel.say("$problem. Here's its clean text.")
+        } else {
+            viewModel.say(problem)
+        }
+    }
+    val actions = StoryActions(
+        tap = { st -> if (Editions.tapsClean(setup, st)) readClean(st) else openPage(st) },
+        openPage = ::openPage,
+        readClean = ::readClean,
+        later = viewModel::keepForLater,
+        ask = viewModel::askAbout,
+        setRead = { st, r -> viewModel.setRead(st, r) },
+        setTap = { st, clean -> viewModel.setTap(st, clean) },
+        place = { st -> viewModel.places.value[Editions.storyKey(st)]?.let { onPlace(it.a3) } }
+    )
+
+    // "Read it clean in SlothLlama" from the Lobster's Chrome tab.
+    LaunchedEffect(openAsk) {
+        val url = openAsk ?: return@LaunchedEffect
+        viewModel.openAnswered()
+        val ref = viewModel.cleanRefFor(url)
+        if (ref != null) {
+            page = EditionPage.PAPER
+            reader.open(ReaderSource.EXPRESS, ref)
+        } else {
+            viewModel.say("That story isn't in a paper here any more")
+        }
+    }
+
+    // The listen version: Android's own voices, offline, each corner in its language.
     var playing by remember { mutableStateOf(false) }
     var paused by remember { mutableStateOf(false) }
     val voice = remember { arrayOfNulls<ReadAloud>(1) }
@@ -120,18 +190,18 @@ fun EditionScreen(viewModel: EditionViewModel, onBack: () -> Unit, onPlace: (Str
     val listen: () -> Unit = {
         val e = shown?.edition
         if (e != null) {
-            val reader = voice[0] ?: ReadAloud(context, onBlock = {}, onEnd = { playing = false; paused = false }).also { voice[0] = it }
+            val aloud = voice[0] ?: ReadAloud(context, onBlock = {}, onEnd = { playing = false; paused = false }).also { voice[0] = it }
             if (playing) {
-                reader.pause()
+                aloud.pause()
                 playing = false
                 paused = true
             } else if (paused) {
-                reader.resume()
+                aloud.resume()
                 playing = true
                 paused = false
             } else {
                 val blocks = Editions.listen(e)
-                reader.play(
+                aloud.play(
                     blocks.map { it.first }, 0,
                     blocks.map { (_, lang) -> CornerLanguage.of(lang)?.let { Locale.forLanguageTag(it.locale) } }
                 )
@@ -145,49 +215,75 @@ fun EditionScreen(viewModel: EditionViewModel, onBack: () -> Unit, onPlace: (Str
         return
     }
 
+    val clean = readerDoc?.takeIf { it.source == ReaderSource.EXPRESS && page == EditionPage.PAPER }
     when (page) {
         EditionPage.ARCHIVE -> BackHandler { page = EditionPage.PAPER }
         EditionPage.SETTINGS -> BackHandler { page = EditionPage.PAPER }
-        EditionPage.PAPER -> Unit
+        EditionPage.PAPER -> BackHandler(enabled = clean != null) { reader.close() }
+    }
+    val cleanView: @Composable (ReaderDoc) -> Unit = { doc ->
+        Reading(
+            reader, doc, onBack = reader::close,
+            onCatchToLibrary = {}, onCatchToNotes = {}, onCatchDismiss = {},
+            onPlace = onPlace,
+            onOpenPage = { url ->
+                val st = shown?.edition?.let { Editions.findNews(it, url) }
+                if (st != null) openPage(st) else LobsterHandOff.open(context, url, true)?.let(viewModel::say)
+            }
+        )
     }
 
-    Box(Modifier.fillMaxSize().background(P.Canvas)) {
-        Column(Modifier.fillMaxSize()) {
-            when (page) {
-                EditionPage.PAPER -> {
-                    val e = shown
-                    val older = e != null && latest != null && e.edition.id != latest?.edition?.id
-                    SlothTopBar(
-                        title = e?.let { "${it.edition.name} edition" } ?: "The Sloth Express",
-                        subtitle = e?.let { received(it, older) } ?: "From the Lobster",
-                        onBack = if (older) viewModel::showLatest else onBack,
-                        actions = {
-                            if (e != null) {
-                                IconButton(onClick = listen) {
-                                    Icon(
-                                        if (playing) Icons.Outlined.Pause else Icons.Outlined.Headphones,
-                                        contentDescription = if (playing) "Pause" else "Listen to the edition", tint = P.Text
-                                    )
+    BoxWithConstraints(Modifier.fillMaxSize().background(P.Canvas)) {
+        // Sideways on a wide screen the clean story sits beside the paper; upright it has the screen.
+        // (Worked out here: the Row below hides this scope's maxWidth.)
+        val beside = maxWidth >= WIDE && maxWidth > maxHeight
+        if (clean != null && !beside) {
+            cleanView(clean)
+            SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
+            return@BoxWithConstraints
+        }
+        Row(Modifier.fillMaxSize()) {
+            Column(Modifier.weight(1f).fillMaxHeight()) {
+                when (page) {
+                    EditionPage.PAPER -> {
+                        val e = shown
+                        val older = e != null && latest != null && e.edition.id != latest?.edition?.id
+                        SlothTopBar(
+                            title = e?.let { "${it.edition.name} edition" } ?: "The Sloth Express",
+                            subtitle = e?.let { received(it, older) } ?: "From the Lobster",
+                            onBack = if (older) viewModel::showLatest else onBack,
+                            actions = {
+                                if (e != null) {
+                                    IconButton(onClick = listen) {
+                                        Icon(
+                                            if (playing) Icons.Outlined.Pause else Icons.Outlined.Headphones,
+                                            contentDescription = if (playing) "Pause" else "Listen to the edition", tint = P.Text
+                                        )
+                                    }
                                 }
+                                IconButton(onClick = { page = EditionPage.ARCHIVE }) { Icon(Icons.Outlined.Archive, contentDescription = "Past editions", tint = P.Text) }
+                                IconButton(onClick = { page = EditionPage.SETTINGS }) { Icon(Icons.Outlined.Settings, contentDescription = "Edition settings", tint = P.Text) }
                             }
-                            IconButton(onClick = { page = EditionPage.ARCHIVE }) { Icon(Icons.Outlined.Archive, contentDescription = "Past editions", tint = P.Text) }
-                            IconButton(onClick = { page = EditionPage.SETTINGS }) { Icon(Icons.Outlined.Settings, contentDescription = "Edition settings", tint = P.Text) }
+                        )
+                        if (e == null) {
+                            NoEdition(setup, onSend = { viewModel.send(now = true) }, onSettings = { page = EditionPage.SETTINGS })
+                        } else {
+                            Paper(e, tiles, setup, personas, viewModel, actions, shelved, onSettings = { page = EditionPage.SETTINGS }, onPlace = onPlace)
                         }
-                    )
-                    if (e == null) {
-                        NoEdition(setup, onSend = { viewModel.send(now = true) }, onSettings = { page = EditionPage.SETTINGS })
-                    } else {
-                        Paper(e, tiles, setup, personas, viewModel, onSettings = { page = EditionPage.SETTINGS }, onPlace = onPlace)
+                    }
+                    EditionPage.ARCHIVE -> {
+                        SlothTopBar(title = "Past editions", subtitle = "Kept 30 days", onBack = { page = EditionPage.PAPER })
+                        Archive(entries, shown?.edition?.id, onOpen = { viewModel.openEdition(it); page = EditionPage.PAPER }, onDelete = viewModel::delete)
+                    }
+                    EditionPage.SETTINGS -> {
+                        SlothTopBar(title = "Edition settings", subtitle = "Sent to the SlothLobster through the mailbox, sealed", onBack = { page = EditionPage.PAPER })
+                        EditionSettings(setup, personas, viewModel)
                     }
                 }
-                EditionPage.ARCHIVE -> {
-                    SlothTopBar(title = "Past editions", subtitle = "Kept 30 days", onBack = { page = EditionPage.PAPER })
-                    Archive(entries, shown?.edition?.id, onOpen = { viewModel.openEdition(it); page = EditionPage.PAPER }, onDelete = viewModel::delete)
-                }
-                EditionPage.SETTINGS -> {
-                    SlothTopBar(title = "Edition settings", subtitle = "Sent to the SlothLobster through the mailbox, sealed", onBack = { page = EditionPage.PAPER })
-                    EditionSettings(setup, personas, viewModel)
-                }
+            }
+            if (clean != null) {
+                VerticalDivider(color = P.Border)
+                Box(Modifier.weight(1.1f).fillMaxHeight()) { cleanView(clean) }
             }
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
@@ -235,10 +331,16 @@ private fun Paper(
     setup: EditionSetup,
     personas: List<Persona>,
     vm: EditionViewModel,
+    actions: StoryActions,
+    shelved: Set<String>,
     onSettings: () -> Unit,
     onPlace: (String) -> Unit
 ) {
     val places by vm.places.collectAsStateWithLifecycle()
+    // The long-press menu: a popover beside the row on a wide screen lying on its side, else a sheet.
+    val config = LocalConfiguration.current
+    val sideMenu = config.screenWidthDp >= WIDE.value && config.screenWidthDp > config.screenHeightDp
+    var menuKey by remember(s.edition.id) { mutableStateOf<String?>(null) }
     val e = s.edition
     val now = remember(e.id) { System.currentTimeMillis() }
     val read = s.read.toSet()
@@ -291,12 +393,20 @@ private fun Paper(
         }
         list.forEachIndexed { i, st ->
             if (i > 0) HorizontalDivider(color = P.Border)
-            val at = places[Editions.storyKey(st)]
+            val k = Editions.storyKey(st)
+            val at = places[k]
+            val isRead = k in read
+            val onShelf = st.url in shelved
             StoryRow(
-                st, big = lead && i == 0, read = Editions.storyKey(st) in read, now = now,
-                onRead = { vm.setRead(st, Editions.storyKey(st) !in read) }, onLater = { vm.keepForLater(st) },
-                place = at?.named, onPlace = { at?.let { onPlace(it.a3) } }
-            )
+                st, big = lead && i == 0, read = isRead, now = now,
+                onOpen = { actions.tap(st) }, onMenu = { menuKey = k }, onLater = { actions.later(st) },
+                shelved = onShelf, tapsClean = Editions.tapsClean(setup, st),
+                place = at?.named, onPlace = { at?.let { onPlace(it.a3) } },
+                popoverOpen = sideMenu && menuKey == k,
+                onPopoverDismiss = { menuKey = null }
+            ) {
+                StoryMenu(st, isRead, onShelf, setup, at?.named, now, actions, onDismiss = { menuKey = null })
+            }
         }
     }
 
@@ -352,6 +462,17 @@ private fun Paper(
                     corners()
                 }
             }
+        }
+    }
+    if (!sideMenu) {
+        val key = menuKey
+        val st = key?.let { k -> Editions.news(e).firstOrNull { Editions.storyKey(it) == k } }
+        if (st != null) {
+            StorySheet(
+                st, read = Editions.storyKey(st) in read, shelved = st.url in shelved, setup = setup,
+                place = places[Editions.storyKey(st)]?.named, now = now,
+                actions = actions, onDismiss = { menuKey = null }
+            )
         }
     }
 }

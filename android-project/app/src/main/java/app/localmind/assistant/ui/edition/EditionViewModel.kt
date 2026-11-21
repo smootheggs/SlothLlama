@@ -42,6 +42,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -79,6 +81,7 @@ class EditionViewModel @Inject constructor(
     private val attachments: AttachmentStore,
     private val atlas: app.localmind.assistant.data.atlas.AtlasRepository,
     private val briefings: app.localmind.assistant.data.briefing.BriefingBook,
+    private val later: app.localmind.assistant.data.later.ReadingList,
     personas: PersonaRepository
 ) : ViewModel() {
 
@@ -180,8 +183,67 @@ class EditionViewModel @Inject constructor(
         if (_chosen.value?.edition?.id == id) _chosen.value = next
     }
 
-    /** The whole article, fetched by the Lobster to the Later shelf (SlothLlama itself never goes online). */
+    /** Links on the Later shelf (not archived), so a story's bookmark shows it's saved. */
+    val shelved: StateFlow<Set<String>> = later.items
+        .map { items -> items.filterNot { it.archived }.map { it.url }.toSet() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
+
+    /** A story the Lobster's tab asked to read clean, until it's opened. */
+    val openAsk: StateFlow<String?> = store.openAsk
+
+    fun openAnswered() = store.openAnswered()
+
+    /** The reader's reference for a story read clean: "paper file|story key"; null if it can't be. */
+    fun cleanRef(story: EdStory): String? {
+        if (!Editions.hasClean(story)) return null
+        val id = shown.value?.edition?.id ?: return null
+        val file = store.entries.value.firstOrNull { it.id == id }?.file ?: return null
+        return file + "|" + Editions.storyKey(story)
+    }
+
+    /** The reader's reference for a story by its link, in whichever kept paper has it. */
+    suspend fun cleanRefFor(url: String): String? {
+        val (file, story) = store.findNews(url) ?: return null
+        return if (Editions.hasClean(story)) file + "|" + Editions.storyKey(story) else null
+    }
+
+    /** What a tap on this outlet's stories does, here on the tablet only (not part of the Lobster's plan). */
+    fun setTap(story: EdStory, clean: Boolean) = viewModelScope.launch {
+        store.saveSetup { Editions.withTap(it, story.outlet, clean) }
+    }
+
+    fun say(message: String) {
+        _message.value = message
+    }
+
+    /** A chat about a story, its clean text (or its summary) attached. */
+    fun askAbout(story: EdStory) {
+        val text = buildString {
+            append(story.title).append("\n\n")
+            if (Editions.hasClean(story)) append(Editions.cleanText(story)) else append(story.summary)
+            if (story.outlet.isNotBlank()) append("\n\n(").append(story.outlet).append(")")
+            if (story.url.isNotBlank()) append("\n").append(story.url)
+        }.trim()
+        askInbox.post(
+            LaunchRequest.Shared(
+                prompt = "Let's talk about this story from today's Sloth Express. What's it saying, and what's worth knowing behind it?",
+                document = attachments.textDocument("Express · ${story.title.take(40)}", text.take(MAX_ASK_CHARS))
+            )
+        )
+    }
+
+    /**
+     * The story on the Later shelf: at once when its clean text came with the paper; otherwise the
+     * Lobster fetches the whole article (SlothLlama itself never goes online).
+     */
     fun keepForLater(story: EdStory) = viewModelScope.launch {
+        if (Editions.hasClean(story)) {
+            _message.value = runCatching {
+                withContext(Dispatchers.IO) { later.keepText(story.title, story.url, Editions.cleanText(story)) }
+                "Saved for later 🦥"
+            }.getOrElse { it.message ?: "Couldn't save it" }
+            return@launch
+        }
         if (story.url.isBlank()) {
             _message.value = "This story has no link to fetch"
             return@launch
@@ -419,5 +481,10 @@ class EditionViewModel @Inject constructor(
             store.saveSetup { it.copy(sentAt = at) }
             if (now) "Sent: the Lobster will make an edition now" else "Sent to the Lobster"
         }.getOrElse { it.message ?: "Couldn't send the settings" }
+    }
+
+    private companion object {
+        /** A story attached to a chat: the clean text, cut at this. */
+        const val MAX_ASK_CHARS = 24_000
     }
 }

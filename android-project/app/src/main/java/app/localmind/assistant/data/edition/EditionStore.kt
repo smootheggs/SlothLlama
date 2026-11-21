@@ -3,6 +3,8 @@ package app.localmind.assistant.data.edition
 import android.content.Context
 import android.util.Log
 import app.localmind.assistant.domain.edition.DeskNote
+import app.localmind.assistant.domain.edition.EdStory
+import app.localmind.assistant.domain.edition.EditionOut
 import app.localmind.assistant.domain.edition.EditionSetup
 import app.localmind.assistant.domain.edition.Editions
 import app.localmind.assistant.domain.edition.SavedEdition
@@ -39,6 +41,8 @@ class EditionStore @Inject constructor(@ApplicationContext context: Context) {
 
     private val dir = File(context.filesDir, "editions").apply { mkdirs() }
     private val setupFile = File(dir, "setup.json")
+    /** The lead pictures of stories read clean, kept beside their papers. */
+    val pictures = StoryPictures(File(dir, "pics"))
     private val lock = Any()
     @Volatile private var loaded = false
 
@@ -52,6 +56,18 @@ class EditionStore @Inject constructor(@ApplicationContext context: Context) {
     private val _latest = MutableStateFlow<SavedEdition?>(null)
     /** The newest edition, read whole (for Home and the page's first view). */
     val latest: StateFlow<SavedEdition?> = _latest.asStateFlow()
+
+    /** A story the Lobster's tab asked to read clean (its link), until the Express opens it. */
+    private val _openAsk = MutableStateFlow<String?>(null)
+    val openAsk: StateFlow<String?> = _openAsk.asStateFlow()
+
+    fun askOpen(url: String) {
+        _openAsk.value = url.take(2_000)
+    }
+
+    fun openAnswered() {
+        _openAsk.value = null
+    }
 
     /** A desk persona asked for notes from a chat: (edition id, persona id), until the notes are kept. */
     private val _pendingDesk = MutableStateFlow<Pair<String, String>?>(null)
@@ -108,6 +124,7 @@ class EditionStore @Inject constructor(@ApplicationContext context: Context) {
             val made = f.name.take(13).toLongOrNull() ?: f.lastModified()
             if (i >= MAX_KEPT || made < cutoff) f.delete()
         }
+        pictures.prune(paperFiles().map { StoryPictures.base(it.name) }.toSet())
     }
 
     // --- papers ---
@@ -122,11 +139,46 @@ class EditionStore @Inject constructor(@ApplicationContext context: Context) {
         synchronized(lock) {
             if (_entries.value.any { it.id == edition.id }) return true
             val name = "%013d-%s.json".format(edition.made.coerceAtLeast(0), edition.id.filter { it.isLetterOrDigit() }.take(12))
-            write(File(dir, name), Editions.encodeSaved(SavedEdition(edition, received = System.currentTimeMillis())))
+            val (paper, pics) = keepPictures(edition, name)
+            write(File(dir, name), Editions.encodeSaved(SavedEdition(paper, received = System.currentTimeMillis(), pics = pics)))
             prune()
             refresh()
         }
         return true
+    }
+
+    /**
+     * Each news story's lead picture, decoded and drawn again as a file beside the paper; the paper
+     * then keeps only the file's name, by story key. A picture that won't decode is left out.
+     */
+    private fun keepPictures(e: EditionOut, paperFile: String): Pair<EditionOut, Map<String, String>> {
+        val pics = LinkedHashMap<String, String>()
+        var n = 0
+        fun strip(st: EdStory): EdStory {
+            if (st.pic.isBlank()) return st
+            val bytes = runCatching { java.util.Base64.getMimeDecoder().decode(st.pic) }.getOrNull()
+            if (bytes != null && n < MAX_PICS) {
+                val kept = runCatching { pictures.keep(StoryPictures.nameFor(paperFile, n), bytes) }
+                    .onFailure { Log.w(TAG, "Couldn't keep a story's picture", it) }.getOrNull()
+                if (kept != null) {
+                    pics[Editions.storyKey(st)] = kept
+                    n++
+                }
+            }
+            return st.copy(pic = "")
+        }
+        val paper = e.copy(top = e.top.map(::strip), sections = e.sections.map { sec -> sec.copy(stories = sec.stories.map(::strip)) })
+        return paper to pics
+    }
+
+    /** A news story in a kept paper by its link, newest paper first: the paper's file and the story. */
+    suspend fun findNews(url: String): Pair<String, EdStory>? = withContext(Dispatchers.IO) {
+        loadBlocking()
+        for (f in paperFiles()) {
+            val s = (if (f.name == _entries.value.firstOrNull()?.file) _latest.value else null) ?: read(f) ?: continue
+            Editions.findNews(s.edition, url)?.let { return@withContext f.name to it }
+        }
+        null
     }
 
     suspend fun paper(file: String): SavedEdition? = withContext(Dispatchers.IO) {
@@ -161,6 +213,7 @@ class EditionStore @Inject constructor(@ApplicationContext context: Context) {
         synchronized(lock) {
             val f = File(dir, file)
             if (f.parentFile == dir && f.name != setupFile.name) f.delete()
+            pictures.prune(paperFiles().map { StoryPictures.base(it.name) }.toSet())
             refresh()
         }
     }
@@ -235,5 +288,6 @@ class EditionStore @Inject constructor(@ApplicationContext context: Context) {
         private const val KEEP_DAYS = 30
         private const val MAX_KEPT = 60
         private const val MAX_NOTE = 2_000
+        private const val MAX_PICS = 60
     }
 }

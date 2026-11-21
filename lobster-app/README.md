@@ -20,6 +20,13 @@ goes out on the web, and brings back what it finds for SlothLlama to read offlin
   first; and a corner per language with its biggest stories read whole (Pinyin printed beside the
   characters is taken out; SlothLlama adds its own). Hacker News's "Article URL / Comments URL"
   lines become "113 points · 19 comments". While the plan is on, it replaces the daily brief.
+  Since 1.11 every news story is also **read clean**: its text, as the reader boils it down, and
+  its lead picture re-drawn as a small JPEG, one page at a time within eight minutes a paper.
+  Google News links (they open only in a browser), paywalls and sites that don't answer are
+  marked page only, with why.
+- **Opening a story for SlothLlama** (1.11): SlothLlama hands over a story's link and the Lobster
+  opens it in Chrome's in-app view (Custom Tabs), with Save for later and Read it clean in
+  SlothLlama added to the tab. Each visit is in the Log.
 - **Sports** (1.9, set in SlothLlama's Sports page): results, fixtures and the day's line for the
   NBA, NFL and football leagues from ESPN's public scoreboard, and F1 from Jolpica-F1 (both free,
   no key). Fetched a day or a month at a time (the scoreboard takes no ranges), gently; nothing
@@ -95,7 +102,14 @@ On a phone, keep the same folder in sync with the tablet using Syncthing.
 - HTTPS only. It refuses addresses on your own network (router, other apps on the device).
 - Pages are read as text only. Nothing in a page or an order is ever run as a command.
 - Covers are decoded and re-drawn as plain JPEGs before they're sent on; anything that isn't a
-  picture of a sane size is dropped.
+  picture of a sane size is dropped. So are the papers' lead pictures (and SlothLlama draws them
+  again before keeping them).
+- Opening a story for SlothLlama: only an app signed with your key can ask (a signature-level
+  permission, `app.slothlobster.permission.HAND_OFF`), and only for a link the Lobster itself
+  brought in a paper or brief. The tab's buttons go back only to SlothLlama by its exact name,
+  which in turn takes them only from an app holding the same permission. The Dev builds pair with
+  each other, and since they're signed with the public debug key, so could anyone's: install the
+  release builds.
 - An edition plan is plain data: feed and page links (HTTPS, public sites only), news searches and
   numbers, checked and capped before it's kept. A listing page is read for its links to the same
   site; nothing on it is run.

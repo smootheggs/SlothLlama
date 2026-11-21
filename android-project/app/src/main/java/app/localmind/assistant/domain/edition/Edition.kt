@@ -61,7 +61,12 @@ data class EdStory(
     val meta: String = "",
     val outlets: Int = 1,
     val also: List<String> = emptyList(),
-    val paras: List<EdPara> = emptyList()
+    /** A language corner's story, or (Lobster 1.11) any story read clean with the paper. */
+    val paras: List<EdPara> = emptyList(),
+    /** The story's lead picture as the Lobster sent it (base64 JPEG); moved to a file when kept. */
+    val pic: String = "",
+    /** Why there's no clean text ("Google News links open only in a browser"), when there isn't. */
+    val pageOnly: String = ""
 )
 
 @Serializable
@@ -95,7 +100,9 @@ data class SavedEdition(
     /** Links (or titles) of stories opened or ticked as read. */
     val read: List<String> = emptyList(),
     val desk: List<DeskNote> = emptyList(),
-    val received: Long = 0
+    val received: Long = 0,
+    /** Each story's lead picture, by story key: a file kept beside the paper (editions/pics). */
+    val pics: Map<String, String> = emptyMap()
 ) {
     val stories: List<EdStory> get() = Editions.stories(edition)
     val readCount: Int get() = stories.count { Editions.storyKey(it) in read }
@@ -112,7 +119,9 @@ data class EditionSetup(
     /** When the plan was last put in the mailbox, and when the Lobster said it had it. */
     val sentAt: Long = 0,
     val acceptedAt: Long = 0,
-    val changedAt: Long = 0
+    val changedAt: Long = 0,
+    /** Outlets (as the paper names them, lower case) whose stories a tap reads clean; others open their page. */
+    val tapClean: List<String> = emptyList()
 ) {
     /** Changed since the Lobster last took it. */
     val unsent: Boolean get() = changedAt > sentAt
@@ -180,12 +189,19 @@ object Editions {
             title = x.title.take(240), summary = x.summary.take(400), outlet = x.outlet.take(60), meta = x.meta.take(80),
             also = x.also.take(8).map { it.take(60) },
             paras = x.paras.take(20).map { EdPara(it.t.take(1_200), it.en.take(1_200)) },
-            url = x.url.takeIf { it.startsWith("https://") }.orEmpty().take(2_000)
+            url = x.url.takeIf { it.startsWith("https://") }.orEmpty().take(2_000),
+            pic = "", pageOnly = ""
+        )
+        // A news story read clean: a whole article's worth, its picture, or why it's page only.
+        fun newsStory(x: EdStory) = s(x).copy(
+            paras = cleanParas(x.paras),
+            pic = x.pic.take(MAX_PIC_CHARS).takeIf { it.length < MAX_PIC_CHARS }.orEmpty(),
+            pageOnly = x.pageOnly.replace(Regex("[\\p{Cntrl}]"), " ").take(200)
         )
         return e.copy(
             name = e.name.take(40),
-            top = e.top.take(8).map(::s),
-            sections = e.sections.take(12).map { sec -> EdSection(sec.name.take(40), sec.stories.take(15).map(::s)) },
+            top = e.top.take(8).map(::newsStory),
+            sections = e.sections.take(12).map { sec -> EdSection(sec.name.take(40), sec.stories.take(15).map(::newsStory)) },
             corners = e.corners.take(10).map { c -> EdCorner(c.lang.take(4), c.name.take(40), c.source.take(60), c.stories.take(5).map(::s)) },
             notes = e.notes.take(20).map { it.take(200) }
         )
@@ -216,6 +232,54 @@ object Editions {
     const val MOTTO = "Slowly digesting a rapidly changing world"
 
     fun storyKey(s: EdStory): String = s.url.ifBlank { s.title }.trim().lowercase().take(300)
+
+    // --- reading a story (1.43) ---
+
+    /** A clean story's paragraphs within bounds: 120 at most, 24,000 characters in all. */
+    const val MAX_CLEAN_PARAS = 120
+    const val MAX_CLEAN_CHARS = 24_000
+    /** A lead picture as sent: a 720-pixel JPEG is well under this in base64. */
+    const val MAX_PIC_CHARS = 600_000
+
+    fun cleanParas(paras: List<EdPara>): List<EdPara> {
+        var left = MAX_CLEAN_CHARS
+        return paras.take(MAX_CLEAN_PARAS).mapNotNull { p ->
+            if (left <= 0) return@mapNotNull null
+            val t = p.t.take(minOf(4_000, left))
+            left -= t.length
+            EdPara(t)
+        }.filter { it.t.isNotBlank() }
+    }
+
+    /** Whether a news story came with its own text to read here. */
+    fun hasClean(s: EdStory): Boolean = s.paras.isNotEmpty() && s.pageOnly.isBlank()
+
+    /** The clean story as Markdown for the reader: its paragraphs, headings and lists as the Lobster kept them. */
+    fun cleanText(s: EdStory): String = s.paras.joinToString("\n\n") { it.t.trim() }
+
+    /** Whether a tap on this story reads it clean (its outlet set that way, and the text is here). */
+    fun tapsClean(setup: EditionSetup, s: EdStory): Boolean =
+        hasClean(s) && s.outlet.trim().lowercase() in setup.tapClean
+
+    /** The setup with this outlet's taps reading clean, or opening the page. */
+    fun withTap(setup: EditionSetup, outlet: String, clean: Boolean): EditionSetup {
+        val o = outlet.trim().lowercase().take(60)
+        if (o.isEmpty()) return setup
+        val next = if (clean) (setup.tapClean + o).distinct().takeLast(MAX_TAP_OUTLETS) else setup.tapClean - o
+        return setup.copy(tapClean = next)
+    }
+
+    private const val MAX_TAP_OUTLETS = 100
+
+    /** The news stories (top and sections; not the language corners, which open their own page). */
+    fun news(e: EditionOut): List<EdStory> = e.top + e.sections.flatMap { it.stories }
+
+    /** A news story in the paper by its link (as the Lobster sent it, or as it was handed back). */
+    fun findNews(e: EditionOut, url: String): EdStory? {
+        val k = url.trim().lowercase()
+        if (k.isEmpty()) return null
+        return news(e).firstOrNull { it.url.trim().lowercase() == k }
+    }
 
     // --- the default plan ---
 

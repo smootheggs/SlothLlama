@@ -13,8 +13,8 @@ android {
         applicationId = "app.slothlobster"
         minSdk = 29
         targetSdk = 35
-        versionCode = 13
-        versionName = "1.10.0"
+        versionCode = 14
+        versionName = "1.11.0"
         manifestPlaceholders["appLabel"] = "SlothLobster"
     }
 
@@ -92,6 +92,7 @@ dependencies {
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.work.runtime.ktx)
+    implementation(libs.androidx.browser)
     // The web: pages, searches and feeds. Only this app has these; SlothLlama has none.
     implementation(libs.okhttp)
     implementation(libs.jsoup)

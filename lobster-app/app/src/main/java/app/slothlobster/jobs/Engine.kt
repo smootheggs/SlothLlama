@@ -940,10 +940,18 @@ class Engine(private val lobster: Lobster) {
         }
         if (answered == 0) throw WebException("None of the edition's sources answered")
 
+        // Every news story read clean with the paper, so it opens on the tablet at once, offline.
+        val tally = CleanTally(System.currentTimeMillis() + CLEAN_BUDGET_MS)
+        val cleanTop = top.map { readClean(it, tally) }
+        val cleanSections = sections.map { sec -> sec.copy(stories = sec.stories.map { readClean(it, tally) }) }
+        if (tally.clean + tally.pageOnly > 0) {
+            store.log("page", "Read the paper's stories clean", "${tally.clean} clean · ${tally.pageOnly} page only")
+        }
+
         val made = System.currentTimeMillis()
         val edition = EditionOut(
             id = UUID.randomUUID().toString(), name = name, made = made,
-            top = top, sections = sections, corners = corners, notes = notes.distinct().take(20)
+            top = cleanTop, sections = cleanSections, corners = corners, notes = notes.distinct().take(20)
         )
         val stories = Editions.stories(edition)
         store.update { it.copy(sentHeadlines = it.sentHeadlines + stories.map { s -> key(s.url, s.title) }) }
@@ -959,6 +967,59 @@ class Engine(private val lobster: Lobster) {
             fileName = Editions.FILE_NAME,
             fileBase64 = Base64.getEncoder().encodeToString(Editions.encode(edition).toByteArray(Charsets.UTF_8))
         )
+    }
+
+    /** How the clean reading is going: stories read, page only, and the time it must stop by. */
+    private class CleanTally(val deadline: Long) {
+        var tried = 0
+        var clean = 0
+        var pageOnly = 0
+    }
+
+    /**
+     * A news story read clean: the article's text (as the reader boils it down) and its lead
+     * picture, or why it can only be read on its page (a Google News link, a paywall, a site that
+     * didn't answer). One page at a time, with a pause, within the paper's time budget.
+     */
+    private suspend fun readClean(story: EdStory, tally: CleanTally): EdStory {
+        Clean.before(story.url)?.let { why ->
+            tally.pageOnly++
+            return story.copy(pageOnly = why)
+        }
+        if (lobster.isPaused() || System.currentTimeMillis() > tally.deadline || tally.tried >= MAX_CLEAN_STORIES) {
+            tally.pageOnly++
+            return story.copy(pageOnly = Clean.WHY_TIME)
+        }
+        tally.tried++
+        val read = try {
+            kotlinx.coroutines.delay(STORY_PAUSE_MS)
+            withTimeoutOrNull(CLEAN_STORY_MS) {
+                val page = Web.get(story.url)
+                if (!page.isHtml) return@withTimeoutOrNull story.copy(pageOnly = Clean.WHY_NOT_PAGE)
+                val paras = Clean.paras(Readable.extract(page.text, page.url).lines, story.title)
+                val shut = Clean.shut(paras)
+                if (shut != null) return@withTimeoutOrNull story.copy(pageOnly = shut)
+                val picUrl = Clean.leadPicture(page.text, page.url)
+                // A picture that won't come is no reason to lose the text (but a timeout still stops the story).
+                val pic = picUrl?.let { u ->
+                    try {
+                        Clean.redraw(Web.get(u, maxBytes = Clean.MAX_PIC_BYTES).bytes)
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        null
+                    }
+                }
+                store.log("page", "Read a story clean", page.url + if (pic != null) " · with its picture" else "")
+                story.copy(paras = paras, pic = pic?.let { Base64.getEncoder().encodeToString(it) }.orEmpty())
+            } ?: story.copy(pageOnly = "the site took too long to answer")
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            story.copy(pageOnly = "the site didn't answer (${friendly(e)})")
+        }
+        if (read.pageOnly.isEmpty()) tally.clean++ else tally.pageOnly++
+        return read
     }
 
     /** A corner story read whole (Google News links only open in a browser, so they stay headlines). */
@@ -1088,6 +1149,10 @@ class Engine(private val lobster: Lobster) {
         private const val COVER_BATCH = 20
         private const val COVER_PAUSE_MS = 1_000L
         private const val STORY_PAUSE_MS = 400L
+        /** Reading the paper's stories clean stops after this long, and after this many pages. */
+        private const val CLEAN_BUDGET_MS = 8L * 60 * 1000
+        private const val CLEAN_STORY_MS = 25_000L
+        private const val MAX_CLEAN_STORIES = 45
         private const val MAX_EDITION_KEYS = 24
         private const val MAX_EDITION_TEXT = 40_000
         const val HOUR_MS = 60L * 60 * 1000

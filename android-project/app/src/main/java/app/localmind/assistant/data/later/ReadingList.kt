@@ -87,6 +87,34 @@ class ReadingList @Inject constructor(@ApplicationContext context: Context) {
         item
     }
 
+    /**
+     * Shelves an article whose text is already on the tablet (a story the Lobster read clean with
+     * the paper): at once, no order needed. The same link saved again keeps where you'd got to.
+     * Blocking: call off the main thread.
+     */
+    fun keepText(title: String, url: String, text: String): LaterItem = synchronized(lock) {
+        val existing = if (url.isBlank()) null else _items.value.firstOrNull { it.url == url }
+        val item = LaterItem(
+            id = existing?.id ?: UUID.randomUUID().toString(),
+            title = title.ifBlank { siteOf(url).ifBlank { "Saved page" } }.take(200),
+            url = url,
+            site = siteOf(url),
+            minutes = readingMinutes(text),
+            savedAt = System.currentTimeMillis(),
+            progress = existing?.progress ?: 0f,
+            openedAt = existing?.openedAt ?: 0,
+            archivedAt = 0,
+            favourite = existing?.favourite ?: false,
+            readable = true
+        )
+        File(dir, "${item.id}.md").writeText(text.trim())
+        save(listOf(item) + _items.value.filterNot { it.id == item.id })
+        item
+    }
+
+    /** Whether a link is on the shelf (and not archived). */
+    fun has(url: String): Boolean = url.isNotBlank() && _items.value.any { it.url == url && !it.archived }
+
     fun text(id: String): String? = File(dir, "$id.md").takeIf { it.exists() }?.readText()
 
     fun setProgress(id: String, progress: Float) = change(id) {

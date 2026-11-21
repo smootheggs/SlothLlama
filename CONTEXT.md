@@ -12,8 +12,12 @@ Details live elsewhere: `android-project/README.md` (what each part does), `docs
   checks that. Package `app.localmind.assistant`, folder `android-project/`.
 - **SlothLobster** ("the Lobster"): the online sister app. It researches, fetches, watches and
   makes the edition, and brings results back. Package `app.slothlobster`, folder `lobster-app/`.
-- **The mailbox**: the only link between them. A shared folder (same tablet, or synced with
-  Syncthing) of encrypted files. Avoid: "API", "sync", "server".
+- **The mailbox**: the link between them for everything they exchange. A shared folder (same
+  tablet, or synced with Syncthing) of encrypted files. Avoid: "API", "sync", "server".
+- **The hand-off** (Llama 1.43, Lobster 1.11): the one other link, on the same tablet only. The
+  Llama asks the Lobster to open a story's page in Chrome's in-app view (a "Chrome tab"); the
+  tab's "Read it clean" and "Save for later" come back. Guarded by the Lobster's signature-level
+  permission, so only apps signed with your key can use it. Carries a link, never data.
   - **Order**: a file the Llama writes asking the Lobster for something. Kinds: research, fetch,
     watch, brief, ask, prices, covers, edition. Avoid: "request", "job" (except in the Lobster's
     own UI, "takes the job").
@@ -83,6 +87,10 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
     chat and kept with "Keep on today's desk"), and the **language corners** (the day's stories in
     a tutor's language, with readings and key words).
   - **Contents bar**: the jump-to row under the top bar.
+  - **Clean text** ("read it clean"): a story's own words without the page around it, read by
+    the Lobster with the paper and kept on the tablet with its lead picture. **Page only**: a
+    story without it (a Google News link, a paywall, a site that didn't answer), which opens its
+    page. Avoid: "reader mode", "article view".
 - **Atlas**: the world map on the tablet (Natural Earth, Equal Earth projection, borders **de
   facto**: as held on the ground). **Looks**: Night, White, Paper. **Relief**: the shaded relief
   layer, on or off. **Places**: the place a story or article names, found on the tablet, linking

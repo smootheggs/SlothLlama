@@ -298,6 +298,14 @@ private fun SlothRoot(
     // The edition: one for the whole app, so a desk persona's reply from a chat lands on its edition.
     val edition: app.localmind.assistant.ui.edition.EditionViewModel = hiltViewModel()
     val deskAsk by edition.pendingDesk.collectAsStateWithLifecycle()
+    // The Express's own reader for stories read clean: its own instance, so the Reader screen's
+    // open text is left alone.
+    val expressReader: app.localmind.assistant.ui.reader.ReaderViewModel = hiltViewModel(key = "express")
+    // "Read it clean in SlothLlama" from the Lobster's Chrome tab: to the Express, which opens it.
+    val expressAsk by edition.openAsk.collectAsStateWithLifecycle()
+    LaunchedEffect(expressAsk) {
+        if (expressAsk != null) navigate(Destination.EDITION)
+    }
     // Projects: one for the whole app, so a write-up or decision record kept in a chat lands in its project.
     val projects: app.localmind.assistant.ui.projects.ProjectsViewModel = hiltViewModel()
     val projectAsk by projects.pending.collectAsStateWithLifecycle()
@@ -440,7 +448,7 @@ private fun SlothRoot(
                     onOpenLobster = { navigate(Destination.LOBSTER) }
                 )
                 Destination.BOOKS -> app.localmind.assistant.ui.books.BooksScreen(viewModel = books, onBack = goHome)
-                Destination.EDITION -> app.localmind.assistant.ui.edition.EditionScreen(viewModel = edition, onBack = goHome, onPlace = showPlace)
+                Destination.EDITION -> app.localmind.assistant.ui.edition.EditionScreen(viewModel = edition, reader = expressReader, onBack = goHome, onPlace = showPlace)
                 Destination.ATLAS -> app.localmind.assistant.ui.atlas.AtlasScreen(viewModel = atlas, onBack = goHome)
                 Destination.PROJECTS -> app.localmind.assistant.ui.projects.ProjectsScreen(viewModel = projects, onBack = goHome)
                 Destination.MUSIC -> app.localmind.assistant.ui.music.MusicScreen(viewModel = hiltViewModel(), onBack = goHome)

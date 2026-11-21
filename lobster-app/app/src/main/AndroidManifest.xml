@@ -11,6 +11,24 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
 
+    <!-- The hand-off with SlothLlama (1.11): only an app signed with the same key can hold it, so
+         only SlothLlama can ask the Lobster to open a story, and only the Lobster can answer. -->
+    <permission
+        android:name="${applicationId}.permission.HAND_OFF"
+        android:label="Open stories with the SlothLobster"
+        android:protectionLevel="signature" />
+    <uses-permission android:name="${applicationId}.permission.HAND_OFF" />
+
+    <queries>
+        <!-- Browsers that open pages in an in-app view (Chrome's Custom Tabs). -->
+        <intent>
+            <action android:name="android.support.customtabs.action.CustomTabsService" />
+        </intent>
+        <!-- SlothLlama, the only app the tab's buttons go back to. -->
+        <package android:name="app.localmind.assistant" />
+        <package android:name="app.localmind.assistant.debug" />
+    </queries>
+
     <application
         android:name=".LobsterApp"
         android:allowBackup="false"
@@ -55,6 +73,21 @@
                 <action android:name="android.intent.action.SEND" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:mimeType="text/plain" />
+            </intent-filter>
+        </activity>
+
+        <!-- SlothLlama's "open the page": a story it brought, in Chrome's in-app view. No screen
+             of its own; needs the hand-off permission above. -->
+        <activity
+            android:name=".OpenStoryActivity"
+            android:exported="true"
+            android:permission="${applicationId}.permission.HAND_OFF"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar"
+            android:excludeFromRecents="true"
+            android:noHistory="true">
+            <intent-filter>
+                <action android:name="app.slothlobster.action.OPEN_STORY" />
+                <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>
 

@@ -30,20 +30,23 @@ import kotlinx.coroutines.withContext
 import javax.inject.Inject
 
 /** Where a text in the reader came from. */
-enum class ReaderSource { CATCH, LIBRARY, NOTE, LATER }
+enum class ReaderSource { CATCH, LIBRARY, NOTE, LATER, EXPRESS }
 
 /** A text open in the reader. [key] names it for the saved reading position. */
 data class ReaderDoc(
     val key: String,
     val source: ReaderSource,
-    /** The catch's file name, the library item's id, the note's id, or the Later item's id. */
+    /** The catch's file name, the library item's id, the note's id, the Later item's id, or "paper|story key". */
     val ref: String,
     val title: String,
     val meta: String,
     val text: String,
     val sources: List<LobsterSource> = emptyList(),
     /** [text] split for showing; worked out off the main thread when the text is opened. */
-    val blocks: List<ReaderBlock> = emptyList()
+    val blocks: List<ReaderBlock> = emptyList(),
+    /** An Express story's page (opened through the Lobster) and its lead picture's file name. */
+    val url: String = "",
+    val picture: String? = null
 )
 
 /** What a paragraph's long-press menu can ask the chat to do with it. */
@@ -68,8 +71,12 @@ class ReaderViewModel @Inject constructor(
     private val attachments: AttachmentStore,
     private val askInbox: AskInbox,
     private val later: ReadingList,
-    private val atlas: app.localmind.assistant.data.atlas.AtlasRepository
+    private val atlas: app.localmind.assistant.data.atlas.AtlasRepository,
+    private val editions: app.localmind.assistant.data.edition.EditionStore
 ) : ViewModel() {
+
+    /** The papers' lead pictures, for an Express story's. */
+    val pictures: app.localmind.assistant.data.edition.StoryPictures get() = editions.pictures
 
     private val prefs = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
 
@@ -181,6 +188,28 @@ class ReaderViewModel @Inject constructor(
                 sources = if (item.url.isBlank()) emptyList() else listOf(LobsterSource(item.site, item.url))
             )
         }
+        ReaderSource.EXPRESS -> {
+            val file = ref.substringBefore('|')
+            val key = ref.substringAfter('|', "")
+            editions.paper(file)?.let { saved ->
+                app.localmind.assistant.domain.edition.Editions.news(saved.edition)
+                    .firstOrNull { app.localmind.assistant.domain.edition.Editions.storyKey(it) == key }
+                    ?.takeIf { app.localmind.assistant.domain.edition.Editions.hasClean(it) }
+                    ?.let { st ->
+                        ReaderDoc(
+                            key = "express:$key",
+                            source = source,
+                            ref = ref,
+                            title = st.title,
+                            meta = listOf(st.outlet, "read clean").filter { it.isNotBlank() }.joinToString(" · "),
+                            text = app.localmind.assistant.domain.edition.Editions.cleanText(st),
+                            sources = listOf(LobsterSource(st.outlet.ifBlank { ReadingList.siteOf(st.url) }, st.url)),
+                            url = st.url,
+                            picture = saved.pics[key]
+                        )
+                    }
+            }
+        }
         ReaderSource.NOTE -> notes.notes.value.firstOrNull { it.id == ref }?.let { n ->
             val (title, body) = splitNote(n.text)
             ReaderDoc(key = "note:${n.id}", source = source, ref = ref, title = title, meta = "Note", text = body)
@@ -265,6 +294,14 @@ class ReaderViewModel @Inject constructor(
     fun fetchPicked() = sendFetches(_picked.value.toList())
 
     /** The Lobster fetches the page onto the Later shelf. */
+    /** An Express story to the Later shelf at once: its clean text is already here. */
+    fun keepClean() = act {
+        val d = _doc.value ?: return@act null
+        if (d.source != ReaderSource.EXPRESS) return@act null
+        withContext(Dispatchers.IO) { later.keepText(d.title, d.url, d.text) }
+        "Saved for later 🦥 It's on the Later shelf."
+    }
+
     fun saveForLater(url: String) = act {
         mailbox.send(OrderKind.FETCH, url, deep = false, deliver = "later")
         "Saved for later 🦞 It will appear on the Later shelf."

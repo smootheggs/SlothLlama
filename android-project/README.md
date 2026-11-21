@@ -113,6 +113,13 @@ model too big for the GPU falls back to the CPU on its own.
   word up, the source's English line by line, key words by your level (HSK for Mandarin, the Core
   words list for French) to add to Flashcards, and the language's partner to talk it over with.
   Listen reads the edition aloud offline; past editions are kept 30 days with what you've read.
+  **Reading** (1.43, needs SlothLobster 1.11): a tap opens the story's page in Chrome's in-app
+  view, opened by the Lobster, with Chrome's Refresh in its ⋮ menu and Save for later in its
+  toolbar. The Lobster reads every news story clean with the paper (its text and lead picture,
+  kept here), so **Read it clean** opens at once, offline, in the Reader; Google News links,
+  paywalls and sites that don't answer are marked page only. A long press has the rest: save for
+  later (at once), ask about it, the Atlas, read or unread, and whether a tap on that outlet opens
+  the page or the clean text.
   Settings: times (morning, evening…), weekends, length, sections (tap to swap), top stories,
   words to lift or mute, corners with their sources, topics and story counts, and who sits on the desk.
 - **Atlas** (1.33). Home → Atlas: a world map kept on the tablet (Natural Earth, public domain;
