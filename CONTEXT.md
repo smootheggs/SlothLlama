@@ -100,7 +100,10 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
 - **Atlas**: the world map on the tablet (Natural Earth, Equal Earth projection, borders **de
   facto**: as held on the ground). **Looks**: Night, White, Paper. **Relief**: the shaded relief
   layer, on or off. **Places**: the place a story or article names, found on the tablet, linking
-  to the Atlas. **Your places**: pins for today's edition and the books' countries.
+  to the Atlas. A name several places share (Los Angeles, Vancouver, Georgia) goes to the one a
+  region named right beside it says ("Los Angeles, California"), else to a country named
+  elsewhere in the text if the places are of about the same size, else to the bigger place
+  (1.45.1). **Your places**: pins for today's edition and the books' countries.
 
 ## Weigh
 

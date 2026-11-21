@@ -75,6 +75,25 @@ class AtlasUnitTests {
         assertTrue(finder.find("Male voters and nice weather.").isEmpty())
     }
 
+    /** 1.46: a name shared by places in several countries (Los Angeles is also a city in Chile). */
+    private fun at(text: String, named: String): String? = finder.find(text, 8).firstOrNull { it.named == named }?.a3
+
+    @Test
+    fun `a shared name goes to the bigger place unless the text says otherwise`() {
+        assertEquals("USA", at("Wildfires spread near Los Angeles on Tuesday.", "Los Angeles"))
+        assertEquals("CAN", at("A storm hit Vancouver.", "Vancouver"))
+        assertEquals("USA", at("Portland police said.", "Portland"))
+        // A region right beside it says which.
+        assertEquals("USA", at("Fires near Los Angeles, California, forced evacuations.", "Los Angeles"))
+        assertEquals("CHL", at("Floods hit Los Ángeles, Chile, overnight.", "Los Ángeles"))
+        assertEquals("USA", at("Protests in Atlanta, Georgia, grew.", "Georgia"))
+        assertEquals("PAK", at("Rain in Hyderabad, Pakistan's Sindh province.", "Hyderabad"))
+        // Named elsewhere, a country decides only between places of about the same size.
+        assertEquals("USA", at("Chile's president visited Los Angeles on Monday.", "Los Angeles"))
+        assertEquals("GEO", at("Georgia's parliament met in Tbilisi.", "Georgia"))
+        assertEquals("ESP", at("Valencia flooded again, Spain said.", "Valencia"))
+    }
+
     @Test
     fun `a book's country is matched in any language`() {
         assertEquals("CHN", finder.country("China"))

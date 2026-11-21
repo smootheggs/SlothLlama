@@ -336,28 +336,45 @@ data class PlaceHit(
  * short forms such as "U.S."), capitals and big cities, and the subdivisions of large countries.
  * English names must match with their capitals, whole words only; Chinese and Japanese names are
  * found inside the text. Ambiguous English words ("Male", "Nice") are left out.
+ *
+ * Some names belong to places in more than one country (Los Angeles, Vancouver, Santiago,
+ * Georgia). Which one is meant (1.46): a country or region named right beside it ("Los Angeles,
+ * California", "Chile's Los Ángeles"); else a country the text names elsewhere, but only between
+ * places of about the same size; else the bigger place (Natural Earth's rank) and the higher kind.
  */
 class PlaceFinder(countries: List<AtlasCountry>, places: List<AtlasPlace>, subdivisions: List<AtlasSubdivision>) {
 
-    private data class Entry(val a3: String, val kind: String, val priority: Int)
+    /** [rank]: Natural Earth's scale rank, 0 the biggest (countries and regions count as 0). */
+    private data class Entry(val a3: String, val kind: String, val priority: Int, val rank: Int = 0)
 
-    private val latin = HashMap<String, Entry>()
-    private val cjk = HashMap<String, Entry>()
+    /** A name found in the text, where, and the places it could be. */
+    private class Match(val start: Int, val end: Int, val named: String, val options: List<Entry>, val possessive: Boolean) {
+        val sure: Boolean get() = options.distinctBy { it.a3 }.size == 1
+    }
+
+    private val order = compareBy<Entry>({ it.priority }, { it.rank })
+
+    private val latin = HashMap<String, MutableList<Entry>>()
+    private val cjk = HashMap<String, MutableList<Entry>>()
     private val countryNames = HashMap<String, String>()
     private var longest = 1
 
     init {
+        // Every place a name could be, one per country (the higher kind, then the bigger place).
+        fun add(map: HashMap<String, MutableList<Entry>>, key: String, e: Entry) {
+            val list = map.getOrPut(key) { mutableListOf() }
+            val i = list.indexOfFirst { it.a3 == e.a3 }
+            if (i < 0) list += e else if (order.compare(e, list[i]) < 0) list[i] = e
+        }
         fun put(name: String?, e: Entry) {
             val n = name?.trim()?.takeIf { it.length >= 2 } ?: return
             if (n.any(::isCjk)) {
                 if (n.length < 2) return
-                val old = cjk[n]
-                if (old == null || e.priority < old.priority) cjk[n] = e
+                add(cjk, n, e)
             } else {
                 val key = key(n)
                 if (key in STOP || key.length < 3) return
-                val old = latin[key]
-                if (old == null || e.priority < old.priority) latin[key] = e
+                add(latin, key, e)
                 longest = maxOf(longest, key.count { it == ' ' } + 1)
             }
         }
@@ -372,7 +389,7 @@ class PlaceFinder(countries: List<AtlasCountry>, places: List<AtlasPlace>, subdi
         }
         for (p in places) {
             if (p.kind == "city" && p.rank > 6) continue
-            val e = Entry(p.a3, if (p.kind == "capital") "capital" else "city", if (p.kind == "capital") 1 else 3)
+            val e = Entry(p.a3, if (p.kind == "capital") "capital" else "city", if (p.kind == "capital") 1 else 3, p.rank)
             (listOf(p.name) + p.names.all()).forEach { put(it, e) }
         }
         for (s in subdivisions) {
@@ -391,26 +408,22 @@ class PlaceFinder(countries: List<AtlasCountry>, places: List<AtlasPlace>, subdi
 
     /** The places [text] names, the most named first; one hit per country. */
     fun find(text: String, max: Int = 4): List<PlaceHit> {
-        val found = LinkedHashMap<String, Pair<Entry, MutableList<String>>>()
-        fun hit(e: Entry, named: String) {
-            val slot = found.getOrPut(e.a3) { e to mutableListOf() }
-            if (e.priority < slot.first.priority) found[e.a3] = e to slot.second
-            found[e.a3]!!.second += named
-        }
+        val matches = ArrayList<Match>()
         // English and other Latin-script names: runs of words, the first one capitalised.
-        val words = Regex("[\\p{L}\\p{N}.'’-]+").findAll(text).map { it.value }.toList()
+        val words = Regex("[\\p{L}\\p{N}.'’-]+").findAll(text).toList()
         var i = 0
         while (i < words.size) {
-            val w = clean(words[i])
+            val w = clean(words[i].value)
             if (w.isEmpty() || !w[0].isUpperCase()) {
                 i++
                 continue
             }
             var matched = 0
             for (n in minOf(longest, words.size - i) downTo 1) {
-                val phrase = (i until i + n).joinToString(" ") { clean(words[it]) }
-                val e = latin[key(phrase)] ?: continue
-                hit(e, phrase)
+                val phrase = (i until i + n).joinToString(" ") { clean(words[it].value) }
+                val options = latin[key(phrase)] ?: continue
+                val last = words[i + n - 1].value
+                matches += Match(words[i].range.first, words[i + n - 1].range.last + 1, phrase, options, last.endsWith("'s") || last.endsWith("’s"))
                 matched = n
                 break
             }
@@ -425,9 +438,9 @@ class PlaceFinder(countries: List<AtlasCountry>, places: List<AtlasPlace>, subdi
                 var took = 0
                 while (len >= 2) {
                     val s = run.substring(at, at + len)
-                    val e = cjk[s]
-                    if (e != null) {
-                        hit(e, s)
+                    val options = cjk[s]
+                    if (options != null) {
+                        matches += Match(m.range.first + at, m.range.first + at + len, s, options, false)
                         took = len
                         break
                     }
@@ -436,14 +449,42 @@ class PlaceFinder(countries: List<AtlasCountry>, places: List<AtlasPlace>, subdi
                 at += maxOf(took, 1)
             }
         }
+
+        val elsewhere = matches.filter { it.sure }.map { it.options.first().a3 }.toSet()
+        val found = LinkedHashMap<String, Pair<Entry, MutableList<String>>>()
+        for (m in matches) {
+            val e = if (m.sure) m.options.minWith(order) else choose(m, matches, text, elsewhere)
+            val slot = found.getOrPut(e.a3) { e to mutableListOf() }
+            if (e.priority < slot.first.priority) found[e.a3] = e to slot.second
+            found[e.a3]!!.second += m.named
+        }
         return found.values
             .map { (e, names) -> PlaceHit(e.a3, names.groupingBy { it }.eachCount().maxBy { it.value }.key, e.kind, names.size) }
             .sortedWith(compareByDescending<PlaceHit> { it.count }.thenBy { KIND_ORDER.indexOf(it.kind) })
             .take(max)
     }
 
+    /** Which of a shared name's places the text means (see the class's note). */
+    private fun choose(m: Match, all: List<Match>, text: String, elsewhere: Set<String>): Entry {
+        val top = m.options.minWith(order)
+        val beside = all.filter { o -> o !== m && o.sure && beside(m, o, text) }.map { it.options.first().a3 }.toSet()
+        m.options.filter { it.a3 in beside }.minWithOrNull(order)?.let { return it }
+        m.options.filter { it.a3 in elsewhere && it.rank - top.rank <= 1 }.minWithOrNull(order)?.let { return it }
+        return top
+    }
+
+    /** "Los Angeles, California", "Hyderabad in Pakistan", or "Chile's Los Ángeles". */
+    private fun beside(m: Match, o: Match, text: String): Boolean = when {
+        o.start >= m.end -> BESIDE_AFTER.matches(text.substring(m.end, o.start))
+        o.end <= m.start -> o.possessive && text.substring(o.end, m.start).isBlank()
+        else -> false
+    }
+
     companion object {
         private val KIND_ORDER = listOf("country", "capital", "subdivision", "city")
+
+        /** What may stand between a place and the region that says which one: ", " or " in ". */
+        private val BESIDE_AFTER = Regex("\\s*,\\s*|\\s+in\\s+", RegexOption.IGNORE_CASE)
 
         /** Countries whose provinces or states are named often enough to look for. */
         val BIG = setOf("CHN", "USA", "CAN", "AUS", "IND", "BRA", "DEU", "JPN", "MEX", "RUS", "ESP", "ITA", "FRA", "GBR", "KOR", "TWN")
