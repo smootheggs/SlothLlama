@@ -762,7 +762,7 @@ private fun QuizQuestion(vm: AtlasViewModel, world: AtlasWorld, quiz: QuizState,
             "subdivision" -> Box(
                 Modifier.fillMaxWidth().height(320.dp).clip(RoundedCornerShape(18.dp)).border(1.dp, P.Border, RoundedCornerShape(18.dp))
             ) {
-                AtlasMap(world, paths, regions, regionPaths, picked, pickedSub, emptyMap(), "en", colors, frame, Modifier.fillMaxSize(), quiz = true)
+                AtlasMap(world, paths, regions, regionPaths, picked, pickedSub, emptyList(), "en", colors, frame, Modifier.fillMaxSize(), quiz = true)
             }
         }
         Text(q.prompt, color = P.Text, fontSize = 20.sp, fontFamily = SERIF)
