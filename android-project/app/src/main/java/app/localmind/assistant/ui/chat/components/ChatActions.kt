@@ -18,7 +18,11 @@ data class ChatActions(
     /** Save the gist card in this reply to the book's card in SlothBooks (the Librarian only). */
     val onSaveGist: ((String) -> Unit)? = null,
     /** Keep this reply as the desk's notes on today's edition (the desk persona the edition asked). */
-    val onKeepOnDesk: ((String) -> Unit)? = null
+    val onKeepOnDesk: ((String) -> Unit)? = null,
+    /** Keep this reply as a document in the project that asked (the Scribe or the Grill, while a project's ask is open). */
+    val onKeepInProject: ((String) -> Unit)? = null,
+    /** The project that asked, for the button's label. */
+    val projectName: String? = null
 )
 
 val LocalChatActions = compositionLocalOf { ChatActions() }

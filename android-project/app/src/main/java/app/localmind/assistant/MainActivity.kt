@@ -210,7 +210,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES, LOBSTER, READER, DESK, CORE, BOOKS, EDITION, ATLAS }
+private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES, LOBSTER, READER, DESK, CORE, BOOKS, EDITION, ATLAS, PROJECTS }
 
 /**
  * Home (or the last chat, per Settings) on a fresh start. Screens open on top of each other and
@@ -298,6 +298,11 @@ private fun SlothRoot(
     // The edition: one for the whole app, so a desk persona's reply from a chat lands on its edition.
     val edition: app.localmind.assistant.ui.edition.EditionViewModel = hiltViewModel()
     val deskAsk by edition.pendingDesk.collectAsStateWithLifecycle()
+    // Projects: one for the whole app, so a write-up or decision record kept in a chat lands in its project.
+    val projects: app.localmind.assistant.ui.projects.ProjectsViewModel = hiltViewModel()
+    val projectAsk by projects.pending.collectAsStateWithLifecycle()
+    val projectList by projects.projects.collectAsStateWithLifecycle()
+    val askedProject = projectAsk?.let { ask -> projectList.firstOrNull { it.id == ask.projectId }?.let { ask.personaId to it.name } }
     // The Atlas: one for the whole app, so a place in a story or an article opens on its map.
     val atlas: app.localmind.assistant.ui.atlas.AtlasViewModel = hiltViewModel()
     val showPlace: (String) -> Unit = { a3 ->
@@ -339,6 +344,7 @@ private fun SlothRoot(
                     onBooks = { navigate(Destination.BOOKS) },
                     onEdition = { navigate(Destination.EDITION) },
                     onAtlas = { navigate(Destination.ATLAS) },
+                    onProjects = { navigate(Destination.PROJECTS) },
                     onNotes = { navigate(Destination.NOTES) },
                     onDesk = { navigate(Destination.DESK) },
                     onLater = {
@@ -369,6 +375,12 @@ private fun SlothRoot(
                     onKeepOnDesk = { reply ->
                         rootScope.launch {
                             android.widget.Toast.makeText(rootContext, edition.keepDesk(reply), android.widget.Toast.LENGTH_SHORT).show()
+                        }
+                    },
+                    projectAsk = askedProject,
+                    onKeepInProject = { reply ->
+                        rootScope.launch {
+                            android.widget.Toast.makeText(rootContext, projects.keep(reply), android.widget.Toast.LENGTH_SHORT).show()
                         }
                     }
                 )
@@ -424,6 +436,7 @@ private fun SlothRoot(
                 Destination.BOOKS -> app.localmind.assistant.ui.books.BooksScreen(viewModel = books, onBack = goHome)
                 Destination.EDITION -> app.localmind.assistant.ui.edition.EditionScreen(viewModel = edition, onBack = goHome, onPlace = showPlace)
                 Destination.ATLAS -> app.localmind.assistant.ui.atlas.AtlasScreen(viewModel = atlas, onBack = goHome)
+                Destination.PROJECTS -> app.localmind.assistant.ui.projects.ProjectsScreen(viewModel = projects, onBack = goHome)
                 Destination.READER -> ReaderScreen(
                     viewModel = reader,
                     onBack = goHome,

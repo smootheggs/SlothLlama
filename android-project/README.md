@@ -136,6 +136,17 @@ model too big for the GPU falls back to the CPU on its own.
   the sea, the globe's grid and atlas lettering; shaded relief (Natural Earth's, public domain,
   about 3 MB) switches on and off. Upright, the map takes the top half and the country's card,
   or the world's, the rest.
+- **Projects** (1.36). Home → Do → Projects: one page per project with the record a project
+  manager keeps: the phase (Initiating, Planning, Executing, Monitoring, Closing), the brief (goal,
+  sponsor, scope in and out, constraints, success measures, deadline), milestones, risks
+  (likelihood × impact, scored on the tablet), stakeholders on the power/interest grid, decisions,
+  and dated updates with the status you give them. Counts, late milestones, days to the deadline
+  and risk scores are worked out in code. **Write it up** builds a risk register or stakeholder
+  map on the tablet, or hands the **Scribe** persona a facts sheet made from the record for a
+  charter, one-pager, status report, retrospective or closeout: it only words what's there, and
+  anything you haven't written stays a [bracket]. **Grill the plan** opens the **Grill** persona,
+  which interviews you one question at a time and writes a decision record. Keep either reply with
+  the button under it and it's filed with the project, to read, copy or share. In backups.
 - **Organising SlothBooks.** The default shelves (All, Reading, Up next, To read, Read,
   Reference) are always there; make your own with **+ New shelf**, rename or remove them from
   their ⋯ (the books stay), and put a book on any of them from its card. **Group by** author,

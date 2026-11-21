@@ -173,3 +173,17 @@ sleepy z's) are decoration: hidden from TalkBack and switchable in Settings → 
   Group headers stay pinned while you scroll. Stacks and copies keep a long shelf short.
 - Made covers: the title in serif and the author on a dark colour by genre, so the grid never
   has holes; a real cover replaces it when there is one.
+
+## Projects
+
+- The list is cards: the name in serif, the phase as a small label, the status you gave (a dot:
+  green, amber, red; hollow before the first update), a thin progress bar from the milestones,
+  the next milestone, and amber only for what's late or a high risk.
+- A project's page: the five phases as one segmented line (tap to move), facts the code counted
+  as small tiles, then one filled button (Write it up) and two outlined ones (Grill the plan,
+  Write an update). The record follows in cards; sideways, Brief, Milestones and Stakeholders on
+  the left, Updates, Risks, Decisions and Documents on the right.
+- The app never sets a status: the latest update's is the project's. Risk scores show as a number
+  in a soft circle with its band beside it.
+- Documents read like a page: a serif title, small-caps headings, the chat's markdown for the
+  rest. A note at the foot says whether it was built on the tablet or kept from a chat.

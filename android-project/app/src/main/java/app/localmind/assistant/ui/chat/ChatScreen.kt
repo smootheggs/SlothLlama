@@ -110,6 +110,9 @@ fun ChatScreen(
     /** The persona the edition asked for desk notes, and where its reply is kept. */
     deskPersonaId: String? = null,
     onKeepOnDesk: ((String) -> Unit)? = null,
+    /** Who a project asked (the Scribe or the Grill) and the project's name, while that ask is open. */
+    projectAsk: Pair<String, String>? = null,
+    onKeepInProject: ((String) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     // Landscape on a tablet: the chat list stays open on the left instead of sliding over.
@@ -255,7 +258,9 @@ fun ChatScreen(
                 onPractise = if (persona.speech != null) openPractice else null,
                 onSaveIdea = if (persona.id == BuiltInPersonas.TRADER.id) onSaveIdea else null,
                 onSaveGist = if (persona.id == BuiltInPersonas.LIBRARIAN.id) onSaveGist else null,
-                onKeepOnDesk = if (persona.id == deskPersonaId) onKeepOnDesk else null
+                onKeepOnDesk = if (persona.id == deskPersonaId) onKeepOnDesk else null,
+                onKeepInProject = if (projectAsk != null && persona.id == projectAsk.first) onKeepInProject else null,
+                projectName = projectAsk?.second
             ),
             LocalWordTapAction provides wordTap,
             LocalPhotoFile provides viewModel::photoFile

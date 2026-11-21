@@ -21,6 +21,7 @@ import androidx.compose.material.icons.outlined.Style
 import androidx.compose.material.icons.outlined.FormatListNumbered
 import app.localmind.assistant.ui.trading.TradingViewModel
 import androidx.compose.material.icons.outlined.Translate
+import androidx.compose.material.icons.outlined.WorkOutline
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -70,6 +71,8 @@ fun HomeRoute(
     onEdition: () -> Unit = {},
     /** The Atlas: the world map on the tablet. */
     onAtlas: () -> Unit = {},
+    /** Projects: the record of each project, and write-ups from it. */
+    onProjects: () -> Unit = {},
     onNotes: () -> Unit,
     onDesk: () -> Unit = {},
     /** The Later shelf (in the Reader). */
@@ -89,6 +92,8 @@ fun HomeRoute(
     val home: HomeViewModel = hiltViewModel()
     val trading: TradingViewModel = hiltViewModel()
     val tradingStats by trading.stats.collectAsStateWithLifecycle()
+    val projectsVm: app.localmind.assistant.ui.projects.ProjectsViewModel = hiltViewModel()
+    val projectList by projectsVm.projects.collectAsStateWithLifecycle()
     val backup by home.backup.collectAsStateWithLifecycle()
     val meaningOn by home.meaningOn.collectAsStateWithLifecycle()
     val settings by home.settings.collectAsStateWithLifecycle()
@@ -191,7 +196,7 @@ fun HomeRoute(
         )
     }
 
-    // Do: SlothDesk (strategies, ideas, sums), the Lobster, and a game of mahjong.
+    // Do: SlothDesk (strategies, ideas, sums), Projects, the Lobster, and a game of mahjong.
     val act = buildList {
         val ideasDue = tradingStats.due
         add(
@@ -206,6 +211,28 @@ fun HomeRoute(
                 onDesk,
                 if (ideasDue > 0 || ticketsToMark != null) Tone.ACCENT else Tone.QUIET,
                 key = "desk"
+            )
+        )
+        // Projects: lit when a milestone is late; otherwise the next one due, across your projects.
+        val current = projectList.filter { !it.archived }
+        val glances = current.map { app.localmind.assistant.domain.projects.Projects.glance(it, todayDate) }
+        val late = glances.sumOf { it.overdue.size }
+        val soonest = glances.mapNotNull { g -> g.next?.let { n -> app.localmind.assistant.domain.projects.Projects.date(n.due)?.let { n to it } } }
+            .minByOrNull { it.second }
+        add(
+            HomeTile(
+                Icons.Outlined.WorkOutline, "Projects",
+                when {
+                    late == 1 -> "1 milestone late"
+                    late > 1 -> "$late milestones late"
+                    soonest != null -> "${soonest.first.title} · ${app.localmind.assistant.domain.projects.Projects.relative(soonest.second, todayDate)}"
+                    current.size == 1 -> "1 project"
+                    current.size > 1 -> "${current.size} projects"
+                    else -> ""
+                },
+                onProjects,
+                if (late > 0) Tone.ACCENT else Tone.QUIET,
+                key = "projects"
             )
         )
         if (onLobster != null && lobsterLine != null) {

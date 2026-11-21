@@ -31,7 +31,7 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
 
 - **Learn**: the tutors (as favourites and practice dots), Core words, Flashcards, Dictionary.
 - **Know**: SlothBooks, The Sloth Express, Atlas, Later.
-- **Do**: SlothDesk, SlothLobster, Ourjong (a separate mahjong app, opened from here).
+- **Do**: SlothDesk, Projects, SlothLobster, Ourjong (a separate mahjong app, opened from here).
 - **Quiet row**: Chats, Personas, Models (with the model's name), Library, Notes, Arrange.
 - **Lit**: a tile that needs you shows it on the tile itself (a count on the icon, an accent
   line). There is no "Today" row any more; nothing shows twice. (In code the count is
@@ -46,6 +46,10 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
 - **The Trader** (badge Au, in gold): the precious-metals sales-trader persona; it also sits on
   the edition's desk.
 - **Drill**: a five-minute practice round a tutor runs (long-press a tutor's chip).
+- **The Scribe** (badge PM): writes project documents from a project's facts sheet; gaps stay
+  [bracketed].
+- **The Grill** (badge ?!): interviews you about a plan, one question at a time, branch by
+  branch, then writes the decision record. It asks; you decide.
 
 ## Learn
 
@@ -81,6 +85,14 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
 - **SlothDesk**: paper trading, never real money. **Strategies** (rule-based, run on daily
   prices), **tickets** (the paper trades they produce, to mark how they went), **Ideas** (your own
   trade ideas, to review later) and **Calculators**. Prices come from the Lobster.
+- **Projects**: your own projects, one record each. **Phase** (Initiating, Planning, Executing,
+  Monitoring, Closing), **brief**, **milestones** ("late" once the due day has passed), **risks**
+  (score = likelihood × impact, 1 to 9: low, medium, high), **stakeholders** (the power/interest
+  grid: manage closely, keep satisfied, keep informed, monitor), **decisions**, **updates** (dated,
+  each with your **status**: on track, at risk, off track). The **facts sheet** is the record as
+  plain text with the sums done, attached to a chat. **Write it up** makes a **document**: built
+  on the tablet (risk register, stakeholder map) or written by the Scribe and kept with "Keep in
+  <project>". Personal projects, not team scheduling.
 
 ## House rules
 
@@ -105,3 +117,5 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
 | SlothBooks (your reading) vs Library (the app's reading) | using either for both |
 | tutor / partner | teacher, bot |
 | de facto borders | "real" borders, disputed borders |
+| status (yours, from an update) | health, score (nothing sets it for you) |
+| facts sheet | context, prompt data |

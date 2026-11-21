@@ -428,5 +428,5 @@ private fun SourcesDialog(
     )
 }
 
-/** Built-in personas that aren't desks: the general assistant, the language partner, the Librarian. */
-private val NOT_DESK = setOf("persona-general-assistant", "persona-language-partner", "persona-librarian")
+/** Built-in personas that aren't desks: the general assistant, the language partner, the Librarian, and the two project helpers. */
+private val NOT_DESK = setOf("persona-general-assistant", "persona-language-partner", "persona-librarian", "persona-scribe", "persona-grill")
