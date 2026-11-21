@@ -26,7 +26,10 @@ goes out on the web, and brings back what it finds for SlothLlama to read offlin
   marked page only, with why.
 - **Opening a story for SlothLlama** (1.11): SlothLlama hands over a story's link and the Lobster
   opens it in Chrome's in-app view (Custom Tabs), with Save for later and Read it clean in
-  SlothLlama added to the tab. Each visit is in the Log.
+  SlothLlama added to the tab's menu. Each visit is in the Log, with the browser that opened it.
+  Since 1.12 the tab's toolbar button is **Reload**: the Lobster keeps one connection to the
+  browser (which also warms it up for a faster first load) and sends the story again through it,
+  so the browser loads it in the open tab.
 - **Sports** (1.9, set in SlothLlama's Sports page): results, fixtures and the day's line for the
   NBA, NFL and football leagues from ESPN's public scoreboard, and F1 from Jolpica-F1 (both free,
   no key). Fetched a day or a month at a time (the scoreboard takes no ranges), gently; nothing

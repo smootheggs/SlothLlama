@@ -129,7 +129,7 @@ fun DeskScreen(viewModel: DeskViewModel, trading: TradingViewModel, onBack: () -
         Column(Modifier.fillMaxSize()) {
             SlothTopBar(
                 title = "SlothDesk",
-                subtitle = "Paper trading · nothing goes to a broker",
+                subtitle = "Markets · paper trading, nothing goes to a broker",
                 onBack = onBack,
                 actions = {
                     Box {

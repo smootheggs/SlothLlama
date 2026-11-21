@@ -249,8 +249,9 @@ fun EditionScreen(
                         val e = shown
                         val older = e != null && latest != null && e.edition.id != latest?.edition?.id
                         SlothTopBar(
-                            title = e?.let { "${it.edition.name} edition" } ?: "The Sloth Express",
-                            subtitle = e?.let { received(it, older) } ?: "From the Lobster",
+                            // The paper keeps its name here; Home calls it News (1.44).
+                            title = "The Sloth Express",
+                            subtitle = e?.let { "${it.edition.name} edition · " + received(it, older) } ?: "From the Lobster",
                             onBack = if (older) viewModel::showLatest else onBack,
                             actions = {
                                 if (e != null) {
@@ -293,7 +294,7 @@ fun EditionScreen(
 private fun received(s: SavedEdition, older: Boolean): String {
     val at = Instant.ofEpochMilli(s.edition.made).atZone(ZoneId.systemDefault())
     val time = at.format(DateTimeFormatter.ofPattern(if (older) "EEE d MMM · HH:mm" else "HH:mm", Locale.getDefault()))
-    return if (older) "Past edition · $time" else "From the Lobster · $time"
+    return if (older) "past · $time" else "from the Lobster · $time"
 }
 
 @Composable

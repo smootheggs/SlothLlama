@@ -37,13 +37,16 @@ Home is one page upright and two pages sideways (the tablet in landscape, an ope
 sideways: from 720 dp wide when wider than tall). Each page is one screen tall; its sections
 spread over the height, 20–48 dp apart, and the page scrolls only if they can't fit.
 
-- **Left page, now**: the hello with its status line, Continue and New chat, and **A little
-  Chinese** (the word and the idiom as compact lines, ⋯ for flashcards or the teacher).
-- **Right page, places**: **Favourites** (a chip per favourite persona, + to choose them in
-  Personas), **Learn** (the week's practice dots and the word tools as quiet links), **Know**
-  (SlothBooks, Notes, Later) and **Do** (SlothDesk, the Lobster, Ourjong) three a row, then the
-  quiet row: Chats, Personas, Models, Library, Arrange. SlothBooks is what you read; the Library
-  is what SlothLlama reads, set up once like Models.
+- **Left page, you** (1.44): the hello with its status line, Continue and New chat,
+  **Favourites** (a chip per favourite persona, + to choose them in Personas), **Learn** (the
+  week's practice dots and the word tools as quiet links) and **A little Chinese**.
+- **Right page, places**: **Know** (Library, News, Atlas, Later) and **Weigh** (Markets, Sports,
+  World, then Your record), with taller tiles. Neither page scrolls.
+- **The quiet row** runs under both pages, the full width, so its links fit on one line with
+  their names: Chats, Personas, Models, Notes, Projects, the Lobster, Ourjong, Arrange. (Until
+  1.44 it shared the right page and wrapped onto two lines.)
+- **Names**: plain on Home, the rooms' own inside. Library opens SlothBooks (and What the llama
+  reads, its last tab); News opens The Sloth Express; Markets opens SlothDesk.
 - Upright, the same sections in that order on one page; the word sits beside the idiom when
   there's room.
 - **A place lights up when it needs you; nothing shows twice.** Unread news puts a moss count on
@@ -92,10 +95,9 @@ sleepy z's) are decoration: hidden from TalkBack and switchable in Settings → 
   calm things are one line under the hello.
 - Know and Do are one row each: up to four tiles when each still gets 120 dp. The icon sits beside
   the name whenever every name fits, at equal widths or, failing that, widths that follow the
-  names; only then does it go above. Know: SlothBooks, The Sloth Express (no line under it: its
-  unread count rides on the icon), Atlas, Later. Notes joined Chats, Personas,
-  Models and the Library in the quiet row at the bottom. The day's Chinese may still scroll;
-  that's allowed.
+  names; only then does it go above. Know: Library, News (no line under it: its unread count
+  rides on the icon), Atlas, Later. Notes joined Chats, Personas and Models in the quiet row at
+  the bottom. The day's Chinese may still scroll; that's allowed.
 
 ## The Sloth Express
 

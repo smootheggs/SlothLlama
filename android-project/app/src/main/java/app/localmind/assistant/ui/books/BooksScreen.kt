@@ -100,17 +100,28 @@ import app.localmind.assistant.ui.trading.Pill
 import app.localmind.assistant.ui.trading.QuietButton
 
 /** SlothBooks' three tabs. */
-enum class BooksTab(val label: String) { SHELF("Shelf"), PAPERS("Papers"), INSIGHTS("Insights") }
+enum class BooksTab(val label: String) {
+    SHELF("Shelf"), PAPERS("Papers"), INSIGHTS("Insights"),
+    /** The Library (1.44): the documents and offline Wikipedia the llama searches, as its own tab. */
+    READS("What the llama reads")
+}
 
 private val SERIF = FontFamily.Serif
 
 /**
- * SlothBooks: your books and papers, with a card each for your reading, the Librarian a tap
- * away, and counts worked out on the tablet. Papers and books kept as files live in
- * Documents/SlothBooks; the shelf itself is in SlothLlama (and its backups).
+ * The Library (1.44): SlothBooks, your books and papers, with a card each for your reading, the
+ * Librarian a tap away, and counts worked out on the tablet; and, as its last tab, what the llama
+ * reads ([reads]: documents and offline Wikipedia). Papers and books kept as files live in
+ * Documents/SlothBooks; the shelf itself is in SlothLlama (and its backups). [start] is the tab
+ * it opens on.
  */
 @Composable
-fun BooksScreen(viewModel: BooksViewModel, onBack: () -> Unit) {
+fun BooksScreen(
+    viewModel: BooksViewModel,
+    onBack: () -> Unit,
+    start: BooksTab = BooksTab.SHELF,
+    reads: (@Composable () -> Unit)? = null
+) {
     val books by viewModel.books.collectAsStateWithLifecycle()
     val stats by viewModel.stats.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
@@ -122,7 +133,7 @@ fun BooksScreen(viewModel: BooksViewModel, onBack: () -> Unit) {
     val group by viewModel.group.collectAsStateWithLifecycle()
     val view by viewModel.view.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
-    var tab by rememberSaveable { mutableStateOf(BooksTab.SHELF) }
+    var tab by rememberSaveable(start) { mutableStateOf(start) }
     var selectedId by rememberSaveable { mutableStateOf<String?>(null) }
     var editing by remember { mutableStateOf<Book?>(null) }
 
@@ -149,25 +160,31 @@ fun BooksScreen(viewModel: BooksViewModel, onBack: () -> Unit) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val wide = maxWidth >= WIDE
             val inTab = books.filter { if (tab == BooksTab.PAPERS) it.isPaper else !it.isPaper }
-            val selected = books.firstOrNull { it.id == selectedId }?.takeIf { tab != BooksTab.INSIGHTS && (it.isPaper == (tab == BooksTab.PAPERS)) }
+            val listed = tab == BooksTab.SHELF || tab == BooksTab.PAPERS
+            val selected = books.firstOrNull { it.id == selectedId }?.takeIf { listed && (it.isPaper == (tab == BooksTab.PAPERS)) }
             val shown = selected ?: if (wide) (inTab.firstOrNull { it.status == Status.READING } ?: inTab.firstOrNull { tab != BooksTab.SHELF || pick.holds(it) }) else null
             if (!wide && selected != null) BackHandler { selectedId = null }
 
             Column(Modifier.fillMaxSize()) {
                 SlothTopBar(
-                    title = if (!wide && selected != null) selected.title else "SlothBooks",
-                    subtitle = busy ?: if (!wide && selected != null) selected.author.ifBlank { null } else null,
+                    title = if (!wide && selected != null) selected.title else "Library",
+                    subtitle = busy ?: if (!wide && selected != null) selected.author.ifBlank { null }
+                    else if (tab == BooksTab.READS) "Private · offline · searched when a chat asks" else "SlothBooks",
                     onBack = if (!wide && selected != null) ({ selectedId = null }) else onBack,
                     actions = {
                         when (tab) {
+                            BooksTab.READS -> Unit
                             BooksTab.PAPERS -> QuietButton("Add a PDF") { pdfPicker.launch(arrayOf("application/pdf")) }
                             else -> QuietButton("Add a book") { editing = viewModel.newBook() }
                         }
-                        ShelfMenu(onImport = pickSheet, onAskShelf = { viewModel.askShelf() }, onCovers = viewModel::fetchCovers)
+                        if (tab != BooksTab.READS) ShelfMenu(onImport = pickSheet, onAskShelf = { viewModel.askShelf() }, onCovers = viewModel::fetchCovers)
                     }
                 )
                 if (wide || selected == null) {
-                    BooksTabs(tab, { tab = it; selectedId = null }, Modifier.padding(start = 24.dp, top = 4.dp))
+                    BooksTabs(
+                        tab, { tab = it; selectedId = null }, Modifier.padding(start = 24.dp, top = 4.dp),
+                        tabs = BooksTab.entries.filter { it != BooksTab.READS || reads != null }
+                    )
                 }
                 val list: @Composable (Modifier) -> Unit = { m ->
                     when (tab) {
@@ -182,11 +199,12 @@ fun BooksScreen(viewModel: BooksViewModel, onBack: () -> Unit) {
                             onPick = { selectedId = it.id; viewModel.seen(it) },
                             onAdd = { pdfPicker.launch(arrayOf("application/pdf")) }
                         )
-                        BooksTab.INSIGHTS -> Unit
+                        BooksTab.INSIGHTS, BooksTab.READS -> Unit
                     }
                 }
                 when {
                     tab == BooksTab.INSIGHTS -> Insights(stats, Modifier.fillMaxSize(), wide, onAsk = { viewModel.askShelf(it) })
+                    tab == BooksTab.READS -> Box(Modifier.fillMaxSize()) { reads?.invoke() }
                     wide -> Row(Modifier.fillMaxSize().padding(horizontal = 24.dp)) {
                         list(Modifier.weight(1f).fillMaxHeight())
                         Box(Modifier.padding(horizontal = 24.dp, vertical = 16.dp).width(1.dp).fillMaxHeight().background(P.Card))
@@ -227,9 +245,9 @@ private fun ShelfMenu(onImport: () -> Unit, onAskShelf: () -> Unit, onCovers: ()
 
 /** Plain text tabs with a moss underline, like SlothDesk's. */
 @Composable
-private fun BooksTabs(tab: BooksTab, onTab: (BooksTab) -> Unit, modifier: Modifier = Modifier) {
-    Row(modifier, horizontalArrangement = Arrangement.spacedBy(28.dp)) {
-        BooksTab.entries.forEach { t ->
+private fun BooksTabs(tab: BooksTab, onTab: (BooksTab) -> Unit, modifier: Modifier = Modifier, tabs: List<BooksTab> = BooksTab.entries) {
+    Row(modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(28.dp)) {
+        tabs.forEach { t ->
             val on = t == tab
             Column(
                 Modifier

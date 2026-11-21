@@ -34,12 +34,15 @@ the date and almanac, the hello (with the **status line**: calm things such as "
 Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a quiet row.
 
 - **Learn**: the tutors (as favourites and practice dots), Core words, Flashcards, Dictionary, Music.
-- **Know**: SlothBooks, The Sloth Express, Atlas, Later.
-- **Weigh** (was Do, until 1.37): SlothDesk, Sports and World, with **Your record** as a line
+- **Know**: Library, News, Atlas, Later.
+- **Weigh** (was Do, until 1.37): Markets, Sports and World, with **Your record** as a line
   beneath (1.41).
-- **Quiet row**: Chats, Personas, Models (with the model's name), Library, Notes, Projects, the Lobster
+- **Quiet row**: Chats, Personas, Models (with the model's name), Notes, Projects, the Lobster
   (coral with a count when there's a catch), Ourjong (a separate mahjong app, opened from here),
   Arrange.
+- **Plain names on Home, own names inside** (1.44): the tiles say what a place is (Library, News,
+  Markets); the place keeps its name on its top bar (SlothBooks, The Sloth Express, SlothDesk).
+  In talk and docs either works; the room's own name is preferred.
 - **Lit**: a tile that needs you shows it on the tile itself (a count on the icon, an accent
   line). There is no "Today" row any more; nothing shows twice. (In code the count is
   `HomeTile.badge`; a persona's **badge** is its mark, 普 or Au.)
@@ -72,8 +75,10 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
 
 ## Know
 
-- **Library**: what SlothLlama itself reads and searches: your files and offline Wikipedia.
-  Set up once, like Models. Not the same as SlothBooks.
+- **Library** (1.44): one place for reading. Its tabs: SlothBooks' **Shelf**, **Papers** and
+  **Insights**, and **What the llama reads**: the files and offline Wikipedia SlothLlama itself
+  searches when a chat asks (until 1.44 this alone was "the Library"; it's still that from a
+  chat's Library button).
 - **SlothBooks**: what *you* read: books and papers on **shelves** (All, Reading, Up next, To
   read, Read, Reference, and your own), with the **Librarian** persona. Covers come through the
   Lobster.

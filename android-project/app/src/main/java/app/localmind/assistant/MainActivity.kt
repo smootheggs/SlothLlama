@@ -348,7 +348,6 @@ private fun SlothRoot(
                     onPersonas = { navigate(Destination.PERSONAS) },
                     onModels = { navigate(Destination.MODELS) },
                     onSettings = { navigate(Destination.SETTINGS) },
-                    onLibrary = { navigate(Destination.LIBRARY) },
                     onBooks = { navigate(Destination.BOOKS) },
                     onEdition = { navigate(Destination.EDITION) },
                     onAtlas = { navigate(Destination.ATLAS) },
@@ -423,11 +422,22 @@ private fun SlothRoot(
                         goToChat()
                     }
                 )
-                Destination.LIBRARY -> LibraryScreen(
-                    viewModel = hiltViewModel<LibraryViewModel>(),
-                    onBack = goHome,
-                    onRead = { id -> read(ReaderSource.LIBRARY, id.toString()) }
-                )
+                // The Library (1.44) is one place: SlothBooks' tabs, and what the llama reads. From
+                // a chat's "Library" it opens on what the llama reads; from Home, on the shelf.
+                Destination.LIBRARY, Destination.BOOKS -> {
+                    val reads = hiltViewModel<LibraryViewModel>()
+                    app.localmind.assistant.ui.books.BooksScreen(
+                        viewModel = books, onBack = goHome,
+                        start = if (screen == Destination.LIBRARY) app.localmind.assistant.ui.books.BooksTab.READS
+                        else app.localmind.assistant.ui.books.BooksTab.SHELF,
+                        reads = {
+                            LibraryScreen(
+                                viewModel = reads, onBack = goHome, topBar = false,
+                                onRead = { id -> read(ReaderSource.LIBRARY, id.toString()) }
+                            )
+                        }
+                    )
+                }
                 Destination.NOTES -> NotesScreen(
                     viewModel = hiltViewModel<NotesViewModel>(),
                     onBack = goHome,
@@ -447,7 +457,6 @@ private fun SlothRoot(
                     onBack = goHome,
                     onOpenLobster = { navigate(Destination.LOBSTER) }
                 )
-                Destination.BOOKS -> app.localmind.assistant.ui.books.BooksScreen(viewModel = books, onBack = goHome)
                 Destination.EDITION -> app.localmind.assistant.ui.edition.EditionScreen(viewModel = edition, reader = expressReader, onBack = goHome, onPlace = showPlace)
                 Destination.ATLAS -> app.localmind.assistant.ui.atlas.AtlasScreen(viewModel = atlas, onBack = goHome)
                 Destination.PROJECTS -> app.localmind.assistant.ui.projects.ProjectsScreen(viewModel = projects, onBack = goHome)

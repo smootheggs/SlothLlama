@@ -297,10 +297,12 @@ model too big for the GPU falls back to the CPU on its own.
   one page; sideways (the tablet in landscape, an open foldable) it's two, each one screen
   tall. The left page is now: the time, today in Chinese, a hello, Continue and New chat,
   **Today** (flashcards due, what the Lobster brought back, SlothDesk's tickets, the weekly
-  backup) and the day's Chinese. The right page is places: **Favourites**, Learn, Know (SlothBooks,
-  Notes, Later) and Do (SlothDesk, the Lobster, Ourjong). OLED black with a moss-green accent,
-  kept for the main action and live numbers; coral is the Lobster's. The Library (what SlothLlama
-  searches: files and Wikipedia) sits in the bottom row with Models.
+  backup), **Favourites**, Learn and the day's Chinese. The right page is places: Know (Library,
+  News, Atlas, Later) and Weigh (Markets, Sports, World, then Your record). The quiet row (Chats,
+  Personas, Models, Notes, Projects, the Lobster, Ourjong) runs under both pages on one line
+  (1.44). OLED black with a moss-green accent, kept for the main action and live numbers; coral
+  is the Lobster's. Home uses plain names; the places keep theirs inside (Library → SlothBooks,
+  News → The Sloth Express, Markets → SlothDesk).
 - **Favourites.** Star a persona in Personas (☆ beside ⋯) and it gets a chip on Home and leads
   the Personas page. The Trader, the Librarian, the Mandarin and Cantonese partners and the
   General Assistant are starred to begin with. Long-press a tutor's chip for a five-minute drill.
@@ -334,7 +336,8 @@ model too big for the GPU falls back to the CPU on its own.
   two pages, Settings uses two columns, and Models and Personas show cards side by side.
 - **Start page.** The time, today in Chinese (weekday, lunar date, zodiac year — computed on the
   tablet, no weather because the app stays offline), a hello, and quick ways in.
-- **Private library.** Library (Home or the chat list): add books and documents (PDF, EPUB,
+- **Private library.** Library → What the llama reads (from Home, or the chat list's Library button,
+  which opens straight there): add books and documents (PDF, EPUB,
   HTML, text) and they are cut into passages and indexed on the tablet; add Kiwix `.zim` files
   (offline Wikipedia from library.kiwix.org; the "mini" and "nopic" editions are small) and they
   are read where they are. In a chat, the book button next to **+** sends each question with the

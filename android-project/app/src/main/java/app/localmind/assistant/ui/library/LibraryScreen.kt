@@ -76,7 +76,13 @@ import app.localmind.assistant.ui.theme.SlothPalette as P
  * in place, and a test search. In landscape the list and the search sit side by side.
  */
 @Composable
-fun LibraryScreen(viewModel: LibraryViewModel, onBack: () -> Unit, onRead: (Long) -> Unit = {}) {
+fun LibraryScreen(
+    viewModel: LibraryViewModel,
+    onBack: () -> Unit,
+    onRead: (Long) -> Unit = {},
+    /** False inside the Library's "What the llama reads" tab, which has the top bar already. */
+    topBar: Boolean = true
+) {
     val items by viewModel.items.collectAsStateWithLifecycle()
     val working by viewModel.working.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
@@ -108,7 +114,7 @@ fun LibraryScreen(viewModel: LibraryViewModel, onBack: () -> Unit, onRead: (Long
 
     Box(Modifier.fillMaxSize().background(P.Canvas)) {
         Column(Modifier.fillMaxSize()) {
-            SlothTopBar(title = "Library", subtitle = "Private · offline", onBack = onBack)
+            if (topBar) SlothTopBar(title = "Library", subtitle = "Private · offline", onBack = onBack)
             BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                 val wide = maxWidth >= WIDE
                 val shelf: @Composable (Modifier) -> Unit = { m ->

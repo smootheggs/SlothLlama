@@ -7,7 +7,6 @@ import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
-import androidx.compose.material.icons.outlined.LocalLibrary
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.MusicNote
@@ -68,7 +67,6 @@ fun HomeRoute(
     onPersonas: () -> Unit,
     onModels: () -> Unit,
     onSettings: () -> Unit,
-    onLibrary: () -> Unit,
     /** SlothBooks: the shelf, papers and the Librarian. */
     onBooks: () -> Unit = {},
     /** The Sloth Express: the edition the Lobster makes. */
@@ -183,7 +181,9 @@ fun HomeRoute(
         val shelved = bookList.count { !it.isPaper }
         add(
             HomeTile(
-                Icons.AutoMirrored.Outlined.MenuBook, "SlothBooks",
+                // Plain names on Home (1.44); the places keep theirs inside (SlothBooks, The Sloth
+                // Express, SlothDesk).
+                Icons.AutoMirrored.Outlined.MenuBook, "Library",
                 when {
                     freshPapers == 1 -> "1 new paper"
                     freshPapers > 1 -> "$freshPapers new papers"
@@ -199,7 +199,7 @@ fun HomeRoute(
         if (onLobster != null || paper != null) {
             add(
                 HomeTile(
-                    Icons.Outlined.Newspaper, "The Sloth Express",
+                    Icons.Outlined.Newspaper, "News",
                     when {
                         watchDue == 1 -> "1 to mark"
                         watchDue > 1 -> "$watchDue to mark"
@@ -230,7 +230,7 @@ fun HomeRoute(
         val priceDue = callList.count { it.price != null && app.localmind.assistant.domain.forecasts.Forecasts.due(it, todayDate) }
         add(
             HomeTile(
-                Icons.Outlined.ShowChart, "SlothDesk",
+                Icons.Outlined.ShowChart, "Markets",
                 when {
                     priceDue == 1 -> "1 price call to check"
                     priceDue > 1 -> "$priceDue price calls to check"
@@ -300,12 +300,11 @@ fun HomeRoute(
             key = "projects"
         )
 
-    // The Library is what SlothLlama reads (files and Wikipedia it searches): set up once, like Models.
+    // What the llama reads (files and Wikipedia it searches) is a tab of the Library tile since 1.44.
     val more = listOf(
         HomeTile(Icons.Outlined.ChatBubbleOutline, "Chats", "", onOpenChats),
         HomeTile(Icons.Outlined.PersonOutline, "Personas", "", onPersonas),
         HomeTile(Icons.Outlined.Memory, "Models", ui.activeModelName.ifBlank { "choose one" }, onModels, key = "models"),
-        HomeTile(Icons.Outlined.LocalLibrary, "Library", "", onLibrary),
         // Notes is a tool you go to, like the Library: it moved here so Know stays one row.
         HomeTile(Icons.Outlined.StickyNote2, "Notes", "", onNotes),
         // Projects is a place you go, not a call to weigh: it joined this row in 1.41, lit when a milestone is late.
@@ -370,7 +369,7 @@ fun HomeRoute(
     // Your record: one line under Weigh (calls checked, the Brier score, how often you beat the
     // reference, and what's left to mark), opening the record of every call.
     val summary = remember(callList, todayDate) { app.localmind.assistant.domain.forecasts.Forecasts.summary(callList, todayDate) }
-    val record = if (callList.isEmpty()) RecordLine("Your record", "make a call in Sports, SlothDesk or the Express", 0, onForecasts)
+    val record = if (callList.isEmpty()) RecordLine("Your record", "make a call in Sports, Markets or the News", 0, onForecasts)
     else RecordLine(
         "Your record",
         buildList {

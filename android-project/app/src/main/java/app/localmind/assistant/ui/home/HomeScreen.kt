@@ -390,7 +390,8 @@ fun HomeScreen(
     // sits beside the name whenever every name fits that way: at equal widths if it can, else with
     // widths that follow the names (The Sloth Express gets more room than Atlas). Only when they
     // can't does the icon go above the name. More than fits wraps, rather than any being left out.
-    val pillar: @Composable (String, String, List<HomeTile>) -> Unit = { label, section, tiles ->
+    // [tall]: sideways, where the places have a page to themselves, the tiles are taller.
+    val pillar: @Composable (String, String, List<HomeTile>, Boolean) -> Unit = { label, section, tiles, tall ->
         if (tiles.isNotEmpty()) {
             Column {
                 SectionLabel(label)
@@ -412,7 +413,7 @@ fun HomeScreen(
                                     val weight = if (!equal && shaped) needs[r][j].value else 1f
                                     ThingTile(
                                         tile, stacked = stacked, arranging = arranging, picked = isPicked(section, i),
-                                        modifier = Modifier.weight(weight).fillMaxHeight(),
+                                        modifier = Modifier.weight(weight).fillMaxHeight().heightIn(min = if (tall) TALL_TILE else 0.dp),
                                         onClick = { tap(section, i, tile.onClick) }
                                     )
                                 }
@@ -425,9 +426,9 @@ fun HomeScreen(
         }
     }
     // Weigh, with your record as one line under its tiles.
-    val weigh: @Composable () -> Unit = {
+    val weigh: @Composable (Boolean) -> Unit = { tall ->
         Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-            pillar("Weigh", "do", act)
+            pillar("Weigh", "do", act, tall)
             record?.let { RecordRow(it) }
         }
     }
@@ -484,26 +485,27 @@ fun HomeScreen(
         val twoPages = maxWidth >= TWO_PAGES && maxWidth > maxHeight
         val roomy = maxWidth >= WIDE
         if (twoPages) {
-            // Landscape (and an open foldable): two pages, each one screen tall. Left, now: the hello,
-            // the main actions and the day's Chinese. Right, places: favourites, Learn, Know,
-            // Weigh and the quiet row. Both start and end on the same lines.
+            // Landscape (and an open foldable): two pages, each one screen tall, sharing the work
+            // (1.44). Left, you: the hello, the main actions, favourites, Learn and the day's
+            // Chinese. Right, places: Know and Weigh, with taller tiles. The quiet row runs under
+            // both, the full width, so its links fit on one line with their names.
             Column(Modifier.fillMaxSize().padding(horizontal = if (roomy) 40.dp else 24.dp, vertical = 16.dp)) {
                 top()
                 Row(Modifier.weight(1f).padding(top = 12.dp)) {
                     HomePage(Modifier.weight(1f)) {
                         greetingBlock(true)
                         mainActions()
+                        favouritesRow()
+                        learnSection()
                         daily(false)
                     }
                     Box(Modifier.padding(horizontal = if (roomy) 32.dp else 20.dp, vertical = 8.dp).width(1.dp).fillMaxHeight().background(P.Card))
-                    HomePage(Modifier.weight(1f)) {
-                        favouritesRow()
-                        learnSection()
-                        pillar("Know", "know", know)
-                        weigh()
-                        footer()
+                    HomePage(Modifier.weight(1f), top = 8.dp) {
+                        pillar("Know", "know", know, true)
+                        weigh(true)
                     }
                 }
+                footer()
             }
         } else {
             // Portrait: one page. The sections spread over the screen's height when they fit, and
@@ -516,8 +518,8 @@ fun HomeScreen(
                     daily(true)
                     favouritesRow()
                     learnSection()
-                    pillar("Know", "know", know)
-                    weigh()
+                    pillar("Know", "know", know, false)
+                    weigh(false)
                     footer()
                 }
             }
@@ -966,6 +968,9 @@ private fun laneWidth(tiles: List<HomeTile>, iconOnly: Set<String> = emptySet())
 
 /** The narrowest a Know or Weigh tile gets. */
 private val MIN_TILE = 120.dp
+
+/** A Know or Weigh tile's height sideways, where the places have the right page to themselves. */
+private val TALL_TILE = 88.dp
 
 /**
  * A place to go: an outlined tile with an icon, a name and a live line. Narrow: the icon above the
