@@ -146,17 +146,20 @@ sleepy z's) are decoration: hidden from TalkBack and switchable in Settings → 
   Upright, one column.
 - Stories are serif titles with one line of summary and faint small print (outlet, "3 outlets",
   "2 h"; Hacker News's points and comments). No links shown.
-- Reading (1.43). A tap opens the story's page in a Chrome tab, opened by the Lobster (SlothLlama
-  stays offline), and marks it read; Back returns to the paper. Chrome's own ⋮ has Refresh, Find in
-  page and Open in Chrome; the Lobster adds Save for later (also the tab's toolbar button) and Read
-  it clean in SlothLlama. The tab is full screen: a side-by-side tab would sit over the Lobster's
-  hand-off, not the paper, so the paper beside it wouldn't answer touch (Android's split screen
-  still puts them side by side).
+- Reading (1.45). A tap opens the clean text whenever the story has it, and marks it read: it's
+  already on the tablet, so it opens at once and never waits on a browser. A story without it
+  (Google News links, paywalls) says "· page" in its small print, and a tap opens its page in the
+  browser's in-app tab, opened by the Lobster (SlothLlama stays offline); Back returns to the
+  paper. The tab's toolbar button is Reload; its ⋮ adds Read it clean in SlothLlama and Save for
+  later. The tab is full screen: a side-by-side tab would sit over the Lobster's hand-off, not the
+  paper, so the paper beside it wouldn't answer touch (Android's split screen still puts them side
+  by side). (1.43 and 1.44 opened the page first; pages stalled on first load in the tablet's
+  browser, and turning off QUIC didn't help.)
 - The clean text is the Reader's own page (text size, white page, read aloud, find, Ask, places),
   titled "Read clean", with the story's lead picture and "Open the page" / "Save for later" at the
   top and the end. Upright it has the screen; sideways it sits beside the paper, which goes to one
-  column. A tap on an outlet set to "clean text" opens it instead of the page ("· clean" in the
-  small print); the choice is per outlet, kept on the tablet, and starts as the page.
+  column. An outlet can be set to open the page instead (the long-press menu, "A tap on … opens");
+  the choice is per outlet, kept on the tablet, and starts as clean text.
 - A long press opens the story's menu: Open the page, Read it clean (or "Page only:" and why),
   Save for later, Ask about it in a chat, Show it on the Atlas, Mark as read or unread, and what a
   tap on this outlet opens. Upright a sheet from the bottom; sideways a popover beside the row.

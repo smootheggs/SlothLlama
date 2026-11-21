@@ -42,6 +42,7 @@ object LobsterHandOff {
                 "Opening pages needs the SlothLobster 1.11 or newer"
             }
         }
+        if (!ours(context)) return "The SlothLobster on this tablet isn't signed with your key, so SlothLlama won't hand it anything"
         val intent = Intent(ACTION_OPEN)
             .setComponent(ComponentName(lobsterPackage(own), OPEN_ACTIVITY))
             .putExtra(EXTRA_URL, url)
@@ -55,6 +56,16 @@ object LobsterHandOff {
             "The Lobster wouldn't take it: both apps need to be signed with your key"
         }
     }
+
+    /**
+     * Whether the installed SlothLobster is signed with the same key as this app (1.45). The
+     * hand-off permission already needs that, but it's defined by the Lobster: if the real one
+     * were gone, another app could claim its name and the permission with a key of its own. This
+     * check doesn't depend on the permission at all.
+     */
+    fun ours(context: Context): Boolean = runCatching {
+        context.packageManager.checkSignatures(context.packageName, lobsterPackage(context.packageName)) == PackageManager.SIGNATURE_MATCH
+    }.getOrDefault(false)
 
     private fun installed(context: Context, pkg: String): Boolean =
         runCatching { context.packageManager.getPackageInfo(pkg, 0); true }.getOrDefault(false)

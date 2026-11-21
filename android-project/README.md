@@ -113,13 +113,12 @@ model too big for the GPU falls back to the CPU on its own.
   word up, the source's English line by line, key words by your level (HSK for Mandarin, the Core
   words list for French) to add to Flashcards, and the language's partner to talk it over with.
   Listen reads the edition aloud offline; past editions are kept 30 days with what you've read.
-  **Reading** (1.43, needs SlothLobster 1.11): a tap opens the story's page in Chrome's in-app
-  view, opened by the Lobster, with Chrome's Refresh in its ⋮ menu and Save for later in its
-  toolbar. The Lobster reads every news story clean with the paper (its text and lead picture,
-  kept here), so **Read it clean** opens at once, offline, in the Reader; Google News links,
-  paywalls and sites that don't answer are marked page only. A long press has the rest: save for
-  later (at once), ask about it, the Atlas, read or unread, and whether a tap on that outlet opens
-  the page or the clean text.
+  **Reading** (1.43, needs SlothLobster 1.11): the Lobster reads every news story clean with the
+  paper (its text and lead picture, kept here), and a tap opens that clean text at once, offline,
+  in the Reader (1.45). Google News links, paywalls and sites that don't answer are page only
+  ("· page"): a tap opens them in the browser's in-app view, opened by the Lobster, with Reload
+  in its toolbar. A long press has the rest: open the page, save for later (at once), ask about
+  it, the Atlas, read or unread, and whether a tap on that outlet opens the page instead.
   Settings: times (morning, evening…), weekends, length, sections (tap to swap), top stories,
   words to lift or mute, corners with their sources, topics and story counts, and who sits on the desk.
 - **Atlas** (1.33). Home → Atlas: a world map kept on the tablet (Natural Earth, public domain;
@@ -160,7 +159,8 @@ model too big for the GPU falls back to the CPU on its own.
   GLD, SLV or USD/JPY above or below a level at the close on a day, checked against SlothDesk's
   prices (and FRED's daily rate for USD/JPY): it proposes the result with its sources and you
   confirm; too near the level, sources that disagree, or no prices for the day, and it asks.
-  Forecasts is now **Your record**, one line under Weigh: calibration, the Brier score, the
+  Forecasts is now **Your record** (opened from Sports, World, SlothDesk's menu and the paper's due
+  calls; on Home only when one of your own calls is due, since 1.45): calibration, the Brier score, the
   record **by place** (Markets, Sports, World, your own), how often you **beat the reference**
   (the market, the price or the crowd when you called), and **reasoning against result** when you
   rate a call as you mark it. Projects moved to the bottom row. Sports, SlothDesk's price calls and
@@ -426,6 +426,27 @@ model too big for the GPU falls back to the CPU on its own.
   Android Keystore and kept out of backups.
 - **Nothing leaves in logs or backups.** Chat text isn't logged, and app data is excluded from
   cloud backup and device transfer. Settings → Privacy screen blocks screenshots and Recents.
+- **The hand-off with the Lobster** (1.43). The one door besides the mailbox, on this tablet
+  only: SlothLlama hands the Lobster a story's link to open, and the Lobster's tab can ask for
+  Read it clean or Save for later. Both ways need the Lobster's signature-level permission, and
+  each app also checks the other is signed with your key (1.45). The Lobster opens only links it
+  brought; SlothLlama acts only on stories in a paper here. It carries a link, never data.
+- **Web content is data.** Clean text and pictures come from web pages through the Lobster: the
+  text is shown and never run, links in it can only be fetched by the Lobster (which refuses
+  private addresses) or copied, and every picture is decoded and drawn again by both apps. Chat
+  tools are chosen from what you type, never from an attached story or a model's reply, so a
+  page can't make SlothLlama or the Lobster do anything.
+
+### Rules for every new feature
+1. SlothLlama gets no network permission, ever; anything online is an order to the Lobster.
+2. A new door in (an exported activity, a share target, a mailbox kind) can fill, show or offer,
+   never act on its own; it checks who's asking (signature) and what (a known link, a bounded
+   size), and refuses the rest.
+3. Outside content (pages, files, catches, pictures) is parsed as data with size caps, never run;
+   pictures are re-encoded; file names are checked to stay in their folder.
+4. Tools and orders come from what you type or tap, not from content or a model's output.
+5. Intents to the other app name it exactly; PendingIntents are immutable.
+6. New secrets go in the Keystore, never in logs, backups, links or the repo.
 
 ## Getting models
 In the **Models** tab tap **Import Model File** and pick a file from Downloads, an SSD or any folder,

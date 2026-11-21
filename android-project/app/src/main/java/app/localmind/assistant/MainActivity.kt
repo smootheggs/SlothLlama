@@ -455,9 +455,10 @@ private fun SlothRoot(
                     viewModel = hiltViewModel<DeskViewModel>(),
                     trading = trading,
                     onBack = goHome,
-                    onOpenLobster = { navigate(Destination.LOBSTER) }
+                    onOpenLobster = { navigate(Destination.LOBSTER) },
+                    onRecord = { navigate(Destination.FORECASTS) }
                 )
-                Destination.EDITION -> app.localmind.assistant.ui.edition.EditionScreen(viewModel = edition, reader = expressReader, onBack = goHome, onPlace = showPlace)
+                Destination.EDITION -> app.localmind.assistant.ui.edition.EditionScreen(viewModel = edition, reader = expressReader, onBack = goHome, onPlace = showPlace, onRecord = { navigate(Destination.FORECASTS) })
                 Destination.ATLAS -> app.localmind.assistant.ui.atlas.AtlasScreen(viewModel = atlas, onBack = goHome)
                 Destination.PROJECTS -> app.localmind.assistant.ui.projects.ProjectsScreen(viewModel = projects, onBack = goHome)
                 Destination.MUSIC -> app.localmind.assistant.ui.music.MusicScreen(viewModel = hiltViewModel(), onBack = goHome)

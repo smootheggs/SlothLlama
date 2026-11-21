@@ -40,27 +40,29 @@ class ExpressReadingUnitTests {
     }
 
     @Test
-    fun `a tap reads clean only for outlets set that way, and only with the text here`() {
+    fun `a tap reads clean whenever the text is here, unless the outlet is set to the page`() {
         val bbc = story("https://www.bbc.co.uk/news/1", outlet = "BBC")
         var setup = EditionSetup()
-        assertFalse(Editions.tapsClean(setup, bbc))
-        setup = Editions.withTap(setup, " bbc ", true)
-        assertEquals(listOf("bbc"), setup.tapClean)
         assertTrue(Editions.tapsClean(setup, bbc))
-        assertFalse(Editions.tapsClean(setup, story("https://www.bbc.co.uk/news/2", outlet = "BBC", clean = false)))
-        assertFalse(Editions.tapsClean(setup, story("https://www.npr.org/1", outlet = "NPR")))
-        setup = Editions.withTap(setup, "BBC", true)
-        assertEquals(listOf("bbc"), setup.tapClean)
+        assertTrue(Editions.tapsClean(setup, story("https://www.npr.org/1", outlet = "NPR")))
+        // Without clean text, a tap opens the page whatever the setting.
+        assertFalse(Editions.tapsClean(setup, story("https://news.google.com/x", outlet = "Reuters", clean = false, why = "Google News links open only in a browser")))
+        setup = Editions.withTap(setup, " bbc ", false)
+        assertEquals(listOf("bbc"), setup.tapPage)
+        assertFalse(Editions.tapsClean(setup, bbc))
+        assertTrue(Editions.tapsClean(setup, story("https://www.npr.org/1", outlet = "NPR")))
         setup = Editions.withTap(setup, "BBC", false)
-        assertTrue(setup.tapClean.isEmpty())
-        assertEquals(setup, Editions.withTap(setup, "  ", true))
+        assertEquals(listOf("bbc"), setup.tapPage)
+        setup = Editions.withTap(setup, "BBC", true)
+        assertTrue(setup.tapPage.isEmpty())
+        assertEquals(setup, Editions.withTap(setup, "  ", false))
     }
 
     @Test
     fun `the tap setting is the tablet's own, not part of the Lobster's order`() {
-        val setup = Editions.withTap(EditionSetup(), "BBC", true)
+        val setup = Editions.withTap(EditionSetup(), "BBC", false)
         val order = Editions.planOrder(setup, now = false, at = 1)!!
-        assertFalse("tapClean" in order)
+        assertFalse("tapPage" in order)
     }
 
     @Test

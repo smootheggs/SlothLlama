@@ -78,8 +78,11 @@ class OpenStoryActivity : Activity() {
             .setUrlBarHidingEnabled(true)
             .setShareState(CustomTabsIntent.SHARE_STATE_ON)
             .setActionButton(reloadIcon(), "Reload", reload(story), true)
-        if (story.clean) builder.addMenuItem("Read it clean in SlothLlama", back(ACTION_READ, story.url, llama))
-        builder.addMenuItem("Save for later", back(ACTION_SAVE, story.url, llama))
+        // The buttons that go back to SlothLlama, only if it's signed with your key (1.12.1).
+        if (HandOff.llamaIsOurs(this)) {
+            if (story.clean) builder.addMenuItem("Read it clean in SlothLlama", back(ACTION_READ, story.url, llama))
+            builder.addMenuItem("Save for later", back(ACTION_SAVE, story.url, llama))
+        }
         val tab = builder.build()
         browser?.let { tab.intent.setPackage(it) }
         tab.launchUrl(this, Uri.parse(story.url))

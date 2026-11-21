@@ -101,7 +101,9 @@ fun EditionScreen(
     /** The Express's own reader (not the Reader screen's): a story read clean. */
     reader: ReaderViewModel,
     onBack: () -> Unit,
-    onPlace: (String) -> Unit = {}
+    onPlace: (String) -> Unit = {},
+    /** Your record (1.45: reached from the places calls are made, not Home). */
+    onRecord: () -> Unit = {}
 ) {
     val shown by viewModel.shown.collectAsStateWithLifecycle()
     val latest by viewModel.latest.collectAsStateWithLifecycle()
@@ -269,7 +271,7 @@ fun EditionScreen(
                         if (e == null) {
                             NoEdition(setup, onSend = { viewModel.send(now = true) }, onSettings = { page = EditionPage.SETTINGS })
                         } else {
-                            Paper(e, tiles, setup, personas, viewModel, actions, shelved, onSettings = { page = EditionPage.SETTINGS }, onPlace = onPlace)
+                            Paper(e, tiles, setup, personas, viewModel, actions, shelved, onSettings = { page = EditionPage.SETTINGS }, onPlace = onPlace, onRecord = onRecord)
                         }
                     }
                     EditionPage.ARCHIVE -> {
@@ -335,7 +337,8 @@ private fun Paper(
     actions: StoryActions,
     shelved: Set<String>,
     onSettings: () -> Unit,
-    onPlace: (String) -> Unit
+    onPlace: (String) -> Unit,
+    onRecord: () -> Unit
 ) {
     val places by vm.places.collectAsStateWithLifecycle()
     // The long-press menu: a popover beside the row on a wide screen lying on its side, else a sheet.
@@ -451,13 +454,13 @@ private fun Paper(
                         Box(Modifier.padding(horizontal = 28.dp, vertical = 24.dp).width(1.dp).heightIn(min = 400.dp).background(P.Card))
                         Column(Modifier.weight(1f)) {
                             // Watch items due today: asked at the top of the right-hand page.
-                            DueCalls(Modifier.padding(top = 18.dp))
+                            DueCalls(Modifier.padding(top = 18.dp), onRecord)
                             desk()
                             corners()
                         }
                     }
                 } else {
-                    DueCalls(Modifier.padding(top = 14.dp))
+                    DueCalls(Modifier.padding(top = 14.dp), onRecord)
                     news()
                     desk()
                     corners()

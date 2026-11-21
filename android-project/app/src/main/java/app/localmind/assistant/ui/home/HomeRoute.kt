@@ -366,20 +366,14 @@ fun HomeRoute(
     val favourites = settings.favourites.mapNotNull { id -> ui.personas.firstOrNull { it.id == id } }
     val favouriteNotes = favourites.mapNotNull { p -> practisedAgo(lastByPersona[p.id], todayDate, zone)?.let { p.id to it } }.toMap()
 
-    // Your record: one line under Weigh (calls checked, the Brier score, how often you beat the
-    // reference, and what's left to mark), opening the record of every call.
-    val summary = remember(callList, todayDate) { app.localmind.assistant.domain.forecasts.Forecasts.summary(callList, todayDate) }
-    val record = if (callList.isEmpty()) RecordLine("Your record", "make a call in Sports, Markets or the News", 0, onForecasts)
-    else RecordLine(
-        "Your record",
-        buildList {
-            add(if (summary.checked == 1) "1 call" else "${summary.checked} calls")
-            summary.brier?.let { add(String.format(java.util.Locale.ENGLISH, "%.2f", it)) }
-            if (summary.withReference > 0) add("beat the reference ${app.localmind.assistant.domain.forecasts.Forecasts.percent(summary.beat.toDouble() / summary.withReference)}%")
-        }.joinToString(" · "),
-        summary.toCheck,
-        onForecasts
-    )
+    // Your record lives in the places you make calls (Sports, World, Markets, the News) since
+    // 1.45. Home shows its line only when a call no tile lights up is due to be marked: price
+    // calls light Markets, the paper's watch items light News, followed markets light World.
+    val uncovered = callList.count { c ->
+        app.localmind.assistant.domain.forecasts.Forecasts.due(c, todayDate) &&
+            c.price == null && c.source != "briefing" && !c.source.startsWith("world:")
+    }
+    val record = if (uncovered > 0) RecordLine("Your record", "your own calls", uncovered, onForecasts) else null
 
     HomeScreen(
         script = script,

@@ -92,7 +92,14 @@ import kotlin.math.ln
  * paper journal. Paper trading only; nothing here reaches a broker.
  */
 @Composable
-fun DeskScreen(viewModel: DeskViewModel, trading: TradingViewModel, onBack: () -> Unit, onOpenLobster: () -> Unit) {
+fun DeskScreen(
+    viewModel: DeskViewModel,
+    trading: TradingViewModel,
+    onBack: () -> Unit,
+    onOpenLobster: () -> Unit,
+    /** Your record (1.45: reached from the places calls are made, not Home). */
+    onRecord: () -> Unit = {}
+) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val lobster by viewModel.lobster.collectAsStateWithLifecycle()
@@ -144,6 +151,7 @@ fun DeskScreen(viewModel: DeskViewModel, trading: TradingViewModel, onBack: () -
                             if (!lobsterReady) {
                                 DropdownMenuItem(text = { Text("Set up the Lobster", color = P.Text) }, onClick = { menu = false; onOpenLobster() })
                             }
+                            DropdownMenuItem(text = { Text("Your record", color = P.Text) }, onClick = { menu = false; onRecord() })
                             DropdownMenuItem(text = { Text("Import a prices file", color = P.Text) }, onClick = { menu = false; pick() })
                             if (ui.state.hidden.isNotEmpty()) {
                                 DropdownMenuItem(

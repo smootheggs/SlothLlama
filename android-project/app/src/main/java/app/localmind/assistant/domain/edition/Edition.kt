@@ -120,8 +120,11 @@ data class EditionSetup(
     val sentAt: Long = 0,
     val acceptedAt: Long = 0,
     val changedAt: Long = 0,
-    /** Outlets (as the paper names them, lower case) whose stories a tap reads clean; others open their page. */
-    val tapClean: List<String> = emptyList()
+    /**
+     * Outlets (as the paper names them, lower case) whose stories a tap opens on their page (1.45).
+     * Every other story with clean text opens clean; one without opens its page.
+     */
+    val tapPage: List<String> = emptyList()
 ) {
     /** Changed since the Lobster last took it. */
     val unsent: Boolean get() = changedAt > sentAt
@@ -257,16 +260,16 @@ object Editions {
     /** The clean story as Markdown for the reader: its paragraphs, headings and lists as the Lobster kept them. */
     fun cleanText(s: EdStory): String = s.paras.joinToString("\n\n") { it.t.trim() }
 
-    /** Whether a tap on this story reads it clean (its outlet set that way, and the text is here). */
+    /** Whether a tap on this story reads it clean: whenever the text is here, unless its outlet is set to the page. */
     fun tapsClean(setup: EditionSetup, s: EdStory): Boolean =
-        hasClean(s) && s.outlet.trim().lowercase() in setup.tapClean
+        hasClean(s) && s.outlet.trim().lowercase() !in setup.tapPage
 
-    /** The setup with this outlet's taps reading clean, or opening the page. */
+    /** The setup with this outlet's taps reading clean (the default), or opening the page. */
     fun withTap(setup: EditionSetup, outlet: String, clean: Boolean): EditionSetup {
         val o = outlet.trim().lowercase().take(60)
         if (o.isEmpty()) return setup
-        val next = if (clean) (setup.tapClean + o).distinct().takeLast(MAX_TAP_OUTLETS) else setup.tapClean - o
-        return setup.copy(tapClean = next)
+        val next = if (clean) setup.tapPage - o else (setup.tapPage + o).distinct().takeLast(MAX_TAP_OUTLETS)
+        return setup.copy(tapPage = next)
     }
 
     private const val MAX_TAP_OUTLETS = 100

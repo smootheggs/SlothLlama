@@ -35,7 +35,11 @@ class FromLobsterActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         val action = intent?.action
         val url = intent?.getStringExtra(LobsterHandOff.EXTRA_URL).orEmpty().take(MAX_URL)
-        if (!url.startsWith("https://") || (action != LobsterHandOff.ACTION_READ && action != LobsterHandOff.ACTION_SAVE)) {
+        // Only from the SlothLobster signed with your key (the permission alone could be claimed by
+        // a look-alike if the real Lobster were gone), and only a web link.
+        if (!LobsterHandOff.ours(this) || !url.startsWith("https://") ||
+            (action != LobsterHandOff.ACTION_READ && action != LobsterHandOff.ACTION_SAVE)
+        ) {
             finish()
             return
         }

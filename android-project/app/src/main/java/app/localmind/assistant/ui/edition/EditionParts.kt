@@ -143,7 +143,8 @@ internal fun StoryRow(
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     if (read) Icon(Icons.Outlined.Check, contentDescription = "Read", tint = P.Faint, modifier = Modifier.size(14.dp).padding(end = 4.dp))
                     if (small.isNotBlank()) Text(small, color = P.Faint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                    if (tapsClean) Text("  ·  clean", color = P.Faint, fontSize = 12.sp, maxLines = 1)
+                    // Clean text is what a tap opens (1.45); a story that opens its page says so.
+                    if (!tapsClean && story.url.isNotBlank()) Text("  ·  page", color = P.Faint, fontSize = 12.sp, maxLines = 1)
                     if (place != null) PlaceLink(place, onPlace)
                 }
             }

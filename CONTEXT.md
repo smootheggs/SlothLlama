@@ -35,8 +35,9 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
 
 - **Learn**: the tutors (as favourites and practice dots), Core words, Flashcards, Dictionary, Music.
 - **Know**: Library, News, Atlas, Later.
-- **Weigh** (was Do, until 1.37): Markets, Sports and World, with **Your record** as a line
-  beneath (1.41).
+- **Weigh** (was Do, until 1.37): Markets, Sports and World. **Your record** is reached from
+  each of them (and the News's due calls); since 1.45 its line shows on Home only when one of
+  your own calls is due, as no tile lights up for those.
 - **Quiet row**: Chats, Personas, Models (with the model's name), Notes, Projects, the Lobster
   (coral with a count when there's a catch), Ourjong (a separate mahjong app, opened from here),
   Arrange.

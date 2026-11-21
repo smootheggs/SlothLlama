@@ -391,5 +391,5 @@ private fun Picks(calls: List<Call>, results: SportsBundle, onForecasts: () -> U
             color = P.Muted, fontSize = 14.sp, lineHeight = 20.sp
         )
     }
-    OutlinedButton(onClick = onForecasts) { Text("Open Forecasts", color = P.Text) }
+    OutlinedButton(onClick = onForecasts) { Text("Your record", color = P.Text) }
 }

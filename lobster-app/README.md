@@ -112,7 +112,9 @@ On a phone, keep the same folder in sync with the tablet using Syncthing.
   brought in a paper or brief. The tab's buttons go back only to SlothLlama by its exact name,
   which in turn takes them only from an app holding the same permission. The Dev builds pair with
   each other, and since they're signed with the public debug key, so could anyone's: install the
-  release builds.
+  release builds. Since 1.12.1 the Lobster also checks that the installed SlothLlama is signed with
+  its own key before adding the tab's buttons that go back to it (and SlothLlama does the same
+  before handing the Lobster anything), so a look-alike under either app's name gets nothing.
 - An edition plan is plain data: feed and page links (HTTPS, public sites only), news searches and
   numbers, checked and capped before it's kept. A listing page is read for its links to the same
   site; nothing on it is run.

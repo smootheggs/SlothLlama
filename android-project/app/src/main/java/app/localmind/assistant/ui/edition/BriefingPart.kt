@@ -41,6 +41,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
@@ -297,7 +298,7 @@ private fun NewsDialog(topic: String, onDismiss: () -> Unit, onSend: (String) ->
  * a chance. The card goes when nothing's left to mark.
  */
 @Composable
-internal fun DueCalls(modifier: Modifier = Modifier) {
+internal fun DueCalls(modifier: Modifier = Modifier, onRecord: (() -> Unit)? = null) {
     val vm: BriefingViewModel = hiltViewModel()
     val due by vm.due.collectAsStateWithLifecycle()
     val c = due.firstOrNull() ?: return
@@ -313,6 +314,12 @@ internal fun DueCalls(modifier: Modifier = Modifier) {
                 fontWeight = FontWeight.Medium, letterSpacing = 1.2.sp, modifier = Modifier.weight(1f)
             )
             Text("from your briefing", color = P.Faint, fontSize = 12.sp)
+            if (onRecord != null) {
+                Text(
+                    "  ·  Your record ›", color = P.Accent, fontSize = 12.sp,
+                    modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable(role = Role.Button, onClick = onRecord).padding(vertical = 6.dp)
+                )
+            }
         }
         Text(c.question, color = P.Text, fontSize = 17.sp, lineHeight = 24.sp, fontFamily = FontFamily.Serif)
         Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
