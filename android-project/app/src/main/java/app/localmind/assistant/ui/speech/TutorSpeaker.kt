@@ -5,6 +5,7 @@ import android.content.Intent
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.speech.tts.Voice
+import android.util.Log
 import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -28,35 +29,90 @@ import java.util.concurrent.atomic.AtomicInteger
 class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
 
     private val appContext = context.applicationContext
-    private val tts = TextToSpeech(appContext, this)
-    @Volatile private var ready = false
     /** Utterances someone is waiting on (hands-free mode, repeat-after-me). */
     private val waiting = ConcurrentHashMap<String, CompletableDeferred<Unit>>()
     private val nextId = AtomicInteger()
+    private val progress = object : UtteranceProgressListener() {
+        override fun onStart(utteranceId: String?) = Unit
+        override fun onDone(utteranceId: String?) = finished(utteranceId)
+        @Deprecated("Deprecated in Java")
+        override fun onError(utteranceId: String?) = finished(utteranceId)
+        override fun onError(utteranceId: String?, errorCode: Int) = finished(utteranceId)
+        override fun onStop(utteranceId: String?, interrupted: Boolean) = finished(utteranceId)
+    }
 
-    init {
-        tts.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-            override fun onStart(utteranceId: String?) = Unit
-            override fun onDone(utteranceId: String?) = finished(utteranceId)
-            @Deprecated("Deprecated in Java")
-            override fun onError(utteranceId: String?) = finished(utteranceId)
-            override fun onError(utteranceId: String?, errorCode: Int) = finished(utteranceId)
-            override fun onStop(utteranceId: String?, interrupted: Boolean) = finished(utteranceId)
-        })
+    private enum class State { STARTING, READY, FAILED }
+
+    @Volatile private var state = State.STARTING
+    /** Engines already tried since the last start: the tablet's default first (null), then others. */
+    private val tried = mutableSetOf<String?>()
+    /** A word tapped while the engine was still starting: said as soon as it's ready. */
+    private var pending: Pair<String, SpeechLanguage>? = null
+    @Volatile private var tts: TextToSpeech = start(null)
+
+    private fun start(engine: String?): TextToSpeech {
+        tried += engine
+        return TextToSpeech(appContext, this, engine).also { it.setOnUtteranceProgressListener(progress) }
     }
 
     private fun finished(utteranceId: String?) {
         utteranceId?.let { waiting.remove(it)?.complete(Unit) }
     }
 
+    /**
+     * The engine answers here once. If the tablet's default engine fails to start (some set a
+     * default that isn't installed or won't bind), try the other engines on the tablet, Google's
+     * first, rather than saying "still starting" for ever.
+     */
     override fun onInit(status: Int) {
-        ready = status == TextToSpeech.SUCCESS
+        if (status == TextToSpeech.SUCCESS) {
+            state = State.READY
+            pending?.let { (text, language) -> pending = null; speak(text, language) }
+            return
+        }
+        val engines = enginesOnTablet()
+        Log.w(TAG, "Text-to-speech didn't start (status $status) with ${tried.lastOrNull() ?: "the default engine"}; engines: $engines")
+        val next = engines.sortedByDescending { it == GOOGLE_ENGINE }.firstOrNull { it !in tried }
+        runCatching { tts.shutdown() }
+        if (next != null) {
+            tts = start(next)
+        } else {
+            state = State.FAILED
+            if (pending != null) {
+                pending = null
+                failedHelp()
+            }
+        }
+    }
+
+    /** The text-to-speech engines installed, asked of the system (an engine that failed can't be asked). */
+    private fun enginesOnTablet(): List<String> = runCatching {
+        appContext.packageManager.queryIntentServices(Intent(TextToSpeech.Engine.INTENT_ACTION_TTS_SERVICE), 0)
+            .map { it.serviceInfo.packageName }.distinct()
+    }.getOrDefault(emptyList())
+
+    private fun failedHelp() {
+        toast("Text-to-speech didn't start on this tablet. Check Settings → Text-to-speech output: pick Speech Services by Google and install the voice.", long = true)
+        openVoiceInstaller()
     }
 
     fun speak(text: String, language: SpeechLanguage) {
-        if (!ready) {
-            toast("Text-to-speech is still starting — try again in a second")
-            return
+        when (state) {
+            State.STARTING -> {
+                // Say it the moment the engine is up, instead of asking for another tap.
+                pending = text to language
+                return
+            }
+            State.FAILED -> {
+                failedHelp()
+                // Try again from the top next time (a voice may have been installed meanwhile).
+                tried.clear()
+                state = State.STARTING
+                runCatching { tts.shutdown() }
+                tts = start(null)
+                return
+            }
+            State.READY -> Unit
         }
         when (val p = prepare(text, language)) {
             Prepared.NothingToSay -> toast("Nothing to read aloud in this reply")
@@ -83,7 +139,8 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
      * Cancelling the caller stops the speech.
      */
     suspend fun speakAndWait(text: String, language: SpeechLanguage?, rate: Float = LEARNER_RATE): Boolean {
-        withTimeoutOrNull(3_000) { while (!ready) delay(100) } ?: return false
+        withTimeoutOrNull(6_000) { while (state == State.STARTING) delay(100) }
+        if (state != State.READY) return false
         val p = if (language != null) prepare(text, language, rate) else prepareNative(text, rate)
         if (p !is Prepared.Ready) return false
         val id = "wait-${nextId.incrementAndGet()}"
@@ -195,6 +252,8 @@ class TutorSpeaker(context: Context) : TextToSpeech.OnInitListener {
     companion object {
         /** A little slower than normal speech, for learners. */
         const val LEARNER_RATE = 0.85f
+        private const val TAG = "TutorSpeaker"
+        private const val GOOGLE_ENGINE = "com.google.android.tts"
         private val HAN = Regex("[\\u3400-\\u4DBF\\u4E00-\\u9FFF\\uF900-\\uFAFF]")
         private val NOT_CHINESE = Regex("[^\\u3000-\\u303F\\u3400-\\u4DBF\\u4E00-\\u9FFF\\uF900-\\uFAFF\\uFF00-\\uFFEF]+")
 
