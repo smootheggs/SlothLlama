@@ -136,6 +136,15 @@ model too big for the GPU falls back to the CPU on its own.
   the sea, the globe's grid and atlas lettering; shaded relief (Natural Earth's, public domain,
   about 3 MB) switches on and off. Upright, the map takes the top half and the country's card,
   or the world's, the rest.
+- **World** (1.42, with SlothLobster 1.10). Home → Weigh → World: events you follow on Polymarket
+  and Kalshi (paste a link: elections, central banks, anything with a market), the **crowd's**
+  chance of yes on each and how it moved this week, read from their public market data by the
+  Lobster when you open World (at most every six hours; nothing is traded and nothing about you is
+  sent). **Call it** on a market and the crowd's chance at that moment is your call's reference.
+  Have the Lobster watch the news on a call and its alerts show on the call: "Still 55%?" with
+  −5 / Keep / +5. When a market settles, the result is shown with its source and you confirm it.
+  Your own questions and the briefing's watch items sit here too. Sideways, the list stays on the
+  left and the market (the crowd and you over time, how it settles, your reasons) opens beside it.
 - **Weigh, streamlined** (1.41). Calls are made where you see them and marked where you made
   them. **Call it** is one sheet everywhere (rising from the bottom upright, opening at the side
   when the tablet lies on its side): a game row in Sports, a line the briefing's watchlist saw, a

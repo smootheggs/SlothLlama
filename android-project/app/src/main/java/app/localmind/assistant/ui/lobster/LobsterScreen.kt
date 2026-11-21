@@ -98,7 +98,7 @@ import kotlinx.coroutines.delay
  * The Lobster is a separate app that goes online; SlothLlama only shares a mailbox folder with it.
  */
 @Composable
-fun LobsterScreen(viewModel: LobsterViewModel, onBack: () -> Unit, onRead: (String) -> Unit = {}, onDesk: () -> Unit = {}, onSports: () -> Unit = {}) {
+fun LobsterScreen(viewModel: LobsterViewModel, onBack: () -> Unit, onRead: (String) -> Unit = {}, onDesk: () -> Unit = {}, onSports: () -> Unit = {}, onWorld: () -> Unit = {}) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
     val busy by viewModel.busy.collectAsStateWithLifecycle()
@@ -180,7 +180,8 @@ fun LobsterScreen(viewModel: LobsterViewModel, onBack: () -> Unit, onRead: (Stri
                                 onDismiss = viewModel::dismiss,
                                 onRead = { onRead(it.fileName) },
                                 onDesk = onDesk,
-                                onSports = onSports
+                                onSports = onSports,
+                                onWorld = onWorld
                             )
                         }
                         if (wide) {
@@ -439,7 +440,8 @@ private fun Catch(
     onDismiss: (CaughtItem) -> Unit,
     onRead: (CaughtItem) -> Unit,
     onDesk: () -> Unit,
-    onSports: () -> Unit = {}
+    onSports: () -> Unit = {},
+    onWorld: () -> Unit = {}
 ) {
     Label(if (items.isEmpty()) "THE CATCH" else "THE CATCH · ${items.size} NEW")
     if (items.isEmpty()) {
@@ -450,11 +452,12 @@ private fun Catch(
         when (ci.item?.kind) {
             "prices" -> onDesk()
             "sports" -> onSports()
+            "world" -> onWorld()
             else -> onRead(ci)
         }
     }
     val menu: @Composable (CaughtItem) -> Unit = { ci ->
-        CatchMenu(ci, onLibrary = onLibrary, onNotes = onNotes, onChat = onChat, onDismiss = onDismiss, onDesk = onDesk, onSports = onSports)
+        CatchMenu(ci, onLibrary = onLibrary, onNotes = onNotes, onChat = onChat, onDismiss = onDismiss, onDesk = onDesk, onSports = onSports, onWorld = onWorld)
     }
     HeroCatch(items.first(), onOpen = open, menu = menu)
     if (items.size > 1) {
@@ -475,6 +478,7 @@ internal fun catchLook(c: LobsterCatch): CatchLook {
     val kind = when {
         c.kind == "prices" -> "Prices"
         c.kind == "sports" -> "Results"
+        c.kind == "world" -> "The crowd"
         c.kind == "message" || c.kind == "alert" -> "Message"
         prefix == "Research" -> "Research"
         prefix == "Watching" || c.title.endsWith(" changed") -> "Watch"
@@ -487,6 +491,7 @@ internal fun catchLook(c: LobsterCatch): CatchLook {
     val detail = when {
         c.kind == "prices" -> "For SlothDesk: it takes them in when you open it"
         c.kind == "sports" -> "For Sports: it takes them in when you open it"
+        c.kind == "world" -> "For World: it takes them in when you open it"
         kind == "Research" -> "${c.sources.size} source${if (c.sources.size == 1) "" else "s"} · ready to read or ask about offline"
         preview.isNotBlank() -> preview
         c.sources.isNotEmpty() -> c.sources.first().url.substringAfter("://").substringBefore('/')
@@ -542,7 +547,7 @@ private fun HeroCatch(ci: CaughtItem, onOpen: (CaughtItem) -> Unit, menu: @Compo
                 }
             }
             Row(Modifier.padding(top = 14.dp, end = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                SoftButton(when (c.kind) { "prices" -> "Open SlothDesk"; "sports" -> "Open Sports"; else -> "Read" }, Icons.AutoMirrored.Outlined.MenuBook) { onOpen(ci) }
+                SoftButton(when (c.kind) { "prices" -> "Open SlothDesk"; "sports" -> "Open Sports"; "world" -> "Open World"; else -> "Read" }, Icons.AutoMirrored.Outlined.MenuBook) { onOpen(ci) }
             }
         }
     }
@@ -617,7 +622,8 @@ private fun CatchMenu(
     onChat: (CaughtItem) -> Unit,
     onDismiss: (CaughtItem) -> Unit,
     onDesk: () -> Unit,
-    onSports: () -> Unit = {}
+    onSports: () -> Unit = {},
+    onWorld: () -> Unit = {}
 ) {
     var shown by remember { mutableStateOf(false) }
     val c = ci.item
@@ -631,6 +637,8 @@ private fun CatchMenu(
                 MenuLine("Open SlothDesk", P.Text) { close(); onDesk() }
             } else if (c != null && c.kind == "sports") {
                 MenuLine("Open Sports", P.Text) { close(); onSports() }
+            } else if (c != null && c.kind == "world") {
+                MenuLine("Open World", P.Text) { close(); onWorld() }
             } else if (c != null && c.kind != "message" && c.kind != "alert") {
                 // A message or an alert is something to read, not to file.
                 MenuLine("Save to Library", P.Text) { close(); onLibrary(ci) }

@@ -204,7 +204,7 @@ fun HomeScreen(
     learn: List<HomeTile>,
     /** Know: SlothBooks, Notes, Later. */
     know: List<HomeTile>,
-    /** Weigh: SlothDesk and Sports (World joins in 1.42). */
+    /** Weigh: SlothDesk, Sports and World. */
     act: List<HomeTile>,
     /** The record line under Weigh; null hides it. */
     record: RecordLine? = null,

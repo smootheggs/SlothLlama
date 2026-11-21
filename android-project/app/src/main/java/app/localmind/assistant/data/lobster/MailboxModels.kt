@@ -74,13 +74,15 @@ enum class OrderKind(val id: String, val label: String, val hint: String) {
     /** (1.32) The edition's settings, as JSON; sent from the edition, not the order box. Needs SlothLobster 1.8. */
     EDITION("edition", "Edition", "The morning edition's settings"),
     /** (1.39) Results and fixtures for Sports; sent from Sports, not the order box. Needs SlothLobster 1.9. */
-    SPORTS("sports", "Sports", "Results and fixtures for Sports");
+    SPORTS("sports", "Sports", "Results and fixtures for Sports"),
+    /** (1.42) The crowd's prices for World (Polymarket, Kalshi; read only); sent from World, not the order box. Needs SlothLobster 1.10. */
+    WORLD("world", "World", "The crowd's prices for World");
 
     companion object {
         fun of(id: String) = entries.firstOrNull { it.id == id } ?: ASK
 
         /** The kinds you can pick in the Lobster page's order box (Ask now runs as Research, so it isn't offered). */
-        val forOrderBox: List<OrderKind> get() = entries.filter { it != PRICES && it != ASK && it != COVERS && it != EDITION && it != SPORTS }
+        val forOrderBox: List<OrderKind> get() = entries.filter { it != PRICES && it != ASK && it != COVERS && it != EDITION && it != SPORTS && it != WORLD }
     }
 }
 

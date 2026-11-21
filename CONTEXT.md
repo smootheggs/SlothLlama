@@ -31,8 +31,8 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
 
 - **Learn**: the tutors (as favourites and practice dots), Core words, Flashcards, Dictionary, Music.
 - **Know**: SlothBooks, The Sloth Express, Atlas, Later.
-- **Weigh** (was Do, until 1.37): SlothDesk and Sports, with **Your record** as a line beneath
-  (1.41; World joins in 1.42).
+- **Weigh** (was Do, until 1.37): SlothDesk, Sports and World, with **Your record** as a line
+  beneath (1.41).
 - **Quiet row**: Chats, Personas, Models (with the model's name), Library, Notes, Projects, the Lobster
   (coral with a count when there's a catch), Ourjong (a separate mahjong app, opened from here),
   Arrange.
@@ -119,6 +119,10 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
   (what it **saw**, kept apart from its **speculation**). Its words, not checked on the tablet; **Check
   it** sends a story to the Lobster. A **watch item** is a Watchlist call made from one, asked
   about ("Did this happen?") at the top of the paper when its day comes.
+- **World** (1.42): **markets** you **follow** on Polymarket or Kalshi (a **ref**, from a pasted
+  link), the **crowd**'s chance of yes (their price, read by the Lobster; nothing traded), your
+  calls against it, **news on a call** (alerts from the Lobster watch tied to it) and
+  **settlements** proposed for you to confirm. Also your own questions and the briefing's watch items.
 - **Sports**: the **leagues** you follow; **games** and **races** with their **results**, brought by
   the Lobster; **tables** counted from them. A game has **ratings** (Elo, or attack and defence),
   your **factors** (points, goals or places toward one side, each with a reason) and a **book**
@@ -157,4 +161,5 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
 | pick (paper) | bet, wager, stake |
 | Your record | Forecasts (the old name), stats, scoreboard |
 | Call it (make a call) | predict, bet |
+| the crowd (a market's price) | the odds, the consensus, the truth |
 | briefing (pasted) | report, intel, digest |

@@ -233,6 +233,7 @@ class Engine(private val lobster: Lobster) {
                 OrderKind.COVERS -> covers(job)
                 OrderKind.EDITION -> editionOrder(job)
                 OrderKind.SPORTS -> sports(job)
+                OrderKind.WORLD -> worldOrder(job)
             }
             checkpoint(job.id)
             val catch = forLater(job, outcome.catch)
@@ -429,7 +430,8 @@ class Engine(private val lobster: Lobster) {
             target = target,
             title = if (link != null) Web.site(link) else "News · $target",
             createdAt = System.currentTimeMillis(),
-            keywords = if (link != null) Watches.keywordsFrom(job.text) else emptyList()
+            keywords = if (link != null) Watches.keywordsFrom(job.text) else emptyList(),
+            orderId = job.orderId
         )
         val seen = look(first)
         val watch = first.copy(
@@ -496,6 +498,28 @@ class Engine(private val lobster: Lobster) {
             fileBase64 = Base64.getEncoder().encodeToString(Sports.encode(g.bundle).toByteArray(Charsets.UTF_8))
         )
         return Outcome(catch, summary, "Results for Sports")
+    }
+
+    /** The crowd's prices for SlothLlama's World page: Polymarket's and Kalshi's public market data only. */
+    private suspend fun worldOrder(job: Job): Outcome {
+        val refs = World.request(job.text)
+        if (refs.isEmpty()) throw WebException("The order doesn't name any markets (polymarket:<slug> or kalshi:<TICKER>)")
+        setSources(job.id, refs.map { SourceState(it, "", "world", "reading") })
+        val g = World.gather(refs, BuildConfig.VERSION_NAME) { ref, what -> store.log("world", ref, what) }
+        val got = g.bundle.markets.map { it.ref }.toSet()
+        setSources(job.id, refs.map { SourceState(it, "", "world", if (it in got) "done" else "failed") })
+        val summary = World.summary(g)
+        val catch = LobsterCatch(
+            id = UUID.randomUUID().toString(),
+            orderId = job.orderId,
+            kind = "world",
+            title = "The crowd · ${g.bundle.markets.size} market${if (g.bundle.markets.size == 1) "" else "s"}",
+            text = summary,
+            createdAt = System.currentTimeMillis(),
+            fileName = "slothworld.json",
+            fileBase64 = Base64.getEncoder().encodeToString(World.encode(g.bundle).toByteArray(Charsets.UTF_8))
+        )
+        return Outcome(catch, summary, "Prices for World")
     }
 
     /**
@@ -623,6 +647,7 @@ class Engine(private val lobster: Lobster) {
                 store.log("watch", "Watch found a change", title)
                 val catch = LobsterCatch(
                     id = UUID.randomUUID().toString(),
+                    orderId = watch.orderId,
                     kind = "alert",
                     title = "$title changed",
                     text = Changes.describe(change, watchUrl(watch)),
@@ -1077,6 +1102,7 @@ class Engine(private val lobster: Lobster) {
             OrderKind.COVERS -> "Finding book covers"
             OrderKind.EDITION -> "Making the edition"
             OrderKind.SPORTS -> "Fetching results"
+            OrderKind.WORLD -> "Reading the markets"
         }
     }
 }

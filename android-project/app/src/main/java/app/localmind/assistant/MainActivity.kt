@@ -210,7 +210,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES, LOBSTER, READER, DESK, CORE, BOOKS, EDITION, ATLAS, PROJECTS, FORECASTS, MUSIC, SPORTS }
+private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES, LOBSTER, READER, DESK, CORE, BOOKS, EDITION, ATLAS, PROJECTS, FORECASTS, MUSIC, SPORTS, WORLD }
 
 /**
  * Home (or the last chat, per Settings) on a fresh start. Screens open on top of each other and
@@ -348,6 +348,7 @@ private fun SlothRoot(
                     onForecasts = { navigate(Destination.FORECASTS) },
                     onMusic = { navigate(Destination.MUSIC) },
                     onSports = { navigate(Destination.SPORTS) },
+                    onWorld = { navigate(Destination.WORLD) },
                     onNotes = { navigate(Destination.NOTES) },
                     onDesk = { navigate(Destination.DESK) },
                     onLater = {
@@ -429,7 +430,8 @@ private fun SlothRoot(
                     onBack = goHome,
                     onRead = { fileName -> read(ReaderSource.CATCH, fileName) },
                     onDesk = { navigate(Destination.DESK) },
-                    onSports = { navigate(Destination.SPORTS) }
+                    onSports = { navigate(Destination.SPORTS) },
+                    onWorld = { navigate(Destination.WORLD) }
                 )
                 Destination.DESK -> DeskScreen(
                     viewModel = hiltViewModel<DeskViewModel>(),
@@ -444,6 +446,9 @@ private fun SlothRoot(
                 Destination.MUSIC -> app.localmind.assistant.ui.music.MusicScreen(viewModel = hiltViewModel(), onBack = goHome)
                 Destination.SPORTS -> app.localmind.assistant.ui.sports.SportsScreen(
                     viewModel = hiltViewModel(), onBack = goHome, onForecasts = { navigate(Destination.FORECASTS) }
+                )
+                Destination.WORLD -> app.localmind.assistant.ui.world.WorldScreen(
+                    viewModel = hiltViewModel(), onBack = goHome, onRecord = { navigate(Destination.FORECASTS) }
                 )
                 Destination.FORECASTS -> app.localmind.assistant.ui.forecasts.ForecastsScreen(
                     viewModel = hiltViewModel(), onBack = goHome, onDesk = { navigate(Destination.DESK) }

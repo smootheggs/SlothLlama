@@ -204,8 +204,8 @@ sleepy z's) are decoration: hidden from TalkBack and switchable in Settings → 
 
 ## Weigh and Your record
 
-- Home's pillars are Learn, Know and Weigh. Weigh is for things with a chance attached: SlothDesk
-  and Sports (World joins in 1.42), with **Your record** as one bordered line under the tiles
+- Home's pillars are Learn, Know and Weigh. Weigh is for things with a chance attached: SlothDesk,
+  Sports and World, with **Your record** as one bordered line under the tiles
   (calls, Brier, beat the reference; "N to mark" in moss). Projects, the Lobster and Ourjong are
   places you go, so they sit in the bottom row; when the names don't fit on one line, the Lobster,
   Ourjong and Projects keep only their marks first, then every link but Models.
@@ -228,6 +228,17 @@ sleepy z's) are decoration: hidden from TalkBack and switchable in Settings → 
 - Sideways (840 dp and wider, lying on its side), lists keep their place on the left and what you
   open shows beside them: Sports' games, SlothDesk's price calls (chart and calls left, checks and
   the new call right).
+
+## World
+
+- Rows like Sports': the question in serif, the platform small, a small grey line of the crowd's
+  chance, the crowd's chance and its move this week, then yours in moss with its check date (or
+  Call it). The crowd is always grey, you are always moss, as market and model are in Sports.
+- News on a call and settlements to confirm are soft moss cards at the top, one per call, each
+  with its source; nothing settles without your tap.
+- A market's page: the question, the crowd, you, the gap, the check date; the trail (you solid in
+  steps, the crowd dashed); How it settles in the market's own words; your reasons. The Lobster's
+  coral only on "Ask the Lobster" and "Lobster: watch the news".
 
 ## Music
 

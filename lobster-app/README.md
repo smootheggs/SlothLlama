@@ -24,6 +24,11 @@ goes out on the web, and brings back what it finds for SlothLlama to read offlin
   NBA, NFL and football leagues from ESPN's public scoreboard, and F1 from Jolpica-F1 (both free,
   no key). Fetched a day or a month at a time (the scoreboard takes no ranges), gently; nothing
   about you is sent. SlothLlama works out the tables, ratings and simulations itself.
+- **World** (1.10, set in SlothLlama's World page): the crowd's prices for the markets you follow
+  on Polymarket and Kalshi, read from their public market data (no key, no account; nothing is
+  traded and nothing about you is sent): each market's yes price, whether it's open or settled,
+  its result, and its rules as written. Prices also take **DEXJPUS**, FRED's USD/JPY rate on its
+  own, which SlothLlama uses as a second source for price calls.
 - **Ask** needs a model, which is switched off for now: the Lobster says so and suggests Research.
 
 Orders come from SlothLlama's Lobster page, or can be given in the Lobster itself (or shared to it

@@ -75,7 +75,9 @@ enum class OrderKind(val id: String, val label: String, val hint: String) {
     /** (1.8) The edition's settings from SlothLlama (JSON); an "edition-plan" note or the first edition comes back. */
     EDITION("edition", "Edition", "The morning edition's settings"),
     /** (1.9) Results and fixtures for SlothLlama's Sports page; a "sports" catch comes back. */
-    SPORTS("sports", "Sports", "Results and fixtures for Sports");
+    SPORTS("sports", "Sports", "Results and fixtures for Sports"),
+    /** (1.10) The crowd's prices for SlothLlama's World page (Polymarket, Kalshi; read only); a "world" catch comes back. */
+    WORLD("world", "World", "The crowd's prices for World");
 
     companion object {
         fun of(id: String) = entries.firstOrNull { it.id == id } ?: ASK

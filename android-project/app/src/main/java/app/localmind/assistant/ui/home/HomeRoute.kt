@@ -12,6 +12,7 @@ import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Memory
 import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Newspaper
+import androidx.compose.material.icons.outlined.Balance
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material.icons.outlined.Sailing
@@ -82,6 +83,8 @@ fun HomeRoute(
     onMusic: () -> Unit = {},
     /** Sports: results from the Lobster, the models, and picks. */
     onSports: () -> Unit = {},
+    /** World: events you follow, the crowd's prices, and your calls against them (1.42). */
+    onWorld: () -> Unit = {},
     onNotes: () -> Unit,
     onDesk: () -> Unit = {},
     /** The Later shelf (in the Reader). */
@@ -101,6 +104,8 @@ fun HomeRoute(
     val home: HomeViewModel = hiltViewModel()
     val trading: TradingViewModel = hiltViewModel()
     val tradingStats by trading.stats.collectAsStateWithLifecycle()
+    val worldVm: app.localmind.assistant.ui.world.WorldViewModel = hiltViewModel()
+    val worldYours by worldVm.yours.collectAsStateWithLifecycle()
     val sportsVm: app.localmind.assistant.ui.sports.SportsViewModel = hiltViewModel()
     val sportsResults by sportsVm.results.collectAsStateWithLifecycle()
     val sportsYours by sportsVm.yours.collectAsStateWithLifecycle()
@@ -219,7 +224,7 @@ fun HomeRoute(
         )
     }
 
-    // Weigh: SlothDesk (strategies, ideas, price calls) and Sports; Your record is the line beneath (1.41).
+    // Weigh: SlothDesk (strategies, ideas, price calls), Sports and World; Your record is the line beneath.
     val act = buildList {
         val ideasDue = tradingStats.due
         val priceDue = callList.count { it.price != null && app.localmind.assistant.domain.forecasts.Forecasts.due(it, todayDate) }
@@ -251,6 +256,32 @@ fun HomeRoute(
                 nextGame?.let { "${it.second} · ${app.localmind.assistant.ui.sports.whenOf(it.third).substringAfter("· ")}" } ?: "",
                 onSports,
                 key = "sports"
+            )
+        )
+        // World: lit with settlements to confirm and your own questions due; otherwise the first
+        // market you follow and the crowd's chance on it.
+        val toConfirm = callList.count { c ->
+            c.open && when {
+                c.source == "world:own" -> app.localmind.assistant.domain.forecasts.Forecasts.due(c, todayDate)
+                c.source.startsWith("world:") ->
+                    app.localmind.assistant.domain.world.WorldData.settlement(app.localmind.assistant.domain.world.WorldData.keyOf(c)?.let { worldYours.markets[it] }) != null
+                else -> false
+            }
+        }
+        val firstMarket = app.localmind.assistant.domain.world.WorldData.followed(worldYours).firstOrNull { it.chance != null && it.status == "open" }
+        add(
+            HomeTile(
+                Icons.Outlined.Balance, "World",
+                when {
+                    toConfirm == 1 -> "1 to confirm"
+                    toConfirm > 1 -> "$toConfirm to confirm"
+                    firstMarket != null -> "${firstMarket.question.take(36).trimEnd()}… · crowd ${app.localmind.assistant.domain.forecasts.Forecasts.percent(firstMarket.chance!!)}%"
+                    else -> ""
+                },
+                onWorld,
+                if (toConfirm > 0) Tone.ACCENT else Tone.QUIET,
+                key = "world",
+                badge = toConfirm.takeIf { it > 0 }?.let(::badgeCount)
             )
         )
     }

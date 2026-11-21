@@ -260,6 +260,7 @@ private fun placeholder(kind: OrderKind) = when (kind) {
     OrderKind.COVERS -> "Sent from SlothBooks"
     OrderKind.EDITION -> "Sent from SlothLlama's edition settings"
     OrderKind.SPORTS -> "nba nfl epl f1 from 2026-10-01"
+    OrderKind.WORLD -> "polymarket:event-slug kalshi:EVENT-TICKER"
 }
 
 private fun hint(kind: OrderKind) = when (kind) {
@@ -272,6 +273,7 @@ private fun hint(kind: OrderKind) = when (kind) {
     OrderKind.COVERS -> "Book covers for SlothBooks, looked up on Open Library and Google Books."
     OrderKind.EDITION -> "The edition's sections, language corners and times, set in SlothLlama."
     OrderKind.SPORTS -> "Results and fixtures for SlothLlama's Sports page, from ESPN's scoreboard and Jolpica-F1."
+    OrderKind.WORLD -> "The crowd's prices for SlothLlama's World page, read from Polymarket and Kalshi. Nothing is traded."
 }
 
 private fun orderLine(job: Job, now: Long): String {

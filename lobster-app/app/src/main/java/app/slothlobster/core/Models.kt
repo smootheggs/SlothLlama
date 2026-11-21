@@ -83,7 +83,9 @@ data class Watch(
     /** Only lines with one of these words (empty = every line). */
     val keywords: List<String> = emptyList(),
     /** The page's headings at the last look, to choose a part from. */
-    val headings: List<String> = emptyList()
+    val headings: List<String> = emptyList(),
+    /** (1.10) The order that set it up, if SlothLlama sent one: its alerts carry it, so SlothLlama can tell what they're about. */
+    val orderId: String? = null
 ) {
     val isTopic: Boolean get() = !target.startsWith("https://") && !target.startsWith("http://")
 }

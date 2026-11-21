@@ -20,6 +20,7 @@ import java.time.format.DateTimeFormatter
  *
  *   GLD, SLV, SPY … (any US ticker)  Tiingo end-of-day, adjusted open and close (needs a free key)
  *   USDJPY                           Tiingo FX daily bars; without a key, FRED's DEXJPUS noon rate
+ *   DEXJPUS                          FRED's USD/JPY noon rate on its own (no key): a second source
  *   DTB3                             FRED, 3-month T-bill, daily (no key)
  *   JP3M                             FRED IR3TIB01JPM156N, Japan 3-month rate, monthly (no key)
  *   GVZ                              Cboe gold volatility index, daily (no key)
@@ -79,6 +80,8 @@ object Prices {
                     "JP3M" -> fredRate("IR3TIB01JPM156N", "monthly", since)
                     "GVZ" -> cboe("GVZ", since)
                     "USDJPY" -> if (tiingoKey != null) tiingoFx("usdjpy", since, tiingoKey) else fredFx("DEXJPUS", since)
+                    // (1.10) FRED's noon rate on its own: SlothLlama's second source for USD/JPY price calls.
+                    "DEXJPUS" -> fredFx("DEXJPUS", since)
                     else -> {
                         if (tiingoKey == null) throw WebException("needs a Tiingo key (SlothLobster settings, Market data)")
                         tiingoDaily(name, since, tiingoKey)
