@@ -107,6 +107,10 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
   **calibration** is how often your calls at each level came true. A **market's chance** is one
   you entered, from a percent or a **price** (decimal, American, fractional); the **margin** is
   what a book's prices add up to over 100%. SlothDesk's ideas appear as calls, read in place.
+- **Briefing**: a paper pasted from elsewhere into the edition, read into **stories** (what it
+  says happened, why it matters, what's unclear, its **source rating**) and its **watchlist**
+  (what it **saw**, kept apart from its **speculation**). Its words, not checked on the tablet; **Check
+  it** sends a story to the Lobster. A **watch item** is a Watchlist call in Forecasts made from one.
 - **Sports**: the **leagues** you follow; **games** and **races** with their **results**, brought by
   the Lobster; **tables** counted from them. A game has **ratings** (Elo, or attack and defence),
   your **factors** (points, goals or places toward one side, each with a reason) and a **book**
@@ -143,3 +147,4 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
 | call, chance | bet, prediction, confidence |
 | Weigh | Do (the old name) |
 | pick (paper) | bet, wager, stake |
+| briefing (pasted) | report, intel, digest |

@@ -78,6 +78,7 @@ class EditionViewModel @Inject constructor(
     private val askInbox: AskInbox,
     private val attachments: AttachmentStore,
     private val atlas: app.localmind.assistant.data.atlas.AtlasRepository,
+    private val briefings: app.localmind.assistant.data.briefing.BriefingBook,
     personas: PersonaRepository
 ) : ViewModel() {
 
@@ -368,10 +369,18 @@ class EditionViewModel @Inject constructor(
         askInbox.post(
             LaunchRequest.Shared(
                 prompt = Editions.deskPrompt(s.edition),
-                document = attachments.textDocument("Desk card · ${s.edition.name} edition", Editions.deskCard(s.edition, tiles.value)),
+                document = attachments.textDocument("Desk card · ${s.edition.name} edition", Editions.deskCard(s.edition, tiles.value) + briefingLines()),
                 personaId = persona.id
             )
         )
+    }
+
+    /** A briefing pasted in the last day and a half, as headlines for the desk card (its account, unchecked). */
+    private fun briefingLines(): String {
+        val b = briefings.briefings.value.firstOrNull()?.takeIf { System.currentTimeMillis() - it.takenAt < 36 * 3_600_000L } ?: return ""
+        if (b.stories.isEmpty()) return ""
+        return "\n\nAlso today, from a pasted ${b.source} briefing (its account, not checked):\n" +
+            b.stories.joinToString("\n") { "- ${it.headline}" + if (it.region.isNotBlank()) " (${it.region})" else "" }
     }
 
     /** Who the edition asked for desk notes (edition id, persona id), for the chat's keep button. */

@@ -155,6 +155,20 @@ sleepy z's) are decoration: hidden from TalkBack and switchable in Settings → 
   above your level, and a tap looks a word up. Key words come from the dictionary and the word lists,
   never a model. "Talk it over" opens the language's partner with the story.
 
+## The Briefing
+
+- A part of the edition, after the sections and before the desk, with the pasted paper's source
+  and time in small print. Each story is a row: the rank in faint serif, the headline in serif,
+  its source rating as three small dots at the right. Opened: the place (a link to the Atlas)
+  and region, what happened, Why it matters in muted type, and What's unclear folded away.
+- The source rating is the briefing's own, so it's dots, never a word, with its note in small
+  print ("Its sources: …").
+- The watchlist keeps What it saw (a list) apart from Its guess, as it labelled it, set in
+  italics, so the two never run together. The preface and anything that didn't fit are folded at
+  the top and foot.
+- Actions are quiet text buttons. The Lobster's coral is only on the ones that send it an order:
+  Check with the Lobster (a story) and Lobster: watch the news (a watchlist line).
+
 ## SlothBooks
 
 - Shelf, Papers and Insights are text tabs, like SlothDesk's. Sideways, the list sits beside the
@@ -191,7 +205,7 @@ sleepy z's) are decoration: hidden from TalkBack and switchable in Settings → 
 ## Weigh and Forecasts
 
 - Home's pillars are Learn, Know and Weigh. Weigh is for things with a chance attached:
-  SlothDesk, Forecasts, Projects (Sports next). The Lobster and Ourjong are places you go, so
+  SlothDesk, Sports, Forecasts, Projects. The Lobster and Ourjong are places you go, so
   they sit in the bottom row; when the names don't fit on one line, the Lobster and Ourjong keep
   only their marks first, then every link but Models.
 - Forecasts' ledger: area pills, a card with the calibration chart (what you said across, how

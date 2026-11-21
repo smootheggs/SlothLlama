@@ -136,6 +136,15 @@ model too big for the GPU falls back to the CPU on its own.
   the sea, the globe's grid and atlas lettering; shaded relief (Natural Earth's, public domain,
   about 3 MB) switches on and off. Upright, the map takes the top half and the country's card,
   or the world's, the rest.
+- **The Briefing** (1.40). A briefing written elsewhere (a scheduled Grok task, say) can't always
+  be shared, so copy it and paste it into The Sloth Express → Briefing. It's read into its parts:
+  each story with its region, what it says happened, why it matters in its view, what's unclear,
+  and its own rating of its sources as dots; then the watchlist, with what it saw kept apart from
+  its speculation. Nothing is guessed: what doesn't fit the template is kept as written. A story
+  opens its place on the Atlas, can be sent to the Lobster to check (it comes back with sources),
+  or talked over with the Trader. Each thing the watchlist saw can become a **watch item** (a
+  Watchlist call in Forecasts with a check date and, if you like, your chance) or a news watch for
+  the Lobster. Briefings are kept 30 days and are in backups; the desk's card sees the last day's.
 - **Sports** (1.39, with SlothLobster 1.9). Home → Weigh → Sports: the leagues you follow (NBA,
   NFL, F1 and football: the Premier League, LaLiga, Bundesliga, Serie A, Ligue 1, MLS, the
   Champions League). The Lobster brings this season's results and the next two weeks' games from

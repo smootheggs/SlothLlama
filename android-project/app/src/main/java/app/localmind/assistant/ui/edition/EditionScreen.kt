@@ -261,6 +261,7 @@ private fun Paper(
     val parts = buildList {
         if (e.top.isNotEmpty()) add(PaperPart("top", "Top stories", unread(e.top)))
         sections.forEach { add(PaperPart("s:" + it.name, it.name, unread(it.stories))) }
+        add(PaperPart("briefing", "Briefing", 0))
         add(PaperPart("desk", "The desk", 0))
         if (hasCorners) add(PaperPart("corners", "Corners", 0))
     }
@@ -328,6 +329,7 @@ private fun Paper(
                 val news: @Composable () -> Unit = {
                     if (e.top.isNotEmpty()) block("top", "Top stories", e.top, true)
                     sections.forEach { sec -> block("s:" + sec.name, sec.name, sec.stories, false) }
+                    BriefingPart(anchor("briefing"), onPlace)
                     if (e.notes.isNotEmpty()) Notes(e.notes)
                 }
                 val desk: @Composable () -> Unit = { Desk(s, setup, personas, vm, onSettings, anchor("desk")) }

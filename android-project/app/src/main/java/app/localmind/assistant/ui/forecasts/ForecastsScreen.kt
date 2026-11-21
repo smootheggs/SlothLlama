@@ -442,7 +442,7 @@ private fun Trail(c: Call, today: LocalDate, modifier: Modifier) {
     val you = P.Accent
     val market = P.Muted
     val grid = P.Border
-    val start = listOfNotNull(Forecasts.date(c.estimates.first().on), c.market.firstOrNull()?.let { Forecasts.date(it.on) }).minOrNull() ?: today
+    val start = listOfNotNull(c.estimates.firstOrNull()?.let { Forecasts.date(it.on) }, c.market.firstOrNull()?.let { Forecasts.date(it.on) }).minOrNull() ?: today
     val end = (Forecasts.date(c.markedOn) ?: today).let { if (it.isAfter(start)) it else start.plusDays(1) }
     val span = ChronoUnit.DAYS.between(start, end).toFloat().coerceAtLeast(1f)
     Canvas(modifier) {
