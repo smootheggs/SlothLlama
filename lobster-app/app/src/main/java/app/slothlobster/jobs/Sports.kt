@@ -2,6 +2,7 @@ package app.slothlobster.jobs
 
 import app.slothlobster.web.Web
 import app.slothlobster.web.WebException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
@@ -23,7 +24,7 @@ import java.time.format.DateTimeFormatter
  *   F1                              Jolpica-F1, the open successor to Ergast (no key; it asks
  *                                   for no more than four requests a second).
  *
- * Only those two are called, with nothing about you. Fetched a week at a time, gently.
+ * Only those two are called, with nothing about you. Fetched a day or a month at a time, gently.
  */
 
 @Serializable
@@ -101,6 +102,8 @@ object Sports {
     private val DAY = DateTimeFormatter.BASIC_ISO_DATE
     private const val AHEAD_DAYS = 14L
     private const val MAX_DAYS = 200L
+    private const val SHORT_DAYS = 31L
+    private val MONTH = DateTimeFormatter.ofPattern("yyyyMM")
 
     /** What an order asks for: the leagues (by the ids above) and the first day. */
     fun request(text: String, today: LocalDate = LocalDate.now()): Pair<List<String>, LocalDate> {
@@ -158,17 +161,38 @@ object Sports {
     private fun JsonElement?.str(): String? = (this as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull
     private fun JsonElement?.num(): Double? = (this as? kotlinx.serialization.json.JsonPrimitive)?.let { it.doubleOrNull ?: it.contentOrNull?.toDoubleOrNull() }
 
+    /**
+     * The scoreboard takes one day (20261115) or one month (202611), not a range: a range answers
+     * 400. A short window goes day by day; a long one (the season so far) month by month, kept to
+     * the window. One day or month that fails is noted and skipped; the league fails only if all do.
+     */
+    internal fun pages(from: LocalDate, to: LocalDate): List<String> =
+        if (java.time.temporal.ChronoUnit.DAYS.between(from, to) < SHORT_DAYS) {
+            generateSequence(from) { it.plusDays(1) }.takeWhile { !it.isAfter(to) }.map { it.format(DAY) }.toList()
+        } else {
+            generateSequence(java.time.YearMonth.from(from)) { it.plusMonths(1) }
+                .takeWhile { !it.isAfter(java.time.YearMonth.from(to)) }.map { it.format(MONTH) }.toList()
+        }
+
     private suspend fun espn(sport: String, league: String, name: String, from: LocalDate, to: LocalDate): LeagueData {
         val games = LinkedHashMap<String, GameRow>()
-        var start = from
-        while (!start.isAfter(to)) {
-            val end = minOf(start.plusDays(6), to)
-            val url = "https://site.api.espn.com/apis/site/v2/sports/$sport/$league/scoreboard?limit=500&dates=${start.format(DAY)}-${end.format(DAY)}"
-            val page = Web.get(url, asBrowser = false)
-            scoreboard(page.text).forEach { games[it.id] = it }
-            start = end.plusDays(1)
+        val wanted = from.toString()..to.plusDays(1).toString()
+        var failed = 0
+        var lastError = ""
+        val pages = pages(from, to)
+        for (d in pages) {
+            try {
+                val page = Web.get("https://site.api.espn.com/apis/site/v2/sports/$sport/$league/scoreboard?limit=500&dates=$d", asBrowser = false)
+                scoreboard(page.text).filter { it.date.take(10) in wanted }.forEach { games[it.id] = it }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                failed++
+                lastError = e.message ?: e.javaClass.simpleName
+            }
             delay(400)
         }
+        if (failed == pages.size) throw WebException(lastError.ifBlank { "ESPN didn't answer" })
         return LeagueData(name, sport, games = games.values.sortedBy { it.date })
     }
 

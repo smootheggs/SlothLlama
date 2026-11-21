@@ -51,4 +51,16 @@ class SportsTests {
         assertNull(games[1].homeScore) // not started: no score
         assertNull(games[1].line)
     }
+
+    @Test
+    fun `the scoreboard is asked by day or by month, never a range`() {
+        // A range (20261101-20261107) answers 400; a day or a month works.
+        val week = Sports.pages(LocalDate.of(2026, 11, 14), LocalDate.of(2026, 11, 20))
+        assertEquals(7, week.size)
+        assertEquals("20261114", week.first())
+        assertEquals("20261120", week.last())
+        val season = Sports.pages(LocalDate.of(2026, 7, 24), LocalDate.of(2026, 12, 5))
+        assertEquals(listOf("202607", "202608", "202609", "202610", "202611", "202612"), season)
+        assertEquals(false, (week + season).any { '-' in it })
+    }
 }

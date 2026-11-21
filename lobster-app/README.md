@@ -22,8 +22,8 @@ goes out on the web, and brings back what it finds for SlothLlama to read offlin
   lines become "113 points · 19 comments". While the plan is on, it replaces the daily brief.
 - **Sports** (1.9, set in SlothLlama's Sports page): results, fixtures and the day's line for the
   NBA, NFL and football leagues from ESPN's public scoreboard, and F1 from Jolpica-F1 (both free,
-  no key). Fetched a week at a time, gently; nothing about you is sent. SlothLlama works out the
-  tables, ratings and simulations itself.
+  no key). Fetched a day or a month at a time (the scoreboard takes no ranges), gently; nothing
+  about you is sent. SlothLlama works out the tables, ratings and simulations itself.
 - **Ask** needs a model, which is switched off for now: the Lobster says so and suggests Research.
 
 Orders come from SlothLlama's Lobster page, or can be given in the Lobster itself (or shared to it
