@@ -103,7 +103,12 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
   to the Atlas. A name several places share (Los Angeles, Vancouver, Georgia) goes to the one a
   region named right beside it says ("Los Angeles, California"), else to a country named
   elsewhere in the text if the places are of about the same size, else to the bigger place
-  (1.45.1). **Your places**: pins for today's edition and the books' countries.
+  (1.45.1). A place opens on the map as itself (a city, a region), with what it is and, for a
+  shared name, **why here** (1.46). **Your places**: two layers, each switched on its own chip on
+  the map: **today's stories**, a round pin on each place a story names (its name and count
+  beside it; a region that only says where a city is isn't pinned), and **your books**, a square
+  pin on the country each is set in. A tap shows the headlines, each with **Read**, opened as a
+  tap in the paper would; the card beside the map lists them by place.
 
 ## Weigh
 

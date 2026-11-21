@@ -84,9 +84,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.graphics.Color
-import androidx.compose.material3.SwitchDefaults
-import androidx.compose.material3.Switch
-import androidx.compose.material.icons.outlined.Place
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.material.icons.outlined.Description
 import androidx.compose.material.icons.outlined.Close
 import androidx.compose.foundation.layout.IntrinsicSize
@@ -197,12 +195,25 @@ private fun AtlasContent(vm: AtlasViewModel, onBack: () -> Unit, mapColors: MapC
     val frame by vm.frame.collectAsStateWithLifecycle()
     val info by vm.info.collectAsStateWithLifecycle()
     val places by vm.places.collectAsStateWithLifecycle()
-    val pins by vm.pins.collectAsStateWithLifecycle()
+    val selected by vm.selected.collectAsStateWithLifecycle()
+    val arrival by vm.arrival.collectAsStateWithLifecycle()
     val region by vm.region.collectAsStateWithLifecycle()
     val quiz by vm.quiz.collectAsStateWithLifecycle()
     val relief by vm.relief.collectAsStateWithLifecycle()
     var page by rememberSaveable { mutableStateOf(AtlasPage.MAP) }
     var labelsMenu by remember { mutableStateOf(false) }
+
+    // Back from the paper or the Library: what's pinned may have changed.
+    LaunchedEffect(Unit) { vm.refresh() }
+    // Your places on the map: the layers switched on, and the place come from a story always.
+    val shown = remember(places, prefs.stories, prefs.books, arrival) {
+        buildList {
+            if (prefs.stories) addAll(places.stories)
+            if (prefs.books) addAll(places.books)
+            arrival?.pin?.let { p -> if (none { it.key == p.key }) add(p) }
+        }
+    }
+    val selectedPin = selected?.let { k -> shown.firstOrNull { it.key == k } }
 
     BackHandler(page != AtlasPage.MAP) {
         if (page == AtlasPage.QUIZ) vm.endQuiz()
@@ -227,7 +238,6 @@ private fun AtlasContent(vm: AtlasViewModel, onBack: () -> Unit, mapColors: MapC
                     Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 4.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Pill("Your places", selected = places, quiet = true, small = true) { vm.setPlaces(!places) }
                     Box {
                         Pill("Names: " + (AtlasFacts.LABELS.firstOrNull { it.first == prefs.labels }?.second ?: "English"), selected = prefs.labels != "en", quiet = true, small = true) { labelsMenu = true }
                         DropdownMenu(expanded = labelsMenu, onDismissRequest = { labelsMenu = false }) {
@@ -254,19 +264,25 @@ private fun AtlasContent(vm: AtlasViewModel, onBack: () -> Unit, mapColors: MapC
                         val map: @Composable (Modifier) -> Unit = { m ->
                             Box(m) {
                                 AtlasMap(
-                                    w, paths, regions, regionPaths, picked, pickedSub, if (places) pins else emptyMap(), prefs.labels, mapColors, frame,
+                                    w, paths, regions, regionPaths, picked, pickedSub, shown, prefs.labels, mapColors, frame,
                                     modifier = Modifier.fillMaxSize(),
                                     relief = if (prefs.relief) relief else null,
+                                    selected = selected,
                                     onTap = { a3 -> vm.pick(a3) },
-                                    onTapSub = { i -> vm.pickSub(if (i == pickedSub) null else i) }
+                                    onTapSub = { i -> vm.pickSub(if (i == pickedSub) null else i) },
+                                    onTapPin = { key -> vm.selectPin(if (key == selected) null else key) }
                                 )
-                                if (places) PlacesKey(mapColors, Modifier.align(Alignment.TopStart).padding(12.dp))
+                                LayerChips(places, prefs.stories, prefs.books, mapColors, vm, Modifier.align(Alignment.TopStart).padding(12.dp))
+                                selectedPin?.let { pin -> PinCallout(pin, vm, Modifier.align(Alignment.BottomStart).padding(12.dp)) }
                             }
                         }
                         val panel: @Composable (Modifier, Int) -> Unit = { m, columns ->
                             Column(m.background(P.Card).verticalScroll(rememberScrollState()).padding(horizontal = 24.dp, vertical = 18.dp)) {
                                 val i = info
-                                if (i != null && i.country.a3 == picked) {
+                                val a = arrival
+                                if (a != null) {
+                                    PlacePanel(a, vm)
+                                } else if (i != null && i.country.a3 == picked) {
                                     CountryPanel(
                                         i, regions?.takeIf { it.a3 == picked }?.subdivisions?.getOrNull(pickedSub ?: -1), prefs.labels, vm, columns,
                                         onOpen = { page = AtlasPage.COUNTRY },
@@ -274,7 +290,7 @@ private fun AtlasContent(vm: AtlasViewModel, onBack: () -> Unit, mapColors: MapC
                                     )
                                 } else {
                                     WorldPanel(
-                                        region, places, columns, vm,
+                                        region, places, prefs.stories, prefs.books, selected, mapColors, columns, vm,
                                         onSearch = { page = AtlasPage.SEARCH },
                                         onQuiz = { kind -> if (kind != null) vm.startQuiz(kind, region); page = AtlasPage.QUIZ }
                                     )
@@ -316,22 +332,110 @@ private fun AtlasContent(vm: AtlasViewModel, onBack: () -> Unit, mapColors: MapC
     }
 }
 
+/** The two layers of your places, on the map's corner: each says what it pins and how many. */
 @Composable
-private fun PlacesKey(colors: MapColors, modifier: Modifier) {
-    Row(
-        modifier.clip(RoundedCornerShape(14.dp)).background(P.Canvas.copy(alpha = 0.85f)).padding(horizontal = 12.dp, vertical = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically
-    ) {
-        Dot(colors.story)
-        Text("In today's edition", color = P.Muted, fontSize = 12.sp)
-        Dot(colors.book)
-        Text("Books set there", color = P.Muted, fontSize = 12.sp)
+private fun LayerChips(places: YourPlaces, stories: Boolean, books: Boolean, colors: MapColors, vm: AtlasViewModel, modifier: Modifier) {
+    val storyCount = places.stories.flatMap { p -> p.stories.map { it.title } }.distinct().size
+    val bookCount = places.books.sumOf { it.count }
+    Row(modifier, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        LayerChip("Today's stories · $storyCount", stories, colors.story, round = true) { vm.setStories(it) }
+        LayerChip("Your books · $bookCount", books, colors.book, round = false) { vm.setBooks(it) }
     }
 }
 
 @Composable
-private fun Dot(color: androidx.compose.ui.graphics.Color) {
-    Box(Modifier.size(10.dp).border(1.6.dp, color, RoundedCornerShape(5.dp)))
+private fun LayerChip(label: String, on: Boolean, color: Color, round: Boolean, onChange: (Boolean) -> Unit) {
+    val shape = RoundedCornerShape(18.dp)
+    Row(
+        Modifier.height(36.dp).clip(shape)
+            .background(if (on) P.Elevated else P.Canvas.copy(alpha = 0.88f))
+            .border(1.dp, if (on) color else P.Border, shape)
+            .toggleable(value = on, role = Role.Switch, onValueChange = onChange)
+            .padding(horizontal = 14.dp),
+        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically
+    ) {
+        Box(Modifier.size(10.dp).border(2.dp, color, RoundedCornerShape(if (round) 5.dp else 2.dp)))
+        Text(label, color = P.Text, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+    }
+}
+
+/**
+ * A pin's stories (each with "Read ›", opened as a tap in the paper would) or books, docked in the
+ * map's corner so it never covers the pin; and the way to the country's card.
+ */
+@Composable
+private fun PinCallout(pin: MapPin, vm: AtlasViewModel, modifier: Modifier) {
+    val shape = RoundedCornerShape(14.dp)
+    Column(
+        modifier.widthIn(max = 320.dp).clip(shape).background(P.Card).border(1.dp, P.Border, shape)
+            .padding(start = 14.dp, end = 4.dp, top = 4.dp, bottom = 4.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(pin.name, color = P.Text, fontSize = 15.sp, fontWeight = FontWeight.SemiBold, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(
+                when {
+                    pin.book -> "your books set here"
+                    pin.stories.isEmpty() -> pin.country
+                    else -> "${pin.country} · today's paper"
+                },
+                color = P.Faint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f).padding(start = 8.dp)
+            )
+            IconButton(onClick = { vm.selectPin(null) }) { Icon(Icons.Outlined.Close, contentDescription = "Close", tint = P.Muted, modifier = Modifier.size(20.dp)) }
+        }
+        val rows = if (pin.book) pin.books.take(4).map { PinStory(it, "") } else pin.stories.take(3)
+        rows.forEach { st ->
+            HorizontalDivider(color = P.Border, modifier = Modifier.padding(end = 10.dp))
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 44.dp)
+                    .then(if (st.url.isNotBlank()) Modifier.clickable(role = Role.Button, onClickLabel = "Read it") { vm.read(st) } else Modifier)
+                    .padding(end = 10.dp, top = 6.dp, bottom = 6.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Text(st.title, color = P.Text, fontSize = 14.sp, lineHeight = 19.sp, fontFamily = SERIF, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+                if (st.url.isNotBlank()) Text("Read ›", color = P.Accent, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+            }
+        }
+        val more = pin.count - rows.size
+        if (more > 0) Text("and $more more in the list", color = P.Faint, fontSize = 12.sp, modifier = Modifier.padding(bottom = 2.dp))
+        Box(
+            Modifier.heightIn(min = 40.dp).clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button) { vm.pick(pin.a3) },
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Text("Country card ›", color = P.Muted, fontSize = 12.sp, modifier = Modifier.padding(end = 8.dp))
+        }
+    }
+}
+
+/**
+ * Come from a story or an article: the place itself, what it is, and, where its name is more than
+ * one country's, why it's taken to be this one; then the country's card.
+ */
+@Composable
+private fun PlacePanel(a: Arrival, vm: AtlasViewModel) {
+    Row(verticalAlignment = Alignment.Top) {
+        Column(Modifier.weight(1f)) {
+            Text(a.pin.name, color = P.Text, fontSize = 28.sp, lineHeight = 32.sp, fontFamily = SERIF)
+            Text(a.what, color = P.Muted, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.padding(top = 4.dp))
+        }
+        IconButton(onClick = { vm.clearArrival() }) { Icon(Icons.Outlined.Close, contentDescription = "Close", tint = P.Muted) }
+    }
+    if (a.why.isNotBlank()) {
+        Column(
+            Modifier.padding(top = 16.dp).fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(P.Elevated).padding(horizontal = 14.dp, vertical = 12.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
+        ) {
+            Text("WHY HERE", color = P.Faint, fontSize = 11.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.Medium)
+            Text(a.why, color = P.Muted, fontSize = 13.sp, lineHeight = 19.sp)
+        }
+    }
+    Box(
+        Modifier.padding(top = 16.dp).height(40.dp).clip(RoundedCornerShape(20.dp)).border(1.dp, P.Border, RoundedCornerShape(20.dp))
+            .clickable(role = Role.Button) { vm.pick(a.hit.a3) }.padding(horizontal = 16.dp),
+        contentAlignment = Alignment.Center
+    ) {
+        Text("${a.pin.country} card ›", color = P.Accent, fontSize = 14.sp, fontWeight = FontWeight.Medium)
+    }
 }
 
 /** A flag from the Atlas's own PNGs; a quiet box while it loads or where there's none. */
@@ -470,11 +574,22 @@ private fun CountryPanel(
 }
 
 /**
- * Nothing picked: the world's card. Find a place, pin your places (today's edition and your books),
- * and the quizzes.
+ * Nothing picked: the world's card. Find a place; your places, listed (today's stories by the place
+ * they name, your books by the country they're set in; tap one to see it on the map); the quizzes.
  */
 @Composable
-private fun WorldPanel(region: String, places: Boolean, columns: Int, vm: AtlasViewModel, onSearch: () -> Unit, onQuiz: (String?) -> Unit) {
+private fun WorldPanel(
+    region: String,
+    places: YourPlaces,
+    stories: Boolean,
+    books: Boolean,
+    selected: String?,
+    colors: MapColors,
+    columns: Int,
+    vm: AtlasViewModel,
+    onSearch: () -> Unit,
+    onQuiz: (String?) -> Unit
+) {
     Text(if (region == "World") "The world" else region, color = P.Text, fontSize = 28.sp, lineHeight = 32.sp, fontFamily = SERIF)
     Text("Tap a country for its card. Pinch to zoom, drag to move, double-tap to come closer.", color = P.Muted, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.padding(top = 4.dp))
     Row(
@@ -486,23 +601,22 @@ private fun WorldPanel(region: String, places: Boolean, columns: Int, vm: AtlasV
         Spacer(Modifier.width(10.dp))
         Text("Countries, capitals, provinces · 广东, Bavaria, Lyon", color = P.Faint, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
-    PanelLabel("Your places")
-    Row(
-        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(P.Elevated).padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Icon(Icons.Outlined.Place, contentDescription = null, tint = P.Accent)
+    if (!stories && !books) {
+        PanelLabel("Your places")
         Text(
-            "Pins the countries named in today's edition and the ones your books are set in.",
-            color = P.Muted, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.weight(1f).padding(horizontal = 12.dp)
+            "Pin today's stories and your books with the two buttons on the map: each place gets its name, and a tap shows what's there.",
+            color = P.Muted, fontSize = 14.sp, lineHeight = 20.sp
         )
-        Switch(
-            checked = places, onCheckedChange = { vm.setPlaces(it) },
-            colors = SwitchDefaults.colors(
-                checkedThumbColor = P.OnAccent, checkedTrackColor = P.Accent,
-                uncheckedThumbColor = P.Muted, uncheckedTrackColor = P.Elevated, uncheckedBorderColor = P.BorderStrong
-            )
-        )
+    }
+    if (stories) {
+        PanelLabel("Today's stories, by place")
+        if (places.stories.isEmpty()) Text("No places in today's paper yet.", color = P.Muted, fontSize = 14.sp)
+        places.stories.forEach { pin -> PlaceRow(pin, pin.key == selected, colors.story, vm) }
+    }
+    if (books) {
+        PanelLabel("Your books, where they're set")
+        if (places.books.isEmpty()) Text("Books with a country on their card in the Library pin here.", color = P.Muted, fontSize = 14.sp, lineHeight = 20.sp)
+        places.books.forEach { pin -> PlaceRow(pin, pin.key == selected, colors.book, vm) }
     }
     PanelLabel("Quizzes")
     val quizzes = listOf(
@@ -526,6 +640,31 @@ private fun WorldPanel(region: String, places: Boolean, columns: Int, vm: AtlasV
                 repeat(columns - row.size) { Spacer(Modifier.weight(1f)) }
             }
         }
+    }
+}
+
+/** One of your places in the list: its mark, name, country and count, and what's there. */
+@Composable
+private fun PlaceRow(pin: MapPin, on: Boolean, color: Color, vm: AtlasViewModel) {
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(12.dp)).background(if (on) P.Elevated else Color.Transparent)
+            .clickable(role = Role.Button, onClickLabel = "Show it on the map") { vm.selectPin(pin.key, frame = true) }
+            .padding(horizontal = 10.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            Box(Modifier.size(12.dp).border(2.dp, color, RoundedCornerShape(if (pin.book) 2.dp else 6.dp)))
+            Row(Modifier.weight(1f), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Text(pin.name, color = P.Text, fontSize = 15.sp, fontWeight = FontWeight.Medium, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                if (!pin.book) Text(pin.country, color = P.Faint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
+            Text(pin.count.toString(), color = P.Accent, fontSize = 12.sp, fontWeight = FontWeight.Medium)
+        }
+        val lines = if (pin.book) pin.books else pin.stories.map { it.title }
+        lines.take(3).forEach { line ->
+            Text(line, color = P.Muted, fontSize = 13.sp, lineHeight = 18.sp, fontFamily = SERIF, maxLines = 2, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(start = 22.dp))
+        }
+        if (lines.size > 3) Text("and ${lines.size - 3} more", color = P.Faint, fontSize = 12.sp, modifier = Modifier.padding(start = 22.dp))
     }
 }
 

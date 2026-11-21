@@ -328,8 +328,23 @@ data class PlaceHit(
     val named: String,
     /** country, capital, city or subdivision. */
     val kind: String,
-    val count: Int
-)
+    val count: Int,
+    /** The place [named] stands for, as the Atlas calls it, and what it is ([kind] is the country's highest). */
+    val place: String = named,
+    val placeKind: String = kind,
+    /** Where it is (a country's or region's label point); NaN where the Atlas has none. */
+    val lon: Double = Double.NaN,
+    val lat: Double = Double.NaN,
+    /** Other countries with a place of this name; and why it's this one (see [PlaceFinder]). */
+    val others: List<String> = emptyList(),
+    val why: Why = Why.ONLY,
+    /** What decided it: the region named beside it, or the country named elsewhere. */
+    val by: String = ""
+) {
+    enum class Why { ONLY, BESIDE, ELSEWHERE, BIGGER }
+
+    val located: Boolean get() = !lon.isNaN() && !lat.isNaN()
+}
 
 /**
  * Finds the places a text names: countries (in English and the tutors' languages, plus common
@@ -338,14 +353,39 @@ data class PlaceHit(
  * found inside the text. Ambiguous English words ("Male", "Nice") are left out.
  *
  * Some names belong to places in more than one country (Los Angeles, Vancouver, Santiago,
- * Georgia). Which one is meant (1.46): a country or region named right beside it ("Los Angeles,
+ * Georgia). Which one is meant (1.45.1): a country or region named right beside it ("Los Angeles,
  * California", "Chile's Los Ángeles"); else a country the text names elsewhere, but only between
  * places of about the same size; else the bigger place (Natural Earth's rank) and the higher kind.
+ * Each hit says which it was, and the other countries it could have been (1.46: "Why here").
  */
 class PlaceFinder(countries: List<AtlasCountry>, places: List<AtlasPlace>, subdivisions: List<AtlasSubdivision>) {
 
-    /** [rank]: Natural Earth's scale rank, 0 the biggest (countries and regions count as 0). */
-    private data class Entry(val a3: String, val kind: String, val priority: Int, val rank: Int = 0)
+    /**
+     * [rank]: Natural Earth's scale rank, 0 the biggest (countries and regions count as 0);
+     * [name], [lon], [lat]: the place itself, for its pin.
+     */
+    private data class Entry(
+        val a3: String,
+        val kind: String,
+        val priority: Int,
+        val rank: Int = 0,
+        val name: String = "",
+        val lon: Double = Double.NaN,
+        val lat: Double = Double.NaN
+    )
+
+    /**
+     * The place a match is taken to be, the others it could have been, and why. [qualifier]: it
+     * only says where a city named just before it is ("Los Angeles, California").
+     */
+    private class Choice(
+        val named: String,
+        val e: Entry,
+        val others: List<String>,
+        val why: PlaceHit.Why,
+        val by: String = "",
+        val qualifier: Boolean = false
+    )
 
     /** A name found in the text, where, and the places it could be. */
     private class Match(val start: Int, val end: Int, val named: String, val options: List<Entry>, val possessive: Boolean) {
@@ -357,6 +397,8 @@ class PlaceFinder(countries: List<AtlasCountry>, places: List<AtlasPlace>, subdi
     private val latin = HashMap<String, MutableList<Entry>>()
     private val cjk = HashMap<String, MutableList<Entry>>()
     private val countryNames = HashMap<String, String>()
+    /** Names that are a city's (Shanghai is a city and a region): never only a qualifier. */
+    private val cityKeys = HashSet<String>()
     private var longest = 1
 
     init {
@@ -379,7 +421,7 @@ class PlaceFinder(countries: List<AtlasCountry>, places: List<AtlasPlace>, subdi
             }
         }
         for (c in countries) {
-            val e = Entry(c.a3, "country", 0)
+            val e = Entry(c.a3, "country", 0, 0, c.english, c.label.getOrElse(0) { Double.NaN }, c.label.getOrElse(1) { Double.NaN })
             (listOf(c.name, c.long) + c.names.all() + ALIASES[c.a3].orEmpty()).forEach { put(it, e) }
             // Chinese and Japanese names without the formal ending ("中华人民共和国" is also "中国").
             SHORT_CJK[c.a3]?.forEach { put(it, e) }
@@ -389,12 +431,13 @@ class PlaceFinder(countries: List<AtlasCountry>, places: List<AtlasPlace>, subdi
         }
         for (p in places) {
             if (p.kind == "city" && p.rank > 6) continue
-            val e = Entry(p.a3, if (p.kind == "capital") "capital" else "city", if (p.kind == "capital") 1 else 3, p.rank)
+            val e = Entry(p.a3, if (p.kind == "capital") "capital" else "city", if (p.kind == "capital") 1 else 3, p.rank, p.name, p.lon, p.lat)
             (listOf(p.name) + p.names.all()).forEach { put(it, e) }
+            cityKeys += key(p.name)
         }
         for (s in subdivisions) {
             if (s.a3 !in BIG) continue
-            val e = Entry(s.a3, "subdivision", 2)
+            val e = Entry(s.a3, "subdivision", 2, 0, s.english, s.label?.getOrNull(0) ?: Double.NaN, s.label?.getOrNull(1) ?: Double.NaN)
             if (s.english.length >= 5) put(s.english, e)
             listOfNotNull(s.names.zh, s.names.zht, s.names.ja).forEach { n ->
                 put(n, e)
@@ -408,6 +451,51 @@ class PlaceFinder(countries: List<AtlasCountry>, places: List<AtlasPlace>, subdi
 
     /** The places [text] names, the most named first; one hit per country. */
     fun find(text: String, max: Int = 4): List<PlaceHit> {
+        val found = LinkedHashMap<String, Pair<Entry, MutableList<Choice>>>()
+        for (c in resolve(text)) {
+            val e = c.e
+            val slot = found.getOrPut(e.a3) { e to mutableListOf() }
+            if (e.priority < slot.first.priority) found[e.a3] = e to slot.second
+            found[e.a3]!!.second += c
+        }
+        return found.values
+            .map { (top, choices) ->
+                // The name it's shown by is the one most used; the place is what that name was taken to be.
+                val named = choices.groupingBy { it.named }.eachCount().maxBy { it.value }.key
+                hit(choices.first { it.named == named }, named, top.kind, choices.size)
+            }
+            .sortedWith(compareByDescending<PlaceHit> { it.count }.thenBy { KIND_ORDER.indexOf(it.kind) })
+            .take(max)
+    }
+
+    /**
+     * The places [text] names, one hit per place, for pins: the cities and regions it names (not a
+     * region only there to say where a city is), and a country only where it names nothing inside
+     * it. The most named first.
+     */
+    fun spots(text: String, max: Int = 3): List<PlaceHit> {
+        val found = LinkedHashMap<Entry, MutableList<Choice>>()
+        for (c in resolve(text)) found.getOrPut(c.e) { mutableListOf() } += c
+        found.entries.removeAll { (e, choices) -> e.kind != "city" && e.kind != "capital" && choices.all { it.qualifier } }
+        val inside = found.keys.filter { it.kind != "country" }.map { it.a3 }.toSet()
+        return found.entries
+            .filter { (e, _) -> !(e.kind == "country" && e.a3 in inside) }
+            .map { (e, choices) ->
+                val named = choices.groupingBy { it.named }.eachCount().maxBy { it.value }.key
+                hit(choices.first { it.named == named }, named, e.kind, choices.size)
+            }
+            .sortedWith(compareByDescending<PlaceHit> { it.count }.thenBy { SPOT_ORDER.indexOf(it.kind) })
+            .take(max)
+    }
+
+    private fun hit(c: Choice, named: String, kind: String, count: Int) = PlaceHit(
+        a3 = c.e.a3, named = named, kind = kind, count = count,
+        place = c.e.name.ifBlank { named }, placeKind = c.e.kind, lon = c.e.lon, lat = c.e.lat,
+        others = c.others, why = c.why, by = c.by
+    )
+
+    /** Every name found in [text], each with the place it's taken to be. */
+    private fun resolve(text: String): List<Choice> {
         val matches = ArrayList<Match>()
         // English and other Latin-script names: runs of words, the first one capitalised.
         val words = Regex("[\\p{L}\\p{N}.'’-]+").findAll(text).toList()
@@ -450,27 +538,23 @@ class PlaceFinder(countries: List<AtlasCountry>, places: List<AtlasPlace>, subdi
             }
         }
 
-        val elsewhere = matches.filter { it.sure }.map { it.options.first().a3 }.toSet()
-        val found = LinkedHashMap<String, Pair<Entry, MutableList<String>>>()
-        for (m in matches) {
-            val e = if (m.sure) m.options.minWith(order) else choose(m, matches, text, elsewhere)
-            val slot = found.getOrPut(e.a3) { e to mutableListOf() }
-            if (e.priority < slot.first.priority) found[e.a3] = e to slot.second
-            found[e.a3]!!.second += m.named
+        val elsewhere = matches.filter { it.sure }.groupBy { it.options.first().a3 }.mapValues { it.value.first().named }
+        val cities = matches.filter { m -> m.options.any { it.kind == "city" || it.kind == "capital" } }
+        return matches.map { m ->
+            val c = if (m.sure) Choice(m.named, m.options.minWith(order), emptyList(), PlaceHit.Why.ONLY) else choose(m, matches, text, elsewhere)
+            val region = key(m.named) !in cityKeys
+            if (region && cities.any { city -> city !== m && beside(city, m, text) }) Choice(c.named, c.e, c.others, c.why, c.by, qualifier = true) else c
         }
-        return found.values
-            .map { (e, names) -> PlaceHit(e.a3, names.groupingBy { it }.eachCount().maxBy { it.value }.key, e.kind, names.size) }
-            .sortedWith(compareByDescending<PlaceHit> { it.count }.thenBy { KIND_ORDER.indexOf(it.kind) })
-            .take(max)
     }
 
     /** Which of a shared name's places the text means (see the class's note). */
-    private fun choose(m: Match, all: List<Match>, text: String, elsewhere: Set<String>): Entry {
+    private fun choose(m: Match, all: List<Match>, text: String, elsewhere: Map<String, String>): Choice {
         val top = m.options.minWith(order)
-        val beside = all.filter { o -> o !== m && o.sure && beside(m, o, text) }.map { it.options.first().a3 }.toSet()
-        m.options.filter { it.a3 in beside }.minWithOrNull(order)?.let { return it }
-        m.options.filter { it.a3 in elsewhere && it.rank - top.rank <= 1 }.minWithOrNull(order)?.let { return it }
-        return top
+        fun of(e: Entry, why: PlaceHit.Why, by: String = "") = Choice(m.named, e, m.options.map { it.a3 }.distinct() - e.a3, why, by)
+        val beside = all.filter { o -> o !== m && o.sure && beside(m, o, text) }.associate { it.options.first().a3 to it.named.removeSuffix("'s").removeSuffix("’s") }
+        m.options.filter { it.a3 in beside }.minWithOrNull(order)?.let { return of(it, PlaceHit.Why.BESIDE, beside.getValue(it.a3)) }
+        m.options.filter { it.a3 in elsewhere && it.rank - top.rank <= 1 }.minWithOrNull(order)?.let { return of(it, PlaceHit.Why.ELSEWHERE, elsewhere.getValue(it.a3)) }
+        return of(top, PlaceHit.Why.BIGGER)
     }
 
     /** "Los Angeles, California", "Hyderabad in Pakistan", or "Chile's Los Ángeles". */
@@ -482,6 +566,9 @@ class PlaceFinder(countries: List<AtlasCountry>, places: List<AtlasPlace>, subdi
 
     companion object {
         private val KIND_ORDER = listOf("country", "capital", "subdivision", "city")
+
+        /** For pins the most exact first. */
+        private val SPOT_ORDER = listOf("city", "capital", "subdivision", "country")
 
         /** What may stand between a place and the region that says which one: ", " or " in ". */
         private val BESIDE_AFTER = Regex("\\s*,\\s*|\\s+in\\s+", RegexOption.IGNORE_CASE)
@@ -618,6 +705,29 @@ object AtlasFacts {
     )
 
     /** The regions the map can frame, by Natural Earth's continent. */
+    /** A country's name as it reads in a sentence: "the United States", "Chile". */
+    fun inSentence(a3: String, name: String): String = if (a3 in WITH_THE && !name.startsWith("The ")) "the $name" else name
+
+    private val WITH_THE = setOf(
+        "USA", "GBR", "NLD", "PHL", "ARE", "CZE", "BHS", "GMB", "COD", "COG", "CAF", "DOM", "MDV", "MHL", "SLB", "COM", "SYC", "VAT", "CYM", "FLK", "FRO", "TCA", "VGB", "VIR"
+    )
+
+    /**
+     * Why a name more than one country has is taken to be this place, for a story's link to the
+     * map: "Chile has one by that name too. The story didn't say which, so it's the bigger…".
+     * Blank when the name is only one place's. [countryName]: a country's English name by its code.
+     */
+    fun whyHere(hit: PlaceHit, countryName: (String) -> String): String {
+        if (hit.others.isEmpty() || hit.why == PlaceHit.Why.ONLY) return ""
+        val others = hit.others.map { inSentence(it, countryName(it)) }
+        val also = others.joinToString(" and ").replaceFirstChar { it.uppercase() } + (if (others.size == 1) " has" else " have") + " one by that name too."
+        return when (hit.why) {
+            PlaceHit.Why.BESIDE -> "The story names it beside ${hit.by}, so it's this one. $also"
+            PlaceHit.Why.ELSEWHERE -> "The story also names ${hit.by}, so it's this one. $also"
+            else -> "$also The story didn't say which, so it's " + if (hit.placeKind == "country") "the country." else "the bigger, better-known one."
+        }
+    }
+
     val REGIONS = listOf("World", "Africa", "Americas", "Asia", "Europe", "Oceania")
 
     fun inRegion(c: AtlasCountry, region: String): Boolean = when (region) {

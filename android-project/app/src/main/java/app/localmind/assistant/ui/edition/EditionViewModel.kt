@@ -188,8 +188,11 @@ class EditionViewModel @Inject constructor(
         .map { items -> items.filterNot { it.archived }.map { it.url }.toSet() }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
-    /** A story the Lobster's tab asked to read clean, until it's opened. */
-    val openAsk: StateFlow<String?> = store.openAsk
+    /** A story the Lobster's tab (clean) or the Atlas (as a tap) asked to open, until it's opened. */
+    val openAsk: StateFlow<EditionStore.OpenAsk?> = store.openAsk
+
+    /** A story in a kept paper by its link (newest first), or null. */
+    suspend fun storyFor(url: String): EdStory? = store.findNews(url)?.second
 
     fun openAnswered() = store.openAnswered()
 

@@ -51,8 +51,17 @@ enum class AtlasStyle(val key: String, val label: String) {
     }
 }
 
-/** The Atlas's settings: its look, the shaded relief, and the language of its labels. */
-data class AtlasPrefs(val style: AtlasStyle = AtlasStyle.NIGHT, val relief: Boolean = true, val labels: String = "en")
+/**
+ * The Atlas's settings: its look, the shaded relief, the language of its labels, and which of your
+ * places are pinned (today's stories, your books).
+ */
+data class AtlasPrefs(
+    val style: AtlasStyle = AtlasStyle.NIGHT,
+    val relief: Boolean = true,
+    val labels: String = "en",
+    val stories: Boolean = false,
+    val books: Boolean = false
+)
 
 /**
  * The Atlas's data, from the app's own assets (nothing is downloaded): Natural Earth's countries,
@@ -76,7 +85,9 @@ class AtlasRepository @Inject constructor(@ApplicationContext private val contex
             style = prefs.getString(KEY_STYLE, null)?.let(AtlasStyle::of)
                 ?: if (prefs.getBoolean(KEY_LIGHT, false)) AtlasStyle.WHITE else AtlasStyle.NIGHT,
             relief = prefs.getBoolean(KEY_RELIEF, true),
-            labels = prefs.getString(KEY_LABELS, "en") ?: "en"
+            labels = prefs.getString(KEY_LABELS, "en") ?: "en",
+            stories = prefs.getBoolean(KEY_STORIES, false),
+            books = prefs.getBoolean(KEY_BOOKS, false)
         )
     )
     val settings: StateFlow<AtlasPrefs> = _prefs.asStateFlow()
@@ -89,6 +100,18 @@ class AtlasRepository @Inject constructor(@ApplicationContext private val contex
     fun setRelief(on: Boolean) {
         prefs.edit().putBoolean(KEY_RELIEF, on).apply()
         _prefs.value = _prefs.value.copy(relief = on)
+    }
+
+    /** Today's stories pinned on the map, or not. */
+    fun setStories(on: Boolean) {
+        prefs.edit().putBoolean(KEY_STORIES, on).apply()
+        _prefs.value = _prefs.value.copy(stories = on)
+    }
+
+    /** Your books pinned where they're set, or not. */
+    fun setBooks(on: Boolean) {
+        prefs.edit().putBoolean(KEY_BOOKS, on).apply()
+        _prefs.value = _prefs.value.copy(books = on)
     }
 
     private val reliefLock = Mutex()
@@ -184,5 +207,7 @@ class AtlasRepository @Inject constructor(@ApplicationContext private val contex
         private const val KEY_STYLE = "style"
         private const val KEY_RELIEF = "relief"
         private const val KEY_LABELS = "labels"
+        private const val KEY_STORIES = "pin_stories"
+        private const val KEY_BOOKS = "pin_books"
     }
 }

@@ -9,6 +9,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -27,6 +28,9 @@ import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.text.TextLayoutResult
 import androidx.compose.ui.graphics.drawscope.withTransform
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.onSizeChanged
@@ -38,6 +42,7 @@ import androidx.compose.ui.text.drawText
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.rememberTextMeasurer
 import androidx.compose.ui.unit.IntSize
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import app.localmind.assistant.data.atlas.AtlasRegions
 import app.localmind.assistant.data.atlas.AtlasWorld
@@ -84,7 +89,7 @@ data class MapColors(
             tones = listOf(0xFF36443A, 0xFF433C2E, 0xFF45362F, 0xFF323C4A, 0xFF3A4433, 0xFF40343F, 0xFF2F4243).map(::Color),
             label = Color(0xFFD6DDD4), water = Color(0xFF7896A8), faint = Color(0xFFA3ADA6), capital = Color(0xFFE8E2CF),
             picked = Color(0xFF44583B), pickedLine = Color(0xFF9CC98A), subLine = Color(0xFF5E7356),
-            story = Color(0xFFF0937A), book = Color(0xFF9CC98A), dim = Color(0xFF141E26), reliefAlpha = 0.6f
+            story = Color(0xFF9CC98A), book = Color(0xFFE2C26B), dim = Color(0xFF141E26), reliefAlpha = 0.6f
         )
 
         /** Pale land on a light sea, flat and quick to read. */
@@ -94,7 +99,7 @@ data class MapColors(
             tones = listOf(0xFFF4F1E9, 0xFFECF0E4, 0xFFF3EAE1, 0xFFE8ECF2, 0xFFEFF1E6, 0xFFF1E9ED, 0xFFE6EFEC).map(::Color),
             label = Color(0xFF2B333A), water = Color(0xFF557083), faint = Color(0xFF4F5A53), capital = Color(0xFF2B333A),
             picked = Color(0xFFDCE9D2), pickedLine = Color(0xFF3D6B2C), subLine = Color(0xFF9DB08F),
-            story = Color(0xFFB4492E), book = Color(0xFF3D6B2C), dim = Color(0xFFEEF2F4), reliefAlpha = 0.55f
+            story = Color(0xFF3D6B2C), book = Color(0xFF8A6410), dim = Color(0xFFEEF2F4), reliefAlpha = 0.55f
         )
 
         /** An old school atlas: cream land, sepia ink, grey-green seas with water lines. */
@@ -104,7 +109,7 @@ data class MapColors(
             tones = listOf(0xFFEBDFC3, 0xFFE7D7B5, 0xFFEFD8BF, 0xFFE2DBC4, 0xFFE9DFBE, 0xFFEBD5C7, 0xFFDEDCC2).map(::Color),
             label = Color(0xFF4A3826), water = Color(0xFF4F6670), faint = Color(0xFF6E5C47), capital = Color(0xFF4A3826),
             picked = Color(0xFFE9C9AE), pickedLine = Color(0xFF8A3B22), subLine = Color(0xFFB89C7C),
-            story = Color(0xFFB4492E), book = Color(0xFF4E6B3A), dim = Color(0xFFE4DCC8), reliefAlpha = 0.7f
+            story = Color(0xFF4E6B3A), book = Color(0xFF8A5E12), dim = Color(0xFFE4DCC8), reliefAlpha = 0.7f
         )
 
         fun of(style: AtlasStyle): MapColors = when (style) {
@@ -119,6 +124,7 @@ data class MapColors(
  * The world map: Equal Earth, drawn from the Atlas's outlines. Pinch to zoom, drag to move, tap a
  * country (or, with [onTapSub], a subdivision of the picked one). Labels thin out as you zoom out;
  * capitals show from a little closer in. [quiz]: the picked country's subdivisions only, one lit.
+ * [pins]: your places, each with its name; a tap near one goes to [onTapPin] before the country.
  */
 @Composable
 fun AtlasMap(
@@ -128,7 +134,7 @@ fun AtlasMap(
     regionPaths: List<Path>,
     picked: String?,
     pickedSub: Int?,
-    pins: Map<String, Pin>,
+    pins: List<MapPin>,
     labels: String,
     colors: MapColors,
     frame: Frame?,
@@ -136,9 +142,15 @@ fun AtlasMap(
     /** Natural Earth's shaded relief, projected to Equal Earth; null: flat. */
     relief: ImageBitmap? = null,
     quiz: Boolean = false,
+    /** The pin whose stories or books are showing: drawn larger, with a halo. */
+    selected: String? = null,
     onTap: (String?) -> Unit = {},
-    onTapSub: ((Int) -> Unit)? = null
+    onTapSub: ((Int) -> Unit)? = null,
+    onTapPin: (String) -> Unit = {}
 ) {
+    // The tap handler outlives a composition: it reads the pins and the callback as they are now.
+    val shownPins by rememberUpdatedState(pins)
+    val tapPin by rememberUpdatedState(onTapPin)
     var size by remember { mutableStateOf(IntSize.Zero) }
     var scale by remember { mutableFloatStateOf(0f) }
     var pan by remember { mutableStateOf(Offset.Zero) }
@@ -188,6 +200,13 @@ fun AtlasMap(
                     },
                     onTap = { p ->
                         if (scale == 0f) return@detectTapGestures
+                        // A pin first: the nearest within a finger's reach.
+                        val reach = 24.dp.toPx()
+                        shownPins.map { it to (screen(it.lon, it.lat, pan, scale) - p).getDistance() }
+                            .filter { it.second <= reach }.minByOrNull { it.second }?.let {
+                                tapPin(it.first.key)
+                                return@detectTapGestures
+                            }
                         val x = (p.x - pan.x) / scale
                         val y = (p.y - pan.y) / scale
                         val r = regions
@@ -256,8 +275,10 @@ fun AtlasMap(
             }
         }
         if (!quiz) {
-            drawLabels(world, regions, picked, labels, colors, measurer, k, pan, scale)
-            drawPins(world, pins, colors, pan, scale)
+            // Your places' names are set first, so the map's own lettering makes room for them.
+            val placed = layoutPins(pins, selected, colors, measurer, pan, scale)
+            drawLabels(world, regions, picked, labels, colors, measurer, k, pan, scale, placed.taken)
+            drawPins(placed, selected, colors)
             drawScale(colors, measurer, pan, scale)
         }
     }
@@ -379,22 +400,70 @@ private fun DrawScope.visible(b: FloatArray, pan: Offset, scale: Float): Boolean
 private fun screen(lon: Double, lat: Double, pan: Offset, scale: Float) =
     Offset(pan.x + EqualEarth.x(lon, lat).toFloat() * scale, pan.y + EqualEarth.y(lat).toFloat() * scale)
 
-/** Today's stories (coral) and your books (moss): a ring at the country's label point. */
-private fun DrawScope.drawPins(world: AtlasWorld, pins: Map<String, Pin>, colors: MapColors, pan: Offset, scale: Float) {
-    val r = 6.dp2px(this)
-    for ((a3, pin) in pins) {
-        val c = world.byA3[a3] ?: continue
-        if (c.label.size < 2) continue
-        val at = screen(c.label[0], c.label[1], pan, scale)
-        if (at.x < -r || at.y < -r || at.x > size.width + r || at.y > size.height + r) continue
-        val color = if (pin.stories > 0) colors.story else colors.book
-        drawCircle(color, radius = r, center = at, style = Stroke(width = 1.6f * density))
-        drawCircle(color, radius = r / 3, center = at)
-        if (pin.stories > 0 && pin.books > 0) drawCircle(colors.book, radius = r + 3 * density, center = at, style = Stroke(width = 1.2f * density))
+/** Pins on screen, with their names where there was room, and the space they take. */
+private class PlacedPins(val pins: List<Pair<MapPin, Offset>>, val names: List<Pair<TextLayoutResult, Offset>>, val taken: List<Rect>)
+
+/**
+ * Where each pin and its name go: the picked pin first, then the most named. A name sits right of
+ * its mark, else left, else under it; where all three would cover something already set, the pin
+ * goes without (tap it, or see the list). Stories: "Los Angeles · 2"; books: "Japan · 2 books".
+ */
+private fun DrawScope.layoutPins(pins: List<MapPin>, selected: String?, colors: MapColors, measurer: TextMeasurer, pan: Offset, scale: Float): PlacedPins {
+    if (pins.isEmpty()) return PlacedPins(emptyList(), emptyList(), emptyList())
+    val r = 9 * density
+    val onScreen = pins.map { it to screen(it.lon, it.lat, pan, scale) }
+        .filter { (_, at) -> at.x >= -r && at.y >= -r && at.x <= size.width + r && at.y <= size.height + r }
+        .sortedWith(compareBy<Pair<MapPin, Offset>> { it.first.key != selected }.thenBy { it.first.book }.thenByDescending { it.first.count })
+    val taken = ArrayList<Rect>()
+    onScreen.forEach { (_, at) -> taken += Rect(at.x - r, at.y - r, at.x + r, at.y + r) }
+    val halo = Shadow(colors.sea.copy(alpha = 0.95f), blurRadius = 4f * density)
+    val storyStyle = TextStyle(color = colors.label, fontSize = 12.sp, fontWeight = FontWeight.Medium, shadow = halo)
+    val bookStyle = TextStyle(color = colors.book, fontSize = 11.sp, fontWeight = FontWeight.Medium, shadow = halo)
+    val names = ArrayList<Pair<TextLayoutResult, Offset>>()
+    for ((pin, at) in onScreen) {
+        val text = if (pin.book) "${pin.name} · ${pin.count} book" + (if (pin.count == 1) "" else "s")
+        else pin.name + if (pin.count > 1) " · ${pin.count}" else ""
+        val layout = measurer.measure(text, if (pin.book) bookStyle else storyStyle)
+        val w = layout.size.width.toFloat()
+        val h = layout.size.height.toFloat()
+        val gap = 12 * density
+        val spots = listOf(
+            Offset(at.x + gap, at.y - h / 2),
+            Offset(at.x - gap - w, at.y - h / 2),
+            Offset(at.x - w / 2, at.y + gap)
+        )
+        val spot = spots.firstOrNull { o ->
+            val box = Rect(o.x - 2, o.y - 1, o.x + w + 2, o.y + h + 1)
+            box.left >= 0 && box.top >= 0 && box.right <= size.width && box.bottom <= size.height && taken.none { it.overlaps(box) }
+        } ?: continue
+        taken += Rect(spot.x - 2, spot.y - 1, spot.x + w + 2, spot.y + h + 1)
+        names += layout to spot
     }
+    return PlacedPins(onScreen, names, taken)
 }
 
-private fun Int.dp2px(scope: DrawScope): Float = this * scope.density
+/** Stories: a round pin at the place; books: a square one at the country's label. The picked one larger, with a halo. */
+private fun DrawScope.drawPins(placed: PlacedPins, selected: String?, colors: MapColors) {
+    for ((pin, at) in placed.pins.asReversed()) {
+        val on = pin.key == selected
+        val color = if (pin.book) colors.book else colors.story
+        if (on) drawCircle(color.copy(alpha = 0.18f), radius = 16 * density, center = at)
+        if (pin.book) {
+            val half = (if (on) 7.5f else 6f) * density
+            val corner = CornerRadius(2 * density)
+            drawRoundRect(colors.sea, topLeft = Offset(at.x - half, at.y - half), size = Size(half * 2, half * 2), cornerRadius = corner)
+            drawRoundRect(color, topLeft = Offset(at.x - half, at.y - half), size = Size(half * 2, half * 2), cornerRadius = corner, style = Stroke(width = 2 * density))
+            val dot = 2.5f * density
+            drawRect(color, topLeft = Offset(at.x - dot, at.y - dot), size = Size(dot * 2, dot * 2))
+        } else {
+            val r = (if (on) 9f else 7f) * density
+            drawCircle(colors.sea, radius = r, center = at)
+            drawCircle(color, radius = r, center = at, style = Stroke(width = 2 * density))
+            drawCircle(color, radius = r / 2.6f, center = at)
+        }
+    }
+    placed.names.forEach { (layout, at) -> drawText(layout, topLeft = at) }
+}
 
 /**
  * The lettering, as an atlas sets it: sea names in italics first, then countries in spaced serif
@@ -412,9 +481,11 @@ private fun DrawScope.drawLabels(
     measurer: TextMeasurer,
     k: Float,
     pan: Offset,
-    scale: Float
+    scale: Float,
+    /** Already taken (your places' pins and names): no label goes over them. */
+    reserved: List<Rect> = emptyList()
 ) {
-    val placed = ArrayList<Rect>()
+    val placed = ArrayList<Rect>(reserved)
     fun place(text: String, at: Offset, style: TextStyle, above: Boolean = false, side: Boolean = false): Boolean {
         val layout = measurer.measure(text, style)
         val w = layout.size.width.toFloat()

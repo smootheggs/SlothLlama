@@ -57,12 +57,17 @@ class EditionStore @Inject constructor(@ApplicationContext context: Context) {
     /** The newest edition, read whole (for Home and the page's first view). */
     val latest: StateFlow<SavedEdition?> = _latest.asStateFlow()
 
-    /** A story the Lobster's tab asked to read clean (its link), until the Express opens it. */
-    private val _openAsk = MutableStateFlow<String?>(null)
-    val openAsk: StateFlow<String?> = _openAsk.asStateFlow()
+    /**
+     * A story to open in the Express, until it does: its link, read clean (asked from the Lobster's
+     * tab) or [asTap], as a tap on it in the paper would (from the Atlas's pins).
+     */
+    data class OpenAsk(val url: String, val asTap: Boolean = false)
 
-    fun askOpen(url: String) {
-        _openAsk.value = url.take(2_000)
+    private val _openAsk = MutableStateFlow<OpenAsk?>(null)
+    val openAsk: StateFlow<OpenAsk?> = _openAsk.asStateFlow()
+
+    fun askOpen(url: String, asTap: Boolean = false) {
+        _openAsk.value = OpenAsk(url.take(2_000), asTap)
     }
 
     fun openAnswered() {

@@ -313,8 +313,8 @@ private fun SlothRoot(
     val askedProject = projectAsk?.let { ask -> projectList.firstOrNull { it.id == ask.projectId }?.let { ask.personaId to it.name } }
     // The Atlas: one for the whole app, so a place in a story or an article opens on its map.
     val atlas: app.localmind.assistant.ui.atlas.AtlasViewModel = hiltViewModel()
-    val showPlace: (String) -> Unit = { a3 ->
-        atlas.focus(a3)
+    val showPlace: (app.localmind.assistant.domain.atlas.PlaceHit) -> Unit = { hit ->
+        atlas.focusPlace(hit)
         navigate(Destination.ATLAS)
     }
     val rootScope = androidx.compose.runtime.rememberCoroutineScope()

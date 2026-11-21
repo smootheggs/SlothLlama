@@ -89,7 +89,7 @@ internal fun CountryPage(info: CountryInfo, world: AtlasWorld, vm: AtlasViewMode
         val map: @Composable () -> Unit = {
             Box(Modifier.fillMaxWidth().height(if (wide) 440.dp else 340.dp).clip(RoundedCornerShape(18.dp)).border(1.dp, P.Border, RoundedCornerShape(18.dp))) {
                 AtlasMap(
-                    world, paths, regions, regionPaths, c.a3, pickedSub, emptyMap(), lang, colors, frame,
+                    world, paths, regions, regionPaths, c.a3, pickedSub, emptyList(), lang, colors, frame,
                     modifier = Modifier.fillMaxSize(),
                     relief = if (prefs.relief) relief else null,
                     onTap = { a3 -> if (a3 != null && a3 != c.a3) vm.pick(a3, frame = true) },

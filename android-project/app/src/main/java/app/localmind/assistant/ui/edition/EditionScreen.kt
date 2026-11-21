@@ -101,7 +101,7 @@ fun EditionScreen(
     /** The Express's own reader (not the Reader screen's): a story read clean. */
     reader: ReaderViewModel,
     onBack: () -> Unit,
-    onPlace: (String) -> Unit = {},
+    onPlace: (app.localmind.assistant.domain.atlas.PlaceHit) -> Unit = {},
     /** Your record (1.45: reached from the places calls are made, not Home). */
     onRecord: () -> Unit = {}
 ) {
@@ -166,15 +166,23 @@ fun EditionScreen(
         ask = viewModel::askAbout,
         setRead = { st, r -> viewModel.setRead(st, r) },
         setTap = { st, clean -> viewModel.setTap(st, clean) },
-        place = { st -> viewModel.places.value[Editions.storyKey(st)]?.let { onPlace(it.a3) } }
+        place = { st -> viewModel.places.value[Editions.storyKey(st)]?.let { onPlace(it) } }
     )
 
-    // "Read it clean in SlothLlama" from the Lobster's Chrome tab.
+    // "Read it clean in SlothLlama" from the Lobster's Chrome tab; a story's "Read" on the Atlas,
+    // which opens it as a tap here would.
     LaunchedEffect(openAsk) {
-        val url = openAsk ?: return@LaunchedEffect
+        val ask = openAsk ?: return@LaunchedEffect
+        val url = ask.url
         viewModel.openAnswered()
+        val st = if (ask.asTap) viewModel.storyFor(url) else null
+        if (st != null && !Editions.tapsClean(setup, st)) {
+            openPage(st)
+            return@LaunchedEffect
+        }
         val ref = viewModel.cleanRefFor(url)
         if (ref != null) {
+            st?.let { viewModel.setRead(it, true) }
             page = EditionPage.PAPER
             reader.open(ReaderSource.EXPRESS, ref)
         } else {
@@ -337,7 +345,7 @@ private fun Paper(
     actions: StoryActions,
     shelved: Set<String>,
     onSettings: () -> Unit,
-    onPlace: (String) -> Unit,
+    onPlace: (app.localmind.assistant.domain.atlas.PlaceHit) -> Unit,
     onRecord: () -> Unit
 ) {
     val places by vm.places.collectAsStateWithLifecycle()
@@ -405,7 +413,7 @@ private fun Paper(
                 st, big = lead && i == 0, read = isRead, now = now,
                 onOpen = { actions.tap(st) }, onMenu = { menuKey = k }, onLater = { actions.later(st) },
                 shelved = onShelf, tapsClean = Editions.tapsClean(setup, st),
-                place = at?.named, onPlace = { at?.let { onPlace(it.a3) } },
+                place = at?.named, onPlace = { at?.let { onPlace(it) } },
                 popoverOpen = sideMenu && menuKey == k,
                 onPopoverDismiss = { menuKey = null }
             ) {
@@ -545,7 +553,7 @@ private fun Corners(
     vm: EditionViewModel,
     now: Long,
     places: Map<String, app.localmind.assistant.domain.atlas.PlaceHit>,
-    onPlace: (String) -> Unit,
+    onPlace: (app.localmind.assistant.domain.atlas.PlaceHit) -> Unit,
     modifier: Modifier = Modifier
 ) {
     val filled = corners.filter { it.stories.isNotEmpty() }
@@ -590,7 +598,7 @@ private fun Corners(
             val small = listOf(Editions.smallPrint(st, now), if (st.paras.isNotEmpty()) "read it here ›" else "headline only").filter { it.isNotBlank() }.joinToString(" · ")
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(small, color = P.Faint, fontSize = 12.sp)
-                places[Editions.storyKey(st)]?.let { hit -> PlaceLink(hit.named) { onPlace(hit.a3) } }
+                places[Editions.storyKey(st)]?.let { hit -> PlaceLink(hit.named) { onPlace(hit) } }
             }
         }
     }

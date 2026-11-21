@@ -135,8 +135,17 @@ sleepy z's) are decoration: hidden from TalkBack and switchable in Settings → 
   beside the map. "Open" gives the country its page:
   its own map of subdivisions, facts each with where they come from, neighbours to hop to, today's
   stories and your books set there, and the tutor of its language to talk about it with.
-- Places in the edition and the Reader are quiet accent links ("Guangdong ›"); they open the
-  Atlas on that country.
+- Places in the edition and the Reader are quiet accent links ("Guangdong ›"). A country opens
+  the Atlas on its card; a city or region (or a name more than one country has) opens on the
+  place itself, pinned, with its own card: its name, what it is ("A city in California, United
+  States"), a quiet "Why here" box when the name was a choice, and the way to the country's card.
+- Your places (1.46) are never a bare switch. Two chips sit on the map's top corner, each with
+  its mark and count ("Today's stories · 6", "Your books · 3"). Stories are round pins on the
+  places themselves, books square ones at the country's label; each carries its name ("Los
+  Angeles · 2", "Japan · 2 books") right of the mark, else left, else under it, else none, and
+  the map's own lettering makes room for them. A tap docks a small card in the map's bottom
+  corner (never over the pin): the headlines with "Read ›", and "Country card ›". With nothing
+  picked, the world's card lists them: today's stories by place, your books where they're set.
 
 ## The Sloth Express (the edition)
 

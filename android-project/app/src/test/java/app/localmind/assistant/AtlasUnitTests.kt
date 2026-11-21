@@ -5,6 +5,7 @@ import app.localmind.assistant.domain.atlas.AtlasFiles
 import app.localmind.assistant.domain.atlas.AtlasQuiz
 import app.localmind.assistant.domain.atlas.EqualEarth
 import app.localmind.assistant.domain.atlas.PlaceFinder
+import app.localmind.assistant.domain.atlas.PlaceHit
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -75,7 +76,7 @@ class AtlasUnitTests {
         assertTrue(finder.find("Male voters and nice weather.").isEmpty())
     }
 
-    /** 1.46: a name shared by places in several countries (Los Angeles is also a city in Chile). */
+    /** 1.45.1: a name shared by places in several countries (Los Angeles is also a city in Chile). */
     private fun at(text: String, named: String): String? = finder.find(text, 8).firstOrNull { it.named == named }?.a3
 
     @Test
@@ -92,6 +93,45 @@ class AtlasUnitTests {
         assertEquals("USA", at("Chile's president visited Los Angeles on Monday.", "Los Angeles"))
         assertEquals("GEO", at("Georgia's parliament met in Tbilisi.", "Georgia"))
         assertEquals("ESP", at("Valencia flooded again, Spain said.", "Valencia"))
+    }
+
+    @Test
+    fun `a story's place is the place itself, with why it's that one`() {
+        val la = finder.find("Wildfires spread near Los Angeles on Tuesday.", 4).first()
+        assertEquals("Los Angeles", la.place)
+        assertEquals("city", la.placeKind)
+        assertTrue(la.located && la.lon < -117 && la.lon > -119 && la.lat > 33 && la.lat < 35)
+        assertTrue("CHL" in la.others)
+        assertEquals(PlaceHit.Why.BIGGER, la.why)
+        val beside = finder.find("Fires near Los Angeles, California, forced evacuations.", 4).first { it.named == "Los Angeles" }
+        assertEquals(PlaceHit.Why.BESIDE, beside.why)
+        assertEquals("California", beside.by)
+        val elsewhere = finder.find("Valencia flooded again, Spain said.", 4).first { it.a3 == "ESP" }
+        assertEquals("Valencia", elsewhere.named)
+        assertEquals(PlaceHit.Why.ELSEWHERE, elsewhere.why)
+        assertEquals("Spain", elsewhere.by)
+        // A name only one place has needs no reason.
+        val tokyo = finder.find("Markets in Tokyo rose.", 4).first()
+        assertTrue(tokyo.others.isEmpty())
+        assertEquals("", AtlasFacts.whyHere(tokyo) { byA3[it]?.english ?: it })
+        val why = AtlasFacts.whyHere(la) { byA3[it]?.english ?: it }
+        assertTrue(why, why.startsWith("Chile has one by that name too.") && why.endsWith("the bigger, better-known one."))
+        assertEquals("the United States", AtlasFacts.inSentence("USA", "United States"))
+        assertEquals("Chile", AtlasFacts.inSentence("CHL", "Chile"))
+    }
+
+    @Test
+    fun `pins go on the places a story names, not the region that only says where`() {
+        val la = finder.spots("Fires near Los Angeles, California. The United States sent help.")
+        assertEquals(listOf("Los Angeles"), la.map { it.place })
+        // Shanghai is a city as well as a region: listed beside Beijing, it's a place of its own.
+        val cities = finder.spots("Beijing, Shanghai and Shenzhen traded.").map { it.named }
+        assertTrue(cities.toString(), cities.containsAll(listOf("Beijing", "Shanghai")))
+        // A country is pinned only where the story names nothing inside it.
+        val countries = finder.spots("China and Japan talked.")
+        assertEquals(setOf("CHN", "JPN"), countries.map { it.a3 }.toSet())
+        assertTrue(countries.all { it.placeKind == "country" && it.located })
+        assertEquals(listOf("Atlanta"), finder.spots("Protests in Atlanta, Georgia, grew.").map { it.place })
     }
 
     @Test

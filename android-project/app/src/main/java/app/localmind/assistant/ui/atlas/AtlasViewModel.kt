@@ -23,6 +23,7 @@ import app.localmind.assistant.domain.atlas.AtlasQuestion
 import app.localmind.assistant.domain.atlas.AtlasQuiz
 import app.localmind.assistant.domain.atlas.AtlasSubdivision
 import app.localmind.assistant.domain.atlas.EqualEarth
+import app.localmind.assistant.domain.atlas.PlaceHit
 import app.localmind.assistant.domain.edition.Editions
 import app.localmind.assistant.domain.persona.SpeechLanguage
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -39,8 +40,40 @@ import kotlin.random.Random
 /** A request to frame part of the map: a projected box, and a number so the same box can be asked twice. */
 class Frame(val box: FloatArray, val nonce: Long = System.nanoTime())
 
-/** A mark on the map: stories in today's edition and books set there. */
-data class Pin(val stories: Int, val books: Int)
+/** A headline on a pin: the story's title, and its link (blank: nothing to open). */
+data class PinStory(val title: String, val url: String)
+
+/**
+ * A pin on the map, one of your places: a place today's paper names (round, at the place itself)
+ * or a country your books are set in (square, at its label). [key] is its own.
+ */
+data class MapPin(
+    val key: String,
+    val book: Boolean,
+    val name: String,
+    val a3: String,
+    val country: String,
+    val lon: Double,
+    val lat: Double,
+    val stories: List<PinStory> = emptyList(),
+    val books: List<String> = emptyList()
+) {
+    val count: Int get() = if (book) books.size else stories.size
+
+    companion object {
+        fun storyKey(a3: String, place: String) = "s|$a3|$place"
+        fun bookKey(a3: String) = "b|$a3"
+    }
+}
+
+/** Your places: today's stories by place, and your books by the country they're set in. */
+data class YourPlaces(val stories: List<MapPin> = emptyList(), val books: List<MapPin> = emptyList())
+
+/**
+ * Come from a story or an article: the place it names, pinned and picked, what it is ("A city in
+ * California, United States") and, where the name is more than one place's, why it's this one.
+ */
+data class Arrival(val hit: PlaceHit, val pin: MapPin, val what: String, val why: String)
 
 /** What the country card shows, worked out from the Atlas's data. */
 data class CountryInfo(
@@ -111,12 +144,16 @@ class AtlasViewModel @Inject constructor(
     private val _info = MutableStateFlow<CountryInfo?>(null)
     val info: StateFlow<CountryInfo?> = _info.asStateFlow()
 
-    private val _places = MutableStateFlow(false)
-    /** The "Your places" layer: today's stories and your books, pinned. */
-    val places: StateFlow<Boolean> = _places.asStateFlow()
+    private val _places = MutableStateFlow(YourPlaces())
+    /** Today's stories by place and your books by country, whether pinned or not (the counts show). */
+    val places: StateFlow<YourPlaces> = _places.asStateFlow()
 
-    private val _pins = MutableStateFlow<Map<String, Pin>>(emptyMap())
-    val pins: StateFlow<Map<String, Pin>> = _pins.asStateFlow()
+    private val _selected = MutableStateFlow<String?>(null)
+    /** The pin whose stories or books show beside the map. */
+    val selected: StateFlow<String?> = _selected.asStateFlow()
+
+    private val _arrival = MutableStateFlow<Arrival?>(null)
+    val arrival: StateFlow<Arrival?> = _arrival.asStateFlow()
 
     private val _results = MutableStateFlow<List<AtlasHit>>(emptyList())
     val results: StateFlow<List<AtlasHit>> = _results.asStateFlow()
@@ -146,6 +183,7 @@ class AtlasViewModel @Inject constructor(
             _world.value = w
             _picked.value?.let { describe(it) }
             if (prefs.value.relief) loadRelief()
+            refreshPins()
         }
     }
 
@@ -173,6 +211,8 @@ class AtlasViewModel @Inject constructor(
 
     /** Picks a country (null: none) and loads its subdivisions; [frame] moves the map to it. */
     fun pick(a3: String?, frame: Boolean = false) {
+        _arrival.value = null
+        _selected.value = null
         _picked.value = a3
         _pickedSub.value = null
         if (a3 == null) {
@@ -227,41 +267,160 @@ class AtlasViewModel @Inject constructor(
         _frame.value = Frame(floatArrayOf(boxes.minOf { it[0] }, boxes.minOf { it[1] }, boxes.maxOf { it[2] }, boxes.maxOf { it[3] }))
     }
 
-    fun setPlaces(on: Boolean) {
-        _places.value = on
-        if (on) viewModelScope.launch { refreshPins() }
+    // --- your places ---
+
+    /** Today's stories pinned, or not. */
+    fun setStories(on: Boolean) {
+        repo.setStories(on)
+        if (!on && _selected.value?.startsWith("s|") == true && _arrival.value == null) _selected.value = null
     }
 
-    /** Which countries today's edition and your shelf name: worked out with the place finder. */
+    /** Your books pinned, or not. */
+    fun setBooks(on: Boolean) {
+        repo.setBooks(on)
+        if (!on && _selected.value?.startsWith("b|") == true) _selected.value = null
+    }
+
+    /** Shows a pin's stories or books beside the map (null: none); [frame] moves the map to it. */
+    fun selectPin(key: String?, frame: Boolean = false) {
+        if (_arrival.value?.pin?.key != key) _arrival.value = null
+        _selected.value = key
+        if (_picked.value != null && key != null) {
+            _picked.value = null
+            _info.value = null
+            _regions.value = null
+            _regionPaths.value = emptyList()
+        }
+        // From the list: the pin with its part of the world round it, not a close-up.
+        if (frame && key != null) pinOf(key)?.let { framePoint(it.lon, it.lat, if (it.book) 40.0 else 30.0) }
+    }
+
+    /** A pin by its key: one of your places, or the place come from a story. */
+    fun pinOf(key: String): MapPin? = _arrival.value?.pin?.takeIf { it.key == key }
+        ?: _places.value.stories.firstOrNull { it.key == key }
+        ?: _places.value.books.firstOrNull { it.key == key }
+
+    /** A story's "Read": open in the Express as a tap on it there would (clean, or its page). */
+    fun read(story: PinStory) {
+        if (story.url.isNotBlank()) editions.askOpen(story.url, asTap = true)
+    }
+
+    /** Back to the Atlas: the paper or the shelf may have changed. */
+    fun refresh() {
+        if (_world.value != null) viewModelScope.launch { refreshPins() }
+    }
+
+    /**
+     * Where today's paper and your shelf are: each story's places (the place finder's spots, at
+     * most three a story: cities and regions, a country only where it names nothing in it), and
+     * the country each book is set in.
+     */
     private suspend fun refreshPins() {
         val finder = runCatching { repo.finder() }.getOrNull() ?: return
+        val w = _world.value ?: runCatching { repo.world() }.getOrNull() ?: return
         editions.load()
         shelf.load()
         val paper = editions.latest.value
         val books = shelf.books.value
         withContext(Dispatchers.Default) {
-            val stories = HashMap<String, MutableList<String>>()
+            val at = LinkedHashMap<String, MapPin>()
             paper?.stories?.forEach { s ->
                 val text = s.title + "\n" + s.summary + "\n" + s.paras.joinToString("\n") { it.t }
-                finder.find(text, 2).forEach { hit -> stories.getOrPut(hit.a3) { mutableListOf() } += s.title }
+                finder.spots(text, 3).filter { it.located }.forEach { hit ->
+                    val key = MapPin.storyKey(hit.a3, hit.place)
+                    val pin = at[key] ?: MapPin(key, false, hit.place, hit.a3, w.byA3[hit.a3]?.english ?: hit.a3, hit.lon, hit.lat)
+                    if (pin.stories.none { it.title == s.title }) at[key] = pin.copy(stories = pin.stories + PinStory(s.title, s.url))
+                }
             }
-            val shelved = HashMap<String, MutableList<String>>()
+            val shelved = LinkedHashMap<String, MutableList<String>>()
             books.forEach { b ->
                 val a3 = b.country.takeIf { it.isNotBlank() }?.let(finder::country) ?: return@forEach
                 shelved.getOrPut(a3) { mutableListOf() } += b.title
             }
-            storiesBy = stories
+            val bookPins = shelved.mapNotNull { (a3, titles) ->
+                val c = w.byA3[a3]?.takeIf { it.label.size >= 2 } ?: return@mapNotNull null
+                MapPin(MapPin.bookKey(a3), true, c.english, a3, c.english, c.label[0], c.label[1], books = titles.distinct())
+            }
+            val storyPins = at.values.sortedWith(compareByDescending<MapPin> { it.count }.thenBy { it.name })
+            storiesBy = storyPins.groupBy { it.a3 }.mapValues { (_, pins) -> pins.flatMap { p -> p.stories.map { it.title } }.distinct() }
             booksBy = shelved
-            _pins.value = (stories.keys + shelved.keys).associateWith { Pin(stories[it]?.size ?: 0, shelved[it]?.size ?: 0) }
+            _places.value = YourPlaces(storyPins, bookPins.sortedWith(compareByDescending<MapPin> { it.count }.thenBy { it.name }))
         }
         _picked.value?.let { describe(it) }
+    }
+
+    /**
+     * From a story or an article: the place it names. A country named plainly is picked and framed,
+     * as before; a city or region (or a name more than one country has) is pinned and framed
+     * itself, with what it is and, if it was a choice, why this one.
+     */
+    fun focusPlace(hit: PlaceHit) {
+        if (!hit.located || (hit.placeKind == "country" && hit.others.isEmpty())) {
+            focus(hit.a3)
+            return
+        }
+        pick(null)
+        viewModelScope.launch {
+            val w = repo.world()
+            val c = w.byA3[hit.a3] ?: return@launch
+            if (_places.value.stories.isEmpty()) refreshPins()
+            val key = MapPin.storyKey(hit.a3, hit.place)
+            val pin = _places.value.stories.firstOrNull { it.key == key }
+                ?: MapPin(key, false, hit.place, hit.a3, c.english, hit.lon, hit.lat)
+            val regions = runCatching { repo.regions(hit.a3) }.getOrNull()
+            val sub = regions?.let { r ->
+                when (hit.placeKind) {
+                    "subdivision" -> r.subdivisions.indexOfFirst { it.english == hit.place }.takeIf { it >= 0 }
+                    "city", "capital" -> withContext(Dispatchers.Default) { regionAt(r, hit.lon, hit.lat) }
+                    else -> null
+                }
+            }
+            val region = sub?.let { regions?.subdivisions?.getOrNull(it) }
+            val country = AtlasFacts.inSentence(c.a3, c.english)
+            val what = when (hit.placeKind) {
+                "country" -> listOf("A country", c.subregion.ifBlank { c.continent }).filter { it.isNotBlank() }.joinToString(" in ")
+                "subdivision" -> "A " + (region?.type?.lowercase()?.ifBlank { null } ?: "region") + " of " + country
+                "capital" -> "The capital of $country"
+                else -> "A city in " + listOfNotNull(region?.english, c.english).joinToString(", ")
+            }
+            val why = AtlasFacts.whyHere(hit) { a3 -> w.byA3[a3]?.english ?: a3 }
+            _arrival.value = Arrival(hit, pin, what, why)
+            _selected.value = key
+            when {
+                hit.placeKind == "country" -> frameCountry(c)
+                hit.placeKind == "subdivision" && sub != null -> regions?.outlines?.getOrNull(sub)?.let { _frame.value = Frame(it.bounds.copyOf()) }
+                    ?: framePoint(hit.lon, hit.lat, 9.0)
+                else -> framePoint(hit.lon, hit.lat, 9.0)
+            }
+        }
+    }
+
+    fun clearArrival() {
+        _arrival.value = null
+        _selected.value = null
+    }
+
+    /** The subdivision a point is in (projected, as the map's outlines are), or null. */
+    private fun regionAt(r: AtlasRegions, lon: Double, lat: Double): Int? {
+        val x = EqualEarth.x(lon, lat).toFloat()
+        val y = EqualEarth.y(lat).toFloat()
+        return r.outlines.indices.firstOrNull { i ->
+            val b = r.outlines[i].bounds
+            x >= b[0] && x <= b[2] && y >= b[1] && y <= b[3] && EqualEarth.contains(r.outlines[i].rings, x, y)
+        }
+    }
+
+    /** Frames [span] degrees of longitude round a point (about two-thirds as much latitude). */
+    private fun framePoint(lon: Double, lat: Double, span: Double) {
+        val h = span * 0.66
+        _frame.value = Frame(EqualEarth.boxOf(lon - span / 2, (lat - h / 2).coerceAtLeast(-89.0), lon + span / 2, (lat + h / 2).coerceAtMost(89.0)))
     }
 
     private suspend fun describe(a3: String) {
         val w = _world.value ?: return
         val c = w.byA3[a3] ?: return
         val i = w.indexOf[a3] ?: return
-        if (storiesBy.isEmpty() && booksBy.isEmpty() && !_places.value) runCatching { refreshPinsQuietly() }
+        if (storiesBy.isEmpty() && booksBy.isEmpty()) runCatching { refreshPinsQuietly() }
         val (others, same) = AtlasFacts.neighbours(c, w.byA3)
         val subs = _regions.value?.takeIf { it.a3 == a3 }?.subdivisions.orEmpty()
         val reading = c.names.zh?.let { zh ->

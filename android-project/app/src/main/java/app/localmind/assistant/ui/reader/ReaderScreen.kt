@@ -120,7 +120,7 @@ fun ReaderScreen(
     onCatchToNotes: (String) -> Unit,
     onCatchDismiss: (String) -> Unit,
     /** A place the text names, opened in the Atlas (by its country). */
-    onPlace: (String) -> Unit = {}
+    onPlace: (app.localmind.assistant.domain.atlas.PlaceHit) -> Unit = {}
 ) {
     val doc by viewModel.doc.collectAsStateWithLifecycle()
     val loading by viewModel.loading.collectAsStateWithLifecycle()
@@ -368,7 +368,7 @@ internal fun Reading(
     onCatchToLibrary: (String) -> Unit,
     onCatchToNotes: (String) -> Unit,
     onCatchDismiss: (String) -> Unit,
-    onPlace: (String) -> Unit,
+    onPlace: (app.localmind.assistant.domain.atlas.PlaceHit) -> Unit,
     onOpenPage: ((String) -> Unit)? = null
 ) {
     val context = LocalContext.current
@@ -525,7 +525,7 @@ internal fun Reading(
                                 places.forEach { hit ->
                                     Text(
                                         hit.named + " ›", color = P.Accent, fontSize = 13.sp,
-                                        modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable(onClickLabel = "Show ${hit.named} in the Atlas") { onPlace(hit.a3) }
+                                        modifier = Modifier.clip(RoundedCornerShape(6.dp)).clickable(onClickLabel = "Show ${hit.named} in the Atlas") { onPlace(hit) }
                                             .padding(horizontal = 6.dp, vertical = 6.dp)
                                     )
                                 }

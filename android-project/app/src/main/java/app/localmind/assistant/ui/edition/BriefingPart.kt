@@ -82,7 +82,7 @@ private fun Dots(level: Int) {
  * away, its own source rating as dots, and its watchlist with what it saw kept apart from its guesses.
  */
 @Composable
-internal fun BriefingPart(modifier: Modifier, onPlace: (String) -> Unit) {
+internal fun BriefingPart(modifier: Modifier, onPlace: (app.localmind.assistant.domain.atlas.PlaceHit) -> Unit) {
     val vm: BriefingViewModel = hiltViewModel()
     val all by vm.briefings.collectAsStateWithLifecycle()
     val shownId by vm.shown.collectAsStateWithLifecycle()
@@ -141,7 +141,7 @@ internal fun BriefingPart(modifier: Modifier, onPlace: (String) -> Unit) {
 private fun BriefingBody(
     b: Briefing,
     places: Map<String, app.localmind.assistant.domain.atlas.PlaceHit>,
-    onPlace: (String) -> Unit,
+    onPlace: (app.localmind.assistant.domain.atlas.PlaceHit) -> Unit,
     vm: BriefingViewModel,
     onWatch: (String) -> Unit,
     onNews: (String) -> Unit
@@ -205,7 +205,7 @@ private fun StoryBlock(
     expanded: Boolean,
     place: app.localmind.assistant.domain.atlas.PlaceHit?,
     onToggle: () -> Unit,
-    onPlace: (String) -> Unit,
+    onPlace: (app.localmind.assistant.domain.atlas.PlaceHit) -> Unit,
     onCheck: () -> Unit,
     onTrader: () -> Unit
 ) {
@@ -223,7 +223,7 @@ private fun StoryBlock(
             Row(Modifier.padding(start = 36.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 if (place != null) {
                     Row(
-                        Modifier.clip(RoundedCornerShape(8.dp)).clickable { onPlace(place.a3) }.padding(vertical = 4.dp),
+                        Modifier.clip(RoundedCornerShape(8.dp)).clickable { onPlace(place) }.padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically
                     ) {
                         Icon(Icons.Outlined.Place, contentDescription = null, tint = P.Accent, modifier = Modifier.size(15.dp))
