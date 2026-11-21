@@ -8,6 +8,14 @@ five releases of each app are kept.
 [Obtainium](https://github.com/ImranR98/Obtainium) watches those releases and installs updates,
 so there's no need to download artifacts from the Actions tab.
 
+## Release notes
+
+Each release's notes are its entry in `CHANGELOG.md` at the top of the repository, found by its
+heading (`## SlothLlama 1.46.0 — date`, or `## SlothLlama 1.45.0 · SlothLobster 1.12.1 — date`
+for a joint release), followed by the build, commit and SHA-256 lines. GitHub keeps only the
+newest five releases of each app; `CHANGELOG.md` keeps every one. A version without an entry
+says so instead.
+
 ## Setting it up
 
 1. Install Obtainium from its GitHub releases page.

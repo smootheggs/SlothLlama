@@ -118,7 +118,8 @@ jobs:
 
   # Publishes each signed build of sloth-terminal as a GitHub release, so Obtainium on the tablet
   # can notice and install updates. Only this job can write to the repository, and it runs no
-  # build tools: just the pinned download step and GitHub's own gh command. Debug builds are
+  # build tools: just the pinned download and checkout steps (the changelog, as text) and GitHub's own gh
+  # command. Debug builds are
   # never published. The newest 5 SlothLobster releases are kept.
   release:
     needs: build
@@ -134,6 +135,16 @@ jobs:
           name: slothlobster-apk
           path: out
 
+      # The release notes: this version's entry in CHANGELOG.md. Only that one file is checked out,
+      # as text; nothing from it runs, and the token isn't kept in the checkout.
+      - name: Get the changelog
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          path: src
+          sparse-checkout: CHANGELOG.md
+          sparse-checkout-cone-mode: false
+          persist-credentials: false
+
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -145,10 +156,19 @@ jobs:
           # of the same version replaces its release.
           TAG="slothlobster-v$VERSION"
           ( cd out && sha256sum SlothLobster.apk > SlothLobster.apk.sha256 && cat SlothLobster.apk.sha256 )
-          printf '%s\n' \
-            "SlothLobster $VERSION, build $GITHUB_RUN_NUMBER, from commit ${GITHUB_SHA:0:7}." \
-            "" \
-            "Signed with the release key. SHA-256: $(cut -d' ' -f1 out/SlothLobster.apk.sha256)" > notes.md
+          # This version's entry: from its heading ("## SlothLobster 1.2.3 ..."), up to the next one.
+          awk -v want="SlothLobster $VERSION " '/^## / { if (on) exit; on = index($0 " ", want) > 0 } on' \
+            src/CHANGELOG.md 2>/dev/null | head -c 60000 > entry.md || true
+          {
+            if [ -s entry.md ]; then cat entry.md; else echo "No changelog entry for SlothLobster $VERSION."; fi
+            echo
+            echo "---"
+            echo
+            printf '%s\n' \
+              "SlothLobster $VERSION, build $GITHUB_RUN_NUMBER, from commit ${GITHUB_SHA:0:7}." \
+              "" \
+              "Signed with the release key. SHA-256: $(cut -d' ' -f1 out/SlothLobster.apk.sha256)"
+          } > notes.md
           if gh release view "$TAG" > /dev/null 2>&1; then gh release delete "$TAG" --cleanup-tag --yes; fi
           gh release create "$TAG" out/SlothLobster.apk out/SlothLobster.apk.sha256 \
             --target "$GITHUB_SHA" --title "SlothLobster $VERSION" --notes-file notes.md
