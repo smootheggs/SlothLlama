@@ -11,6 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.Color
@@ -163,8 +164,11 @@ fun AtlasMap(
         }
     }
 
+    // Clipped to its own box: zoomed in, the land runs far past the edges, and nothing may be
+    // drawn over the top bar or the card beside it.
     Canvas(
         modifier
+            .clipToBounds()
             .onSizeChanged { size = it }
             .semantics { contentDescription = "World map" + (picked?.let { a3 -> ", " + (world.byA3[a3]?.english ?: "") + " picked" } ?: "") }
             .pointerInput(world) {
