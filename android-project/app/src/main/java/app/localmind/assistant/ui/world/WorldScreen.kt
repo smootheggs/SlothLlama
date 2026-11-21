@@ -164,9 +164,11 @@ fun WorldScreen(viewModel: WorldViewModel, onBack: () -> Unit, onRecord: () -> U
 
     BoxWithConstraints(Modifier.fillMaxSize().background(P.Canvas)) {
         val twoPanes = maxWidth >= WIDE && maxWidth > maxHeight
+        // Worked out here: maxWidth can't be read inside the Row, whose scope hides this one's.
+        val listWidth = minOf(600.dp, maxWidth * 0.48f)
         when {
             twoPanes -> Row(Modifier.fillMaxSize()) {
-                list(Modifier.width(minOf(600.dp, maxWidth * 0.48f)).fillMaxHeight())
+                list(Modifier.width(listWidth).fillMaxHeight())
                 Box(Modifier.width(1.dp).fillMaxHeight().background(P.Border))
                 Box(Modifier.weight(1f).fillMaxHeight()) {
                     if (openMarket != null) detail() else Text(

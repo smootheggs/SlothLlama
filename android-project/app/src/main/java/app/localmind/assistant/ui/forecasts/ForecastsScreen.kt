@@ -4,6 +4,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.layout.fillMaxHeight
 import app.localmind.assistant.domain.forecasts.PlaceStat
 import app.localmind.assistant.domain.forecasts.Luck
+import app.localmind.assistant.domain.forecasts.Place
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -52,6 +53,7 @@ import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -238,6 +240,87 @@ private fun SummaryCard(s: Summary, wide: Boolean) {
             CalibrationChart(s.bands, Modifier.fillMaxWidth().height(240.dp))
             inner()
         }
+    }
+}
+
+/** Where you made your calls: how many are checked, their Brier score, and how often you beat that place's reference. */
+@Composable
+private fun PlacesCard(places: List<PlaceStat>) {
+    if (places.isEmpty()) return
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(P.Card).padding(horizontal = 16.dp, vertical = 14.dp)
+    ) {
+        SmallLabel("By place")
+        places.forEachIndexed { i, s ->
+            if (i > 0) Box(Modifier.fillMaxWidth().height(1.dp).background(P.Border))
+            Row(Modifier.fillMaxWidth().padding(vertical = 11.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(s.place.label, color = P.Text, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+                    Text(placeNote(s), color = P.Faint, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                }
+                Column(Modifier.width(64.dp), horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(s.brier?.let { String.format(java.util.Locale.ENGLISH, "%.2f", it) } ?: "—", color = P.Muted, fontSize = 13.sp)
+                    s.brier?.let { b -> Gauge(b / 0.25) }
+                }
+                Text(
+                    if (s.withReference == 0) "—" else "beat ${s.place.reference}\n${s.beat} of ${s.withReference}",
+                    color = if (s.withReference == 0) P.Faint else P.Accent, fontSize = 12.sp, lineHeight = 16.sp,
+                    fontWeight = FontWeight.Medium, modifier = Modifier.width(104.dp), textAlign = TextAlign.End
+                )
+            }
+        }
+    }
+}
+
+private fun placeNote(s: PlaceStat): String {
+    val where = when (s.place) {
+        Place.MARKETS -> "SlothDesk ideas and price calls"
+        Place.SPORTS -> "picks, marked by the score"
+        Place.WORLD -> "markets you follow"
+        Place.OWN -> "anything else"
+    }
+    val counts = buildList {
+        if (s.checked > 0) add("${s.checked} checked")
+        if (s.open > 0) add("${s.open} open")
+    }
+    return (listOf(where) + counts).joinToString(" · ")
+}
+
+/** Reasoning against result, for the calls you rated: luck and skill told apart, gently. */
+@Composable
+private fun LuckCard(luck: Luck) {
+    Column(
+        Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(P.Card).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        SmallLabel(if (luck.total == 0) "Reasoning and result" else "Reasoning and result · ${luck.total} rated")
+        if (luck.total == 0) {
+            Text(
+                "When you mark a call you can say whether the reasoning was sound. Rated calls show here, so a lucky win " +
+                    "and a good call that didn't go your way are told apart.",
+                color = P.Faint, fontSize = 12.sp, lineHeight = 17.sp
+            )
+            return@Column
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LuckCell(luck.soundRight, "sound, went your way", P.Accent, Modifier.weight(1f))
+            LuckCell(luck.soundWrong, "sound, unlucky", P.Text, Modifier.weight(1f))
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LuckCell(luck.shakyRight, "shaky, lucky", P.Warning, Modifier.weight(1f))
+            LuckCell(luck.shakyWrong, "shaky, went wrong", P.Muted, Modifier.weight(1f))
+        }
+    }
+}
+
+@Composable
+private fun LuckCell(n: Int, label: String, color: Color, modifier: Modifier) {
+    Column(
+        modifier.clip(RoundedCornerShape(10.dp)).background(P.Elevated).padding(horizontal = 12.dp, vertical = 10.dp),
+        verticalArrangement = Arrangement.spacedBy(2.dp)
+    ) {
+        Text("$n", color = color, fontSize = 20.sp, fontFamily = FontFamily.Serif, fontWeight = FontWeight.Medium)
+        Text(label, color = P.Faint, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
     }
 }
 
