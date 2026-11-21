@@ -10,6 +10,7 @@ import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.LocalLibrary
 import androidx.compose.material.icons.automirrored.outlined.MenuBook
 import androidx.compose.material.icons.outlined.Memory
+import androidx.compose.material.icons.outlined.MusicNote
 import androidx.compose.material.icons.outlined.Newspaper
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.PersonOutline
@@ -76,6 +77,8 @@ fun HomeRoute(
     onProjects: () -> Unit = {},
     /** Forecasts: every call with a chance and a date. */
     onForecasts: () -> Unit = {},
+    /** Music: tuner, metronome, chords, scales, songbook, ear training. */
+    onMusic: () -> Unit = {},
     onNotes: () -> Unit,
     onDesk: () -> Unit = {},
     /** The Later shelf (in the Reader). */
@@ -154,7 +157,8 @@ fun HomeRoute(
             Icons.Outlined.Style, "Flashcards", cards.dueCount.takeIf { it > 0 }?.let { "$it due" } ?: "", onFlashcards,
             if (cards.dueCount > 0) Tone.ACCENT else Tone.QUIET
         ),
-        HomeTile(Icons.Outlined.Translate, "Dictionary", "", onDictionary)
+        HomeTile(Icons.Outlined.Translate, "Dictionary", "", onDictionary),
+        HomeTile(Icons.Outlined.MusicNote, "Music", "", onMusic)
     )
 
     // Know: what you read (SlothBooks), what you note, and what's saved for later.

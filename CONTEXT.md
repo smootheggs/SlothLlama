@@ -29,7 +29,7 @@ Home is one screen upright (except for the day's Chinese, which may scroll). Its
 the date and almanac, the hello (with the **status line**: calm things such as "backup saved
 Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a quiet row.
 
-- **Learn**: the tutors (as favourites and practice dots), Core words, Flashcards, Dictionary.
+- **Learn**: the tutors (as favourites and practice dots), Core words, Flashcards, Dictionary, Music.
 - **Know**: SlothBooks, The Sloth Express, Atlas, Later.
 - **Weigh** (was Do, until 1.37): SlothDesk, Forecasts, Projects; Sports joins it.
 - **Quiet row**: Chats, Personas, Models (with the model's name), Library, Notes, the Lobster
@@ -59,6 +59,11 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
 - **Flashcards**: spaced repetition (FSRS). "Due" means due for review today.
 - **Dictionary**: offline CC-CEDICT with Jyutping for Cantonese; tap a word to look it up.
 - **Practice week**: the seven dots on Home, filled for a day with any practice.
+- **Music**: the **tuner** (a **tuning**, or chromatic; a **horn** setting shows saxophones'
+  written notes), the **metronome** (beats, subdivision, **speed trainer**), **chords** (a
+  **shape** is one way to finger a chord, worked out from its notes), **scales** (a **position**
+  is five frets of one), the **songbook** (your pasted **sheets**; **shift** moves the key, the
+  **capo** shows the shapes you play), and **ear** training.
 
 ## Know
 

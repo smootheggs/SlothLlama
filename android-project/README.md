@@ -136,6 +136,18 @@ model too big for the GPU falls back to the CPU on its own.
   the sea, the globe's grid and atlas lettering; shaded relief (Natural Earth's, public domain,
   about 3 MB) switches on and off. Upright, the map takes the top half and the country's card,
   or the world's, the rest.
+- **Music** (1.38). Home → Learn → Music, all played and heard on the tablet. **Tuner**: guitar
+  tunings (standard, Drop D, DADGAD, open G and D, half a step down) with each string's note to
+  play, or chromatic; for saxophone it shows the note as written for alto, tenor or soprano, and
+  which way to move the mouthpiece; A4 can be set. It listens only while it's open and keeps
+  nothing. **Metronome**: 30–260 BPM, 2–7 beats, quavers, triplets or semiquavers, tap tempo, and a
+  speed trainer that raises the tempo every few bars. **Chords**: type any chord (Am7, F#m7b5,
+  Cadd9/G) for its notes and shapes, worked out from the notes (tap one to hear it), or tap frets on
+  an empty box and it names what you're holding. **Scales**: twelve scales and modes on the neck,
+  by degree, whole neck or one position at a time. **Songbook**: paste a chord sheet (chords over
+  words, or ChordPro); move it to another key, put a capo on (chords then show as the shapes you
+  play), tap a chord for its shape, and let it scroll while you play. **Ear**: intervals and chord
+  types, played and guessed; the tally isn't kept. Songs are in backups.
 - **Weigh and Forecasts** (1.37). Home's third pillar is now **Weigh**: SlothDesk, Forecasts and
   Projects (Sports joins it next). The Lobster and Ourjong moved to the bottom row; a catch still
   shows there in coral, with its count. **Forecasts** keeps every call with a chance and a date: a

@@ -59,7 +59,9 @@ data class BackupContents(
     /** Projects: each project's record and its documents (projects/projects.json). */
     val projects: String? = null,
     /** Forecasts: your calls and their chances (forecasts/calls.json). SlothDesk's ideas are in their own part. */
-    val forecasts: String? = null
+    val forecasts: String? = null,
+    /** Music: the songbook's chord sheets (music/songs.json). */
+    val songs: String? = null
 )
 
 /** Names of the models and Library files, which are too large to go into a backup. */
@@ -107,7 +109,8 @@ class BackupManager @Inject constructor(
     private val books: app.localmind.assistant.data.books.BookShelf,
     private val editions: app.localmind.assistant.data.edition.EditionStore,
     private val projects: app.localmind.assistant.data.projects.ProjectBook,
-    private val forecasts: app.localmind.assistant.data.forecasts.ForecastBook
+    private val forecasts: app.localmind.assistant.data.forecasts.ForecastBook,
+    private val songs: app.localmind.assistant.data.music.SongBook
 ) {
     private val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
 
@@ -128,7 +131,8 @@ class BackupManager @Inject constructor(
             books = runCatching { books.backupText() }.getOrNull(),
             edition = runCatching { editions.backupText() }.getOrNull(),
             projects = runCatching { projects.backupText() }.getOrNull(),
-            forecasts = runCatching { forecasts.backupText() }.getOrNull()
+            forecasts = runCatching { forecasts.backupText() }.getOrNull(),
+            songs = runCatching { songs.backupText() }.getOrNull()
         )
         val payload = gzip(json.encodeToString(BackupContents.serializer(), contents).toByteArray())
         val bytes = if (password.isNullOrEmpty()) header(encrypted = false) + payload else seal(payload, password)
@@ -178,6 +182,7 @@ class BackupManager @Inject constructor(
         contents.edition?.let { runCatching { editions.mergeBackup(it) } }
         contents.projects?.let { runCatching { projects.mergeBackup(it) } }
         contents.forecasts?.let { runCatching { forecasts.mergeBackup(it) } }
+        contents.songs?.let { runCatching { songs.mergeBackup(it) } }
         val here = inventory()
         contents.summary().copy(
             missingModels = contents.inventory.models - here.models.toSet(),

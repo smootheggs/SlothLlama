@@ -203,3 +203,15 @@ sleepy z's) are decoration: hidden from TalkBack and switchable in Settings → 
   newest first. Marking is a row of pills: It happened, It didn't (or each outcome), Doesn't
   count.
 - Ideas read in from SlothDesk say so and send you back there to review them.
+
+## Music
+
+- One page under Learn with six tabs as pills: Tuner, Metronome, Chords, Scales, Songbook, Ear.
+  Each tab is a few cards; the big number (the note, the tempo) is serif, moss when it's right.
+- The tuner's needle: ticks every 5 cents, the centre in moss; the needle's bar is amber when off
+  and moss within 5 cents. The words say which way to go ("tighten a little", "push the mouthpiece
+  in"), never just a number.
+- Chord boxes are drawn from the shape (strings up, frets across, × and ○ above the nut, the fret
+  number beside a shape up the neck), so every chord has them. Tapping one plays it.
+- The songbook shows chords over their words as pairs that wrap together, so a narrow screen
+  never splits a chord from its word. Section names are small moss capitals.
