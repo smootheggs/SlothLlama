@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.Abc
 import androidx.compose.material.icons.outlined.AutoAwesome
 import androidx.compose.material.icons.outlined.Balance
 import androidx.compose.material.icons.outlined.Bolt
+import androidx.compose.material.icons.outlined.CallEnd
 import androidx.compose.material.icons.outlined.Checklist
 import androidx.compose.material.icons.outlined.Code
 import androidx.compose.material.icons.outlined.Compress
@@ -74,8 +75,36 @@ object QuickActions {
     fun forPersona(persona: Persona, lastReply: String? = null): List<QuickAction> {
         val reply = lastReply.orEmpty()
         val language = persona.speech
-        return if (language != null) tutor(language, reply) else general(reply)
+        return when {
+            language != null -> tutor(language, reply)
+            persona.id == TRADER_ID -> trader() + general(reply)
+            else -> general(reply)
+        }
     }
+
+    /**
+     * The Trader's practice calls: always a way to end the call for feedback, ask for a hint
+     * without breaking the call, or start one with another client.
+     */
+    private fun trader(): List<QuickAction> = listOf(
+        QuickAction(
+            "End call · feedback",
+            "End the call. Step out of character and give me short feedback: what was clear, what was missing, and what to ask next time.",
+            Icons.Outlined.CallEnd
+        ),
+        QuickAction(
+            "Hint",
+            "Step out of character for one line only: what would a good sales trader say next here? Then go back into character and wait for me.",
+            Icons.Outlined.Lightbulb
+        ),
+        QuickAction(
+            "New client",
+            "Role-play a different client of your choice: a miner, a refiner, a central bank, a fund or a jeweller. I'm the sales trader. Open the call as the client in two or three sentences, then stop and wait for me.",
+            Icons.Outlined.TheaterComedy
+        )
+    )
+
+    private const val TRADER_ID = "persona-trader"
 
     private fun tutor(language: SpeechLanguage, reply: String): List<QuickAction> {
         val long = reply.length > 700
@@ -90,7 +119,7 @@ object QuickActions {
             QuickAction("Your turn", "Ask me a question I can answer at my level, then wait for my answer.", Icons.Outlined.QuestionAnswer),
             QuickAction("Grammar", "Explain the grammar in your last reply, with two more examples.", Icons.Outlined.School),
             QuickAction("New words", "Teach me three useful new words related to what we're talking about.", Icons.Outlined.Abc),
-            QuickAction("Role-play", "Let's role-play a real situation, like ordering food at a restaurant. You start.", Icons.Outlined.TheaterComedy)
+            QuickAction("Role-play", "Let's role-play a real situation, like ordering food at a restaurant. You play the other person, one or two lines at a time, then stop and wait for my reply. Don't write my lines.", Icons.Outlined.TheaterComedy)
         )
         val special = when (language) {
             SpeechLanguage.MANDARIN, SpeechLanguage.CANTONESE -> {
