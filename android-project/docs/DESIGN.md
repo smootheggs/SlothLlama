@@ -215,3 +215,15 @@ sleepy z's) are decoration: hidden from TalkBack and switchable in Settings → 
   number beside a shape up the neck), so every chord has them. Tapping one plays it.
 - The songbook shows chords over their words as pairs that wrap together, so a narrow screen
   never splits a chord from its word. Section names are small moss capitals.
+
+## Sports
+
+- Pills for Games, Tables and Your picks, then the leagues you follow, greyed. Games are rows:
+  the time, "Lakers at Warriors" (the away side first for American leagues; "Arsenal v Chelsea"
+  for football), the score, or the model's favourite and its chance.
+- A game's page reads top down: the two sides with their records and form, what goes in
+  (ratings, your factors, the expected margin), the games played out (a histogram of margins, the
+  home side's wins in moss, the spread dashed), then model and market as paired bars, the model's
+  in moss over the market's in grey. Football has the score grid instead, darker for likelier.
+- The Lobster's coral appears only where the Lobster acts: "Ask the Lobster". Results credit
+  their sources at the foot of the page.

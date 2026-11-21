@@ -17,6 +17,7 @@ import androidx.compose.material.icons.outlined.PersonOutline
 import androidx.compose.material.icons.outlined.Sailing
 import androidx.compose.material.icons.outlined.ShowChart
 import androidx.compose.material.icons.outlined.Shield
+import androidx.compose.material.icons.outlined.SportsBasketball
 import androidx.compose.material.icons.outlined.StickyNote2
 import androidx.compose.material.icons.outlined.Style
 import androidx.compose.material.icons.outlined.FormatListNumbered
@@ -79,6 +80,8 @@ fun HomeRoute(
     onForecasts: () -> Unit = {},
     /** Music: tuner, metronome, chords, scales, songbook, ear training. */
     onMusic: () -> Unit = {},
+    /** Sports: results from the Lobster, the models, and picks. */
+    onSports: () -> Unit = {},
     onNotes: () -> Unit,
     onDesk: () -> Unit = {},
     /** The Later shelf (in the Reader). */
@@ -98,6 +101,9 @@ fun HomeRoute(
     val home: HomeViewModel = hiltViewModel()
     val trading: TradingViewModel = hiltViewModel()
     val tradingStats by trading.stats.collectAsStateWithLifecycle()
+    val sportsVm: app.localmind.assistant.ui.sports.SportsViewModel = hiltViewModel()
+    val sportsResults by sportsVm.results.collectAsStateWithLifecycle()
+    val sportsYours by sportsVm.yours.collectAsStateWithLifecycle()
     val forecastsVm: app.localmind.assistant.ui.forecasts.ForecastsViewModel = hiltViewModel()
     val callList by forecastsVm.calls.collectAsStateWithLifecycle()
     val projectsVm: app.localmind.assistant.ui.projects.ProjectsViewModel = hiltViewModel()
@@ -204,7 +210,7 @@ fun HomeRoute(
         )
     }
 
-    // Weigh: SlothDesk (strategies, ideas, sums), Forecasts (every call, scored) and Projects.
+    // Weigh: SlothDesk (strategies, ideas, sums), Sports, Forecasts (every call, scored) and Projects.
     val act = buildList {
         val ideasDue = tradingStats.due
         add(
@@ -219,6 +225,20 @@ fun HomeRoute(
                 onDesk,
                 if (ideasDue > 0 || ticketsToMark != null) Tone.ACCENT else Tone.QUIET,
                 key = "desk"
+            )
+        )
+        // Sports: the next game (or race) in what you follow.
+        val nextGame = sportsResults?.let { b ->
+            sportsYours.follow.mapNotNull { id -> b.leagues[id]?.let { id to it } }.flatMap { (id, d) ->
+                d.games.filter { !it.played && it.state != "in" }.map { g -> Triple(g.date, if (id in setOf("nba", "nfl")) "${g.awayAbbr.ifBlank { g.away }} at ${g.homeAbbr.ifBlank { g.home }}" else "${g.home} v ${g.away}", g) }
+            }.filter { app.localmind.assistant.ui.sports.SportsViewModel.dayOf(it.third) >= todayDate }.minByOrNull { it.first }
+        }
+        add(
+            HomeTile(
+                Icons.Outlined.SportsBasketball, "Sports",
+                nextGame?.let { "${it.second} · ${app.localmind.assistant.ui.sports.whenOf(it.third).substringAfter("· ")}" } ?: "",
+                onSports,
+                key = "sports"
             )
         )
         // Forecasts: lit with the calls whose check day has come; otherwise the next check.

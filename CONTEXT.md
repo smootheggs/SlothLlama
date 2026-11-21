@@ -31,7 +31,7 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
 
 - **Learn**: the tutors (as favourites and practice dots), Core words, Flashcards, Dictionary, Music.
 - **Know**: SlothBooks, The Sloth Express, Atlas, Later.
-- **Weigh** (was Do, until 1.37): SlothDesk, Forecasts, Projects; Sports joins it.
+- **Weigh** (was Do, until 1.37): SlothDesk, Sports, Forecasts, Projects.
 - **Quiet row**: Chats, Personas, Models (with the model's name), Library, Notes, the Lobster
   (coral with a count when there's a catch), Ourjong (a separate mahjong app, opened from here),
   Arrange.
@@ -107,6 +107,13 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
   **calibration** is how often your calls at each level came true. A **market's chance** is one
   you entered, from a percent or a **price** (decimal, American, fractional); the **margin** is
   what a book's prices add up to over 100%. SlothDesk's ideas appear as calls, read in place.
+- **Sports**: the **leagues** you follow; **games** and **races** with their **results**, brought by
+  the Lobster; **tables** counted from them. A game has **ratings** (Elo, or attack and defence),
+  your **factors** (points, goals or places toward one side, each with a reason) and a **book**
+  (the prices: money lines, the home side's **spread**, the **total**). It's **played out** many
+  times for its chances; **fair odds** are 1 ÷ chance; the **edge** is the model's chance less the
+  market's. A **pick** is a call in Forecasts that marks itself from the score; the **closing
+  line** is the market's last price before the start.
 
 ## House rules
 
@@ -135,3 +142,4 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
 | facts sheet | context, prompt data |
 | call, chance | bet, prediction, confidence |
 | Weigh | Do (the old name) |
+| pick (paper) | bet, wager, stake |

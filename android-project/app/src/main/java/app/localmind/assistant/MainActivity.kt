@@ -210,7 +210,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES, LOBSTER, READER, DESK, CORE, BOOKS, EDITION, ATLAS, PROJECTS, FORECASTS, MUSIC }
+private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES, LOBSTER, READER, DESK, CORE, BOOKS, EDITION, ATLAS, PROJECTS, FORECASTS, MUSIC, SPORTS }
 
 /**
  * Home (or the last chat, per Settings) on a fresh start. Screens open on top of each other and
@@ -347,6 +347,7 @@ private fun SlothRoot(
                     onProjects = { navigate(Destination.PROJECTS) },
                     onForecasts = { navigate(Destination.FORECASTS) },
                     onMusic = { navigate(Destination.MUSIC) },
+                    onSports = { navigate(Destination.SPORTS) },
                     onNotes = { navigate(Destination.NOTES) },
                     onDesk = { navigate(Destination.DESK) },
                     onLater = {
@@ -427,7 +428,8 @@ private fun SlothRoot(
                     viewModel = lobster,
                     onBack = goHome,
                     onRead = { fileName -> read(ReaderSource.CATCH, fileName) },
-                    onDesk = { navigate(Destination.DESK) }
+                    onDesk = { navigate(Destination.DESK) },
+                    onSports = { navigate(Destination.SPORTS) }
                 )
                 Destination.DESK -> DeskScreen(
                     viewModel = hiltViewModel<DeskViewModel>(),
@@ -440,6 +442,9 @@ private fun SlothRoot(
                 Destination.ATLAS -> app.localmind.assistant.ui.atlas.AtlasScreen(viewModel = atlas, onBack = goHome)
                 Destination.PROJECTS -> app.localmind.assistant.ui.projects.ProjectsScreen(viewModel = projects, onBack = goHome)
                 Destination.MUSIC -> app.localmind.assistant.ui.music.MusicScreen(viewModel = hiltViewModel(), onBack = goHome)
+                Destination.SPORTS -> app.localmind.assistant.ui.sports.SportsScreen(
+                    viewModel = hiltViewModel(), onBack = goHome, onForecasts = { navigate(Destination.FORECASTS) }
+                )
                 Destination.FORECASTS -> app.localmind.assistant.ui.forecasts.ForecastsScreen(
                     viewModel = hiltViewModel(), onBack = goHome, onDesk = { navigate(Destination.DESK) }
                 )

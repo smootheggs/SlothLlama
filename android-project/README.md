@@ -136,6 +136,19 @@ model too big for the GPU falls back to the CPU on its own.
   the sea, the globe's grid and atlas lettering; shaded relief (Natural Earth's, public domain,
   about 3 MB) switches on and off. Upright, the map takes the top half and the country's card,
   or the world's, the rest.
+- **Sports** (1.39, with SlothLobster 1.9). Home → Weigh → Sports: the leagues you follow (NBA,
+  NFL, F1 and football: the Premier League, LaLiga, Bundesliga, Serie A, Ligue 1, MLS, the
+  Champions League). The Lobster brings this season's results and the next two weeks' games from
+  ESPN's public scoreboard (with the day's line where ESPN shows one) and F1 from Jolpica-F1, then
+  fresh ones every morning. Tables are counted from the results. A game's page: ratings from the
+  results (Elo for the NBA and NFL; attack and defence, by Poisson, for football), your factors
+  (absences, rest, travel, each in points or goals with a reason), and your prices, typed or
+  pasted in any style (the book's margin is taken out); then the game played 20,000 times on the
+  tablet: the margins, the chance of each result, cover and total, fair odds, and the model
+  against the market. F1: each driver's chance to win, reach the podium or score, from recent
+  races and your factors. **Make a pick** puts it in Forecasts with your chance and the market's;
+  it marks itself when the result comes in, and Your picks shows how often you beat the closing
+  line. Paper only: nothing is ever bet. Your prices and factors are in backups.
 - **Music** (1.38). Home → Learn → Music, all played and heard on the tablet. **Tuner**: guitar
   tunings (standard, Drop D, DADGAD, open G and D, half a step down) with each string's note to
   play, or chromatic; for saxophone it shows the note as written for alto, tenor or soprano, and

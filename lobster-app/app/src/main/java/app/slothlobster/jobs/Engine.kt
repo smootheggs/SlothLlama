@@ -232,6 +232,7 @@ class Engine(private val lobster: Lobster) {
                 OrderKind.PRICES -> prices(job)
                 OrderKind.COVERS -> covers(job)
                 OrderKind.EDITION -> editionOrder(job)
+                OrderKind.SPORTS -> sports(job)
             }
             checkpoint(job.id)
             val catch = forLater(job, outcome.catch)
@@ -473,6 +474,28 @@ class Engine(private val lobster: Lobster) {
             fileBase64 = Base64.getEncoder().encodeToString(Prices.encode(g.bundle).toByteArray(Charsets.UTF_8))
         )
         return Outcome(catch, summary, "${g.bundle.series.size} series for SlothDesk")
+    }
+
+    /** Results and fixtures for SlothLlama's Sports page: ESPN's public scoreboard and Jolpica-F1 only. */
+    private suspend fun sports(job: Job): Outcome {
+        val (leagues, since) = Sports.request(job.text)
+        if (leagues.isEmpty()) throw WebException("The order doesn't name any leagues (nba, nfl, epl, f1…)")
+        val names = leagues.map { Sports.LEAGUES.getValue(it).third }
+        setSources(job.id, names.map { SourceState(it, "", "sports", "reading") })
+        val g = Sports.gather(leagues, since, BuildConfig.VERSION_NAME) { name, what -> store.log("sports", name, what) }
+        setSources(job.id, leagues.map { id -> val n = Sports.LEAGUES.getValue(id).third; SourceState(n, "", "sports", if (id in g.bundle.leagues) "done" else "failed") })
+        val summary = Sports.summary(g)
+        val catch = LobsterCatch(
+            id = UUID.randomUUID().toString(),
+            orderId = job.orderId,
+            kind = "sports",
+            title = "Results · " + g.bundle.leagues.values.joinToString(", ") { it.name },
+            text = summary,
+            createdAt = System.currentTimeMillis(),
+            fileName = "slothsports.json",
+            fileBase64 = Base64.getEncoder().encodeToString(Sports.encode(g.bundle).toByteArray(Charsets.UTF_8))
+        )
+        return Outcome(catch, summary, "Results for Sports")
     }
 
     /**
@@ -1053,6 +1076,7 @@ class Engine(private val lobster: Lobster) {
             OrderKind.PRICES -> "Fetching prices"
             OrderKind.COVERS -> "Finding book covers"
             OrderKind.EDITION -> "Making the edition"
+            OrderKind.SPORTS -> "Fetching results"
         }
     }
 }
