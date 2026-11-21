@@ -187,3 +187,19 @@ sleepy z's) are decoration: hidden from TalkBack and switchable in Settings → 
   in a soft circle with its band beside it.
 - Documents read like a page: a serif title, small-caps headings, the chat's markdown for the
   rest. A note at the foot says whether it was built on the tablet or kept from a chat.
+
+## Weigh and Forecasts
+
+- Home's pillars are Learn, Know and Weigh. Weigh is for things with a chance attached:
+  SlothDesk, Forecasts, Projects (Sports next). The Lobster and Ourjong are places you go, so
+  they sit in the bottom row; when the names don't fit on one line, the Lobster and Ourjong keep
+  only their marks first, then every link but Models.
+- Forecasts' ledger: area pills, a card with the calibration chart (what you said across, how
+  often it happened up; the dashed diagonal is spot on; dots grow with the number of calls), the
+  Brier score with a thin gauge toward 0.25, and one plain sentence about the band furthest off.
+  Then To check (soonest first) and Checked (a tick or a cross: did it go your way).
+- A call's page: the question in serif, your chance large in moss, a market's in grey, the days
+  to the check date, the trail of your chance (solid) and the market's (dashed), and your reasons
+  newest first. Marking is a row of pills: It happened, It didn't (or each outcome), Doesn't
+  count.
+- Ideas read in from SlothDesk say so and send you back there to review them.

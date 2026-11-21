@@ -178,7 +178,8 @@ data class HomeActions(
  * The main page. Top: the date, today in Chinese and the almanac line, with search and settings.
  * Then a hello with a quiet status line, the two main actions (continue the last chat, start a new
  * one), a word and an idiom for the day, then the three pillars: Learn (the tutors, one chip per
- * language with the week's practice, and the word tools), Know and Do, and a quiet row for the rest.
+ * language with the week's practice, and the word tools), Know and Weigh, and a quiet row for the rest
+ * (where the Lobster and Ourjong live since 1.37).
  * Colour is kept for the one main action and live numbers; icons stay neutral. What needs you
  * (cards due, an unread edition, a catch, tickets to mark) lights up its own tile, so nothing shows twice.
  * Everything fits on one screen: two columns in landscape, one spread over the height in portrait.
@@ -195,7 +196,7 @@ fun HomeScreen(
     learn: List<HomeTile>,
     /** Know: SlothBooks, Notes, Later. */
     know: List<HomeTile>,
-    /** Do: SlothDesk, the Lobster, Ourjong. */
+    /** Weigh: SlothDesk, Forecasts, Projects (and Sports, when it comes). */
     act: List<HomeTile>,
     more: List<HomeTile>,
     /** Favourite personas, in order: a chip each that starts a chat. */
@@ -431,14 +432,20 @@ fun HomeScreen(
                             .padding(horizontal = 16.dp, vertical = 14.dp)
                     )
                 } else {
-                    // One line: when the full names don't fit, Models shows just the model's name
-                    // (its chip icon says what it is). Only a narrow phone wraps.
+                    // One line. When the full names don't fit, step by step: Models shows just the
+                    // model's name (its chip icon says what it is); then the Lobster and Ourjong keep
+                    // only their marks (and a catch's count); then every link but Models does. Only a
+                    // narrow phone wraps.
                     BoxWithConstraints(Modifier.weight(1f)) {
                         val room = maxWidth
                         val shortened = more.map { t -> if (t.key == "models" && t.detail.isNotBlank()) t.copy(label = t.detail, detail = "") else t }
-                        val shown = if (laneWidth(more) <= room) more else shortened
+                        val bare = shortened.filter { it.key != "models" }.map { it.key }.toSet()
+                        val iconOnly = listOf(emptySet(), emptySet(), setOf("lobster", "ourjong"), bare)
+                            .zip(listOf(more, shortened, shortened, shortened))
+                            .firstOrNull { (marks, tiles) -> laneWidth(tiles, marks) <= room }
+                            ?: (bare to shortened)
                         FlowRow(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            shown.forEach { tile -> MoreButton(tile) }
+                            iconOnly.second.forEach { tile -> MoreButton(tile, iconOnly = tile.key in iconOnly.first) }
                         }
                     }
                     IconButton(onClick = { arranging = true; picked = null }, modifier = Modifier.size(48.dp)) {
@@ -462,7 +469,7 @@ fun HomeScreen(
         if (twoPages) {
             // Landscape (and an open foldable): two pages, each one screen tall. Left, now: the hello,
             // the main actions and the day's Chinese. Right, places: favourites, Learn, Know,
-            // Do and the quiet row. Both start and end on the same lines.
+            // Weigh and the quiet row. Both start and end on the same lines.
             Column(Modifier.fillMaxSize().padding(horizontal = if (roomy) 40.dp else 24.dp, vertical = 16.dp)) {
                 top()
                 Row(Modifier.weight(1f).padding(top = 12.dp)) {
@@ -476,7 +483,7 @@ fun HomeScreen(
                         favouritesRow()
                         learnSection()
                         pillar("Know", "know", know)
-                        pillar("Do", "do", act)
+                        pillar("Weigh", "do", act)
                         footer()
                     }
                 }
@@ -493,7 +500,7 @@ fun HomeScreen(
                     favouritesRow()
                     learnSection()
                     pillar("Know", "know", know)
-                    pillar("Do", "do", act)
+                    pillar("Weigh", "do", act)
                     footer()
                 }
             }
@@ -931,13 +938,16 @@ private fun besideWidth(tile: HomeTile): Dp {
 /** Padding, icon and gap around a tile's name when the icon sits beside it. */
 private val BESIDE_CHROME = 62.dp
 
-/** About how wide the quiet row's links are side by side (14 sp text, icon, padding). */
-private fun laneWidth(tiles: List<HomeTile>): Dp = tiles.fold(0.dp) { sum, t ->
-    val text = if (t.detail.isBlank()) t.label else "${t.label} · ${t.detail}"
-    sum + 50.dp + (text.length * 7.3f).dp
+/** About how wide the quiet row's links are side by side (14 sp text, icon, padding); [iconOnly] keys show just a mark. */
+private fun laneWidth(tiles: List<HomeTile>, iconOnly: Set<String> = emptySet()): Dp = tiles.fold(0.dp) { sum, t ->
+    if (t.key in iconOnly) sum + 44.dp + (t.badge?.let { (it.length * 7.3f + 6f).dp } ?: 0.dp)
+    else {
+        val text = if (t.detail.isBlank()) t.label else "${t.label} · ${t.detail}"
+        sum + 50.dp + (text.length * 7.3f).dp
+    }
 } + 4.dp * (tiles.size - 1).coerceAtLeast(0)
 
-/** The narrowest a Know or Do tile gets. */
+/** The narrowest a Know or Weigh tile gets. */
 private val MIN_TILE = 120.dp
 
 /**
@@ -1107,22 +1117,32 @@ private fun TileMark(mark: String) {
 }
 
 @Composable
-private fun MoreButton(tile: HomeTile) {
+private fun MoreButton(tile: HomeTile, iconOnly: Boolean = false) {
+    val color = when (tile.tone) {
+        Tone.ACCENT -> P.Accent
+        Tone.LOBSTER -> P.Lobster
+        else -> P.Muted
+    }
+    val text = if (tile.detail.isBlank()) tile.label else "${tile.label} · ${tile.detail}"
     Row(
         Modifier
             .heightIn(min = 48.dp)
+            .widthIn(min = 44.dp)
             .clip(RoundedCornerShape(24.dp))
-            .clickable(role = Role.Button, onClick = tile.onClick)
-            .padding(horizontal = 12.dp),
+            .clickable(role = Role.Button, onClickLabel = if (iconOnly) text else null, onClick = tile.onClick)
+            .semantics { if (iconOnly) contentDescription = text }
+            .padding(horizontal = if (iconOnly) 10.dp else 12.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
-        val lit = tile.tone == Tone.ACCENT
-        Icon(tile.icon, contentDescription = null, tint = if (lit) P.Accent else P.Muted, modifier = Modifier.size(18.dp))
-        Spacer(Modifier.width(8.dp))
-        Text(
-            if (tile.detail.isBlank()) tile.label else "${tile.label} · ${tile.detail}",
-            color = if (lit) P.Accent else P.Muted, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis
-        )
+        if (tile.mark != null) Text(tile.mark, color = color, fontSize = 15.sp, fontWeight = FontWeight.Medium)
+        else Icon(tile.icon, contentDescription = null, tint = color, modifier = Modifier.size(18.dp))
+        if (!iconOnly) {
+            Spacer(Modifier.width(8.dp))
+            Text(text, color = color, fontSize = 14.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        } else if (tile.badge != null) {
+            Spacer(Modifier.width(4.dp))
+            Text(tile.badge, color = color, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        }
     }
 }
 

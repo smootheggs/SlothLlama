@@ -57,6 +57,11 @@ import app.localmind.assistant.domain.projects.Project
 import app.localmind.assistant.domain.projects.ProjectDoc
 import app.localmind.assistant.domain.projects.Projects
 import app.localmind.assistant.ui.common.SlothTopBar
+import app.localmind.assistant.ui.common.ConfirmDialog
+import app.localmind.assistant.ui.common.EmptyLine
+import app.localmind.assistant.ui.common.NameDialog
+import app.localmind.assistant.ui.common.ProgressBar
+import app.localmind.assistant.ui.common.SmallLabel
 import app.localmind.assistant.ui.theme.SlothPalette as P
 import java.text.DateFormat
 import java.time.LocalDate
@@ -140,7 +145,7 @@ private fun ProjectList(
             }
         }
     }
-    if (naming) NameDialog("New project", "", onDismiss = { naming = false }, onSave = onCreate, saveLabel = "Create")
+    if (naming) NameDialog("New project", "", onDismiss = { naming = false }, onSave = onCreate, saveLabel = "Create", maxLength = Projects.MAX_NAME)
 }
 
 @Composable

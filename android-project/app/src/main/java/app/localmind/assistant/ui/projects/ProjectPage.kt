@@ -61,6 +61,11 @@ import app.localmind.assistant.domain.projects.Risk
 import app.localmind.assistant.domain.projects.Stakeholder
 import app.localmind.assistant.domain.projects.StatusUpdate
 import app.localmind.assistant.ui.common.SlothTopBar
+import app.localmind.assistant.ui.common.ConfirmDialog
+import app.localmind.assistant.ui.common.EmptyLine
+import app.localmind.assistant.ui.common.ItemRow
+import app.localmind.assistant.ui.common.NameDialog
+import app.localmind.assistant.ui.common.Section
 import app.localmind.assistant.ui.theme.SlothPalette as P
 import java.time.LocalDate
 
@@ -144,7 +149,7 @@ internal fun ProjectPage(p: Project, vm: ProjectsViewModel, today: LocalDate, on
 
     val close = { editing = null }
     when (val e = editing) {
-        Editing.Rename -> NameDialog("Rename the project", p.name, onDismiss = close, onSave = vm::rename)
+        Editing.Rename -> NameDialog("Rename the project", p.name, onDismiss = close, onSave = vm::rename, maxLength = Projects.MAX_NAME)
         Editing.DeleteProject -> ConfirmDialog(
             "Delete ${p.name}?", "Its record and documents go too. A backup made before keeps a copy.", "Delete",
             onDismiss = close, onConfirm = { vm.delete(p.id) }

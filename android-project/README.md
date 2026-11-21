@@ -136,6 +136,15 @@ model too big for the GPU falls back to the CPU on its own.
   the sea, the globe's grid and atlas lettering; shaded relief (Natural Earth's, public domain,
   about 3 MB) switches on and off. Upright, the map takes the top half and the country's card,
   or the world's, the rest.
+- **Weigh and Forecasts** (1.37). Home's third pillar is now **Weigh**: SlothDesk, Forecasts and
+  Projects (Sports joins it next). The Lobster and Ourjong moved to the bottom row; a catch still
+  shows there in coral, with its count. **Forecasts** keeps every call with a chance and a date: a
+  yes-or-no, one of several outcomes, or above or below a number. Change your chance whenever you
+  learn something, with a line on why; add a market's chance or price if you like (33%, 1.87, −115,
+  20/23). On the check day, mark what happened. The tablet keeps the score: the Brier score
+  (averaged over each day you held the call, so being right early counts) and how often your 60%,
+  70%, 80% calls came true. SlothDesk's ideas join in at the conviction you saved them with, read
+  in place. Tabs for Markets, Sports, Politics, the Watchlist and Other. In backups.
 - **Projects** (1.36). Home → Do → Projects: one page per project with the record a project
   manager keeps: the phase (Initiating, Planning, Executing, Monitoring, Closing), the brief (goal,
   sponsor, scope in and out, constraints, success measures, deadline), milestones, risks

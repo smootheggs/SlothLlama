@@ -210,7 +210,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES, LOBSTER, READER, DESK, CORE, BOOKS, EDITION, ATLAS, PROJECTS }
+private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES, LOBSTER, READER, DESK, CORE, BOOKS, EDITION, ATLAS, PROJECTS, FORECASTS }
 
 /**
  * Home (or the last chat, per Settings) on a fresh start. Screens open on top of each other and
@@ -345,6 +345,7 @@ private fun SlothRoot(
                     onEdition = { navigate(Destination.EDITION) },
                     onAtlas = { navigate(Destination.ATLAS) },
                     onProjects = { navigate(Destination.PROJECTS) },
+                    onForecasts = { navigate(Destination.FORECASTS) },
                     onNotes = { navigate(Destination.NOTES) },
                     onDesk = { navigate(Destination.DESK) },
                     onLater = {
@@ -437,6 +438,9 @@ private fun SlothRoot(
                 Destination.EDITION -> app.localmind.assistant.ui.edition.EditionScreen(viewModel = edition, onBack = goHome, onPlace = showPlace)
                 Destination.ATLAS -> app.localmind.assistant.ui.atlas.AtlasScreen(viewModel = atlas, onBack = goHome)
                 Destination.PROJECTS -> app.localmind.assistant.ui.projects.ProjectsScreen(viewModel = projects, onBack = goHome)
+                Destination.FORECASTS -> app.localmind.assistant.ui.forecasts.ForecastsScreen(
+                    viewModel = hiltViewModel(), onBack = goHome, onDesk = { navigate(Destination.DESK) }
+                )
                 Destination.READER -> ReaderScreen(
                     viewModel = reader,
                     onBack = goHome,

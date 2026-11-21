@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.StickyNote2
 import androidx.compose.material.icons.outlined.Style
 import androidx.compose.material.icons.outlined.FormatListNumbered
 import app.localmind.assistant.ui.trading.TradingViewModel
+import androidx.compose.material.icons.outlined.TrackChanges
 import androidx.compose.material.icons.outlined.Translate
 import androidx.compose.material.icons.outlined.WorkOutline
 import androidx.compose.runtime.Composable
@@ -73,6 +74,8 @@ fun HomeRoute(
     onAtlas: () -> Unit = {},
     /** Projects: the record of each project, and write-ups from it. */
     onProjects: () -> Unit = {},
+    /** Forecasts: every call with a chance and a date. */
+    onForecasts: () -> Unit = {},
     onNotes: () -> Unit,
     onDesk: () -> Unit = {},
     /** The Later shelf (in the Reader). */
@@ -92,6 +95,8 @@ fun HomeRoute(
     val home: HomeViewModel = hiltViewModel()
     val trading: TradingViewModel = hiltViewModel()
     val tradingStats by trading.stats.collectAsStateWithLifecycle()
+    val forecastsVm: app.localmind.assistant.ui.forecasts.ForecastsViewModel = hiltViewModel()
+    val callList by forecastsVm.calls.collectAsStateWithLifecycle()
     val projectsVm: app.localmind.assistant.ui.projects.ProjectsViewModel = hiltViewModel()
     val projectList by projectsVm.projects.collectAsStateWithLifecycle()
     val backup by home.backup.collectAsStateWithLifecycle()
@@ -125,7 +130,6 @@ fun HomeRoute(
     }
 
     val lobsterLine = lobster?.let { lobsterStatus(it, now) }
-    val newest = lobster?.catch?.firstNotNullOfOrNull { it.item }
     val glance = deskGlance(desk)
     val caught = lobster?.catch?.size ?: 0
     // Today's edition, until it's a day old: what's unread lights up The Sloth Express.
@@ -196,7 +200,7 @@ fun HomeRoute(
         )
     }
 
-    // Do: SlothDesk (strategies, ideas, sums), Projects, the Lobster, and a game of mahjong.
+    // Weigh: SlothDesk (strategies, ideas, sums), Forecasts (every call, scored) and Projects.
     val act = buildList {
         val ideasDue = tradingStats.due
         add(
@@ -211,6 +215,25 @@ fun HomeRoute(
                 onDesk,
                 if (ideasDue > 0 || ticketsToMark != null) Tone.ACCENT else Tone.QUIET,
                 key = "desk"
+            )
+        )
+        // Forecasts: lit with the calls whose check day has come; otherwise the next check.
+        val dueCalls = callList.count { app.localmind.assistant.domain.forecasts.Forecasts.due(it, todayDate) }
+        val nextCall = callList.filter { it.open }.minByOrNull { it.checkOn }
+            ?.let { c -> app.localmind.assistant.domain.forecasts.Forecasts.date(c.checkOn)?.let { c to it } }
+        add(
+            HomeTile(
+                Icons.Outlined.TrackChanges, "Forecasts",
+                when {
+                    dueCalls == 1 -> "1 to check"
+                    dueCalls > 1 -> "$dueCalls to check"
+                    nextCall != null -> "Next check ${app.localmind.assistant.domain.forecasts.Forecasts.relative(nextCall.second, todayDate)}"
+                    else -> ""
+                },
+                onForecasts,
+                if (dueCalls > 0) Tone.ACCENT else Tone.QUIET,
+                key = "forecasts",
+                badge = dueCalls.takeIf { it > 0 }?.let(::badgeCount)
             )
         )
         // Projects: lit when a milestone is late; otherwise the next one due, across your projects.
@@ -235,33 +258,6 @@ fun HomeRoute(
                 key = "projects"
             )
         )
-        if (onLobster != null && lobsterLine != null) {
-            // A catch lights it up: the count on the icon and, if you like, the newest headline.
-            val headline = newest?.takeIf { caught > 0 && settings.lobsterHeadline }?.let(::catchHeadline)
-            add(
-                HomeTile(
-                    Icons.Outlined.Sailing, "SlothLobster",
-                    headline ?: if (caught > 0) "Brought back · file it" else lobsterLine,
-                    onLobster, Tone.LOBSTER, key = "lobster",
-                    badge = caught.takeIf { it > 0 }?.let(::badgeCount)
-                )
-            )
-        }
-        if (settings.ourjongTile) {
-            val intent = ourjong
-            add(
-                HomeTile(
-                    Icons.Outlined.Translate, "Ourjong",
-                    if (intent != null) "" else "Not installed",
-                    onClick = {
-                        if (intent != null) runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
-                        else Toast.makeText(context, "Ourjong isn't installed. Add it in Obtainium, then it opens from here.", Toast.LENGTH_LONG).show()
-                    },
-                    mark = "中",
-                    key = "ourjong"
-                )
-            )
-        }
     }
 
     // The Library is what SlothLlama reads (files and Wikipedia it searches): set up once, like Models.
@@ -272,7 +268,33 @@ fun HomeRoute(
         HomeTile(Icons.Outlined.LocalLibrary, "Library", "", onLibrary),
         // Notes is a tool you go to, like the Library: it moved here so Know stays one row.
         HomeTile(Icons.Outlined.StickyNote2, "Notes", "", onNotes)
-    )
+    ) + buildList {
+        // The Lobster and Ourjong are places you go, not things to weigh: they joined this row in 1.37.
+        // A catch still shows: the Lobster's coral, with the count.
+        if (onLobster != null && lobsterLine != null) {
+            add(
+                HomeTile(
+                    Icons.Outlined.Sailing, "Lobster", if (caught > 0) "${badgeCount(caught)} new" else "",
+                    onLobster, if (caught > 0) Tone.LOBSTER else Tone.QUIET, key = "lobster",
+                    badge = caught.takeIf { it > 0 }?.let(::badgeCount)
+                )
+            )
+        }
+        if (settings.ourjongTile) {
+            val intent = ourjong
+            add(
+                HomeTile(
+                    Icons.Outlined.Translate, "Ourjong", "",
+                    onClick = {
+                        if (intent != null) runCatching { context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)) }
+                        else Toast.makeText(context, "Ourjong isn't installed. Add it in Obtainium, then it opens from here.", Toast.LENGTH_LONG).show()
+                    },
+                    mark = "中",
+                    key = "ourjong"
+                )
+            )
+        }
+    }
 
     // Practice: writing to a tutor, or reviewing a flashcard.
     val tutors = ui.personas.filter { it.speech != null }

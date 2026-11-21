@@ -162,9 +162,6 @@ internal fun HomeSettingsSection() {
         ToggleRow("Tickets on the SlothDesk tile", "Paper tickets still to mark light it up, while they're fresh.", s.deskTile) { v ->
             vm.update { it.copy(deskTile = v) }
         }
-        ToggleRow("The Lobster's headline", "The newest catch's top headline on the SlothLobster tile.", s.lobsterHeadline) { v ->
-            vm.update { it.copy(lobsterHeadline = v) }
-        }
         ToggleRow(
             "Practice this week",
             "Seven dots by Tutors, and when you last practised each language. A chat with a tutor or a flashcard review counts.",
@@ -173,7 +170,7 @@ internal fun HomeSettingsSection() {
         ToggleRow("Five-minute drills", "Long-press a tutor, or open its menu, for quick questions at your level.", s.tutorDrills) { v ->
             vm.update { it.copy(tutorDrills = v) }
         }
-        ToggleRow("Ourjong", "A tile that opens the Ourjong mahjong app, if it's installed.", s.ourjongTile) { v ->
+        ToggleRow("Ourjong", "A link in the bottom row that opens the Ourjong mahjong app, if it's installed.", s.ourjongTile) { v ->
             vm.update { it.copy(ourjongTile = v) }
         }
     }

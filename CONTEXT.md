@@ -31,8 +31,10 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
 
 - **Learn**: the tutors (as favourites and practice dots), Core words, Flashcards, Dictionary.
 - **Know**: SlothBooks, The Sloth Express, Atlas, Later.
-- **Do**: SlothDesk, Projects, SlothLobster, Ourjong (a separate mahjong app, opened from here).
-- **Quiet row**: Chats, Personas, Models (with the model's name), Library, Notes, Arrange.
+- **Weigh** (was Do, until 1.37): SlothDesk, Forecasts, Projects; Sports joins it.
+- **Quiet row**: Chats, Personas, Models (with the model's name), Library, Notes, the Lobster
+  (coral with a count when there's a catch), Ourjong (a separate mahjong app, opened from here),
+  Arrange.
 - **Lit**: a tile that needs you shows it on the tile itself (a count on the icon, an accent
   line). There is no "Today" row any more; nothing shows twice. (In code the count is
   `HomeTile.badge`; a persona's **badge** is its mark, 普 or Au.)
@@ -80,7 +82,7 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
   layer, on or off. **Places**: the place a story or article names, found on the tablet, linking
   to the Atlas. **Your places**: pins for today's edition and the books' countries.
 
-## Do
+## Weigh
 
 - **SlothDesk**: paper trading, never real money. **Strategies** (rule-based, run on daily
   prices), **tickets** (the paper trades they produce, to mark how they went), **Ideas** (your own
@@ -93,6 +95,13 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
   plain text with the sums done, attached to a chat. **Write it up** makes a **document**: built
   on the tablet (risk register, stakeholder map) or written by the Scribe and kept with "Keep in
   <project>". Personal projects, not team scheduling.
+- **Forecasts**: every **call** (a question, its outcomes, your **chance** for each, a **check
+  date**), in **areas** (Markets, Sports, Politics, Watchlist, Other). Each change of chance keeps
+  its **reason**. **Marking** says what happened (or that it doesn't count). The **Brier score**
+  (0 never wrong, 0.25 a coin flip on a yes-or-no) is averaged over the days you held the call;
+  **calibration** is how often your calls at each level came true. A **market's chance** is one
+  you entered, from a percent or a **price** (decimal, American, fractional); the **margin** is
+  what a book's prices add up to over 100%. SlothDesk's ideas appear as calls, read in place.
 
 ## House rules
 
@@ -119,3 +128,5 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
 | de facto borders | "real" borders, disputed borders |
 | status (yours, from an update) | health, score (nothing sets it for you) |
 | facts sheet | context, prompt data |
+| call, chance | bet, prediction, confidence |
+| Weigh | Do (the old name) |
