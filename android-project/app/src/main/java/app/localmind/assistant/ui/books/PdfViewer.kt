@@ -72,15 +72,17 @@ private class PdfPages(context: Context, uri: Uri) : AutoCloseable {
         if (closed) return@withLock null
         cache.get(index)?.takeIf { it.width == widthPx }?.let { return@withLock it }
         withContext(Dispatchers.IO) {
-            renderer.openPage(index).use { p ->
-                val w = widthPx.coerceIn(200, 2400)
-                val h = (w / ratios[index]).toInt().coerceAtLeast(1)
-                val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
-                bmp.eraseColor(AndroidColor.WHITE)
-                p.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
-                bmp
-            }
-        }.also { cache.put(index, it) }
+            runCatching {
+                renderer.openPage(index).use { p ->
+                    val w = widthPx.coerceIn(200, 2400)
+                    val h = (w / ratios[index]).toInt().coerceAtLeast(1)
+                    val bmp = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
+                    bmp.eraseColor(AndroidColor.WHITE)
+                    p.render(bmp, null, null, PdfRenderer.Page.RENDER_MODE_FOR_DISPLAY)
+                    bmp
+                }
+            }.getOrNull()
+        }?.also { cache.put(index, it) }
     }
 
     override fun close() {
@@ -97,8 +99,12 @@ fun PdfViewer(book: Book, onClose: () -> Unit, onAsk: () -> Unit) {
     val pages: Result<PdfPages>? by produceState<Result<PdfPages>?>(null, book.file) {
         value = withContext(Dispatchers.IO) { runCatching { PdfPages(context, Uri.parse(book.file)) } }
     }
-    DisposableEffect(pages) {
-        onDispose { pages?.getOrNull()?.close() }
+    // Close the PDF this effect was set up with, never whatever `pages` holds by then: reading
+    // the state in onDispose closed the document the moment it finished opening, so every page
+    // stayed blank.
+    val opened = pages?.getOrNull()
+    DisposableEffect(opened) {
+        onDispose { opened?.close() }
     }
     val list = rememberLazyListState()
     val current by remember { derivedStateOf { list.firstVisibleItemIndex + 1 } }
@@ -134,7 +140,11 @@ fun PdfViewer(book: Book, onClose: () -> Unit, onAsk: () -> Unit) {
 @Composable
 private fun PdfPage(doc: PdfPages, index: Int, widthPx: Int) {
     var bitmap by remember(index, widthPx) { mutableStateOf<Bitmap?>(null) }
-    LaunchedEffect(index, widthPx) { bitmap = doc.page(index, widthPx) }
+    var failed by remember(index, widthPx) { mutableStateOf(false) }
+    LaunchedEffect(index, widthPx) {
+        bitmap = doc.page(index, widthPx)
+        failed = bitmap == null
+    }
     Box(
         Modifier
             .fillMaxWidth()
@@ -143,6 +153,12 @@ private fun PdfPage(doc: PdfPages, index: Int, widthPx: Int) {
             .semantics { contentDescription = "Page ${index + 1}" }
     ) {
         bitmap?.let { Image(it.asImageBitmap(), contentDescription = null, contentScale = ContentScale.FillWidth, modifier = Modifier.fillMaxSize()) }
+        if (failed) {
+            Text(
+                "Page ${index + 1} couldn't be drawn", color = androidx.compose.ui.graphics.Color(0xFF6E736C), fontSize = 13.sp,
+                modifier = Modifier.align(Alignment.Center)
+            )
+        }
     }
 }
 
