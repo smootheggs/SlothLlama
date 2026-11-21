@@ -72,7 +72,9 @@ object WorldData {
 
     private val REF = Regex("""^(polymarket|kalshi):([A-Za-z0-9._-]{1,120})$""")
     private val POLY = Regex("""polymarket\.com/(?:[a-z]{2}/)?(?:event|market)/([A-Za-z0-9._-]{1,120})""", RegexOption.IGNORE_CASE)
-    private val KALSHI = Regex("""kalshi\.com/(?:markets|events)/([^\s?#]+)""", RegexOption.IGNORE_CASE)
+    // The site's links (kalshi.com/markets/series/name/TICKER) and the app's share links
+    // (kalshi.com/s/m/TICKER?r=…): the last part is the ticker; the share's referral code is dropped.
+    private val KALSHI = Regex("""kalshi\.com/(?:markets|events|s/[a-z]{1,3})/([^\s?#]+)""", RegexOption.IGNORE_CASE)
 
     fun key(m: WorldMarket): String = "${m.platform}:${m.id}"
 
@@ -83,7 +85,7 @@ object WorldData {
 
     /**
      * A ref from what you paste: "polymarket:slug" or "kalshi:TICKER" as is, a Polymarket event link,
-     * or a Kalshi market link (its last part is the event's ticker). Null if it's neither.
+     * or a Kalshi market link or one shared from its app (its last part is the ticker). Null if it's neither.
      */
     fun refOf(text: String): String? {
         val t = text.trim()

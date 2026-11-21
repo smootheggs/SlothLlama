@@ -24,6 +24,10 @@ class WorldUnitTests {
         assertEquals("polymarket:river-treaty-ratified", WorldData.refOf("polymarket.com/event/River-Treaty-Ratified/some-market"))
         assertEquals("kalshi:KXRATE-26DEC", WorldData.refOf("https://kalshi.com/markets/kxrate/rate-decision/kxrate-26dec"))
         assertEquals("kalshi:KXRATE-26DEC", WorldData.refOf("kalshi:kxrate-26dec"))
+        // Shared from Kalshi's app: the ticker, without the referral code.
+        assertEquals("kalshi:KXPRESNOMD-28", WorldData.refOf("https://kalshi.com/s/m/KXPRESNOMD-28?r=abc123"))
+        assertEquals("kalshi:KXPRESNOMD-28", WorldData.refOf("Check this out https://kalshi.com/s/m/KXPRESNOMD-28"))
+        assertNull(WorldData.refOf("https://kalshi.com/s/"))
         assertEquals("polymarket:abc", WorldData.refOf("polymarket:ABC"))
         assertNull(WorldData.refOf("https://example.com/event/abc"))
         assertNull(WorldData.refOf("just words"))

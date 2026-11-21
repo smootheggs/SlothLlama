@@ -583,7 +583,7 @@ private fun FollowDialog(onDismiss: () -> Unit, onFollow: (String) -> Boolean) {
         if (onFollow(text)) onDismiss() else bad = true
     }, canSave = text.isNotBlank(), saveLabel = "Follow") {
         Text(
-            "Paste a Polymarket event link (polymarket.com/event/…) or a Kalshi market link (kalshi.com/markets/…). The Lobster reads its " +
+            "Paste a Polymarket event link (polymarket.com/event/…) or a Kalshi market link (kalshi.com/markets/…, or shared from its app). The Lobster reads its " +
                 "public prices; nothing is traded.",
             color = P.Faint, fontSize = 12.sp, lineHeight = 16.sp
         )
