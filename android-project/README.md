@@ -136,6 +136,19 @@ model too big for the GPU falls back to the CPU on its own.
   the sea, the globe's grid and atlas lettering; shaded relief (Natural Earth's, public domain,
   about 3 MB) switches on and off. Upright, the map takes the top half and the country's card,
   or the world's, the rest.
+- **Weigh, streamlined** (1.41). Calls are made where you see them and marked where you made
+  them. **Call it** is one sheet everywhere (rising from the bottom upright, opening at the side
+  when the tablet lies on its side): a game row in Sports, a line the briefing's watchlist saw, a
+  price level in SlothDesk. Picks mark themselves from the score; a watch item asks **Did this
+  happen?** at the top of the Express when its day comes. SlothDesk's new **Price calls** tab:
+  GLD, SLV or USD/JPY above or below a level at the close on a day, checked against SlothDesk's
+  prices (and FRED's daily rate for USD/JPY): it proposes the result with its sources and you
+  confirm; too near the level, sources that disagree, or no prices for the day, and it asks.
+  Forecasts is now **Your record**, one line under Weigh: calibration, the Brier score, the
+  record **by place** (Markets, Sports, World, your own), how often you **beat the reference**
+  (the market, the price or the crowd when you called), and **reasoning against result** when you
+  rate a call as you mark it. Projects moved to the bottom row. Sports, SlothDesk's price calls and
+  Your record lay out side by side when the tablet lies on its side.
 - **The Briefing** (1.40). A briefing written elsewhere (a scheduled Grok task, say) can't always
   be shared, so copy it and paste it into The Sloth Express → Briefing. It's read into its parts:
   each story with its region, what it says happened, why it matters in its view, what's unclear,

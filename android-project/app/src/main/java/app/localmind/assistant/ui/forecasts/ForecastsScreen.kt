@@ -1,6 +1,9 @@
 package app.localmind.assistant.ui.forecasts
 
 import androidx.activity.compose.BackHandler
+import androidx.compose.foundation.layout.fillMaxHeight
+import app.localmind.assistant.domain.forecasts.PlaceStat
+import app.localmind.assistant.domain.forecasts.Luck
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -100,10 +103,10 @@ private fun Ledger(calls: List<Call>, area: Area?, today: LocalDate, onBack: () 
     val checked = shown.filter { !it.open }.sortedByDescending { it.markedOn }
 
     Column(Modifier.fillMaxSize()) {
-        SlothTopBar(title = "Forecasts", subtitle = "Every call with a chance and a date", onBack = onBack) {
+        SlothTopBar(title = "Your record", subtitle = "Every call, from wherever you made it", onBack = onBack) {
             TextButton(onClick = { adding = true }) {
                 Icon(Icons.Outlined.Add, contentDescription = null, tint = P.Accent, modifier = Modifier.size(18.dp))
-                Text(" New call", color = P.Accent, fontSize = 14.sp)
+                Text(" Your own call", color = P.Accent, fontSize = 14.sp)
             }
         }
         Row(
@@ -115,26 +118,57 @@ private fun Ledger(calls: List<Call>, area: Area?, today: LocalDate, onBack: () 
         }
         BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
             val wide = maxWidth >= 900.dp
-            Column(
-                Modifier.widthIn(max = 1100.dp).fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 6.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp)
-            ) {
-                if (calls.isEmpty()) {
-                    Intro(onNew = { adding = true })
-                } else {
-                    SummaryCard(summary, wide)
-                    Section("To check", note = if (toCheck.isEmpty()) null else "Soonest first; the date is yours to move") {
-                        if (toCheck.isEmpty()) EmptyLine("Nothing open here.")
-                        toCheck.forEach { c -> CallRow(c, today) { vm.open(c.id) } }
-                    }
-                    if (checked.isNotEmpty()) {
-                        Section("Checked") { checked.take(30).forEach { c -> CallRow(c, today) { vm.open(c.id) } } }
-                    }
-                }
+            // Sideways on a wide screen: how you're doing on the left, the calls on the right.
+            val twoColumns = maxWidth >= 1100.dp && maxWidth > maxHeight
+            val places = remember(calls) { Forecasts.byPlace(calls) }
+            val luck = remember(calls) { Forecasts.luck(calls) }
+            val note: @Composable () -> Unit = {
                 Text(
-                    "Chances and scores are worked out on the tablet. SlothDesk's ideas show here as they are; review them in SlothDesk.",
+                    "Chances and scores are worked out on the tablet. Calls are made where you see them (Sports, SlothDesk, the Express) " +
+                        "and marked there; this is the record of all of them. SlothDesk's ideas show as they are; review them in SlothDesk.",
                     color = P.Faint, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(horizontal = 4.dp, vertical = 8.dp)
                 )
+            }
+            val lists: @Composable () -> Unit = {
+                Section("To check", note = if (toCheck.isEmpty()) null else "Soonest first; the date is yours to move") {
+                    if (toCheck.isEmpty()) EmptyLine("Nothing open here.")
+                    toCheck.forEach { c -> CallRow(c, today) { vm.open(c.id) } }
+                }
+                if (checked.isNotEmpty()) {
+                    Section("Checked") { checked.take(30).forEach { c -> CallRow(c, today) { vm.open(c.id) } } }
+                }
+            }
+            if (calls.isEmpty()) {
+                Column(Modifier.widthIn(max = 1100.dp).fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 6.dp)) {
+                    Intro(onNew = { adding = true })
+                    note()
+                }
+            } else if (twoColumns) {
+                Row(
+                    Modifier.widthIn(max = 1500.dp).fillMaxSize().padding(horizontal = 16.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(28.dp)
+                ) {
+                    Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        SummaryCard(summary, true)
+                        LuckCard(luck)
+                    }
+                    Column(Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                        PlacesCard(places)
+                        lists()
+                        note()
+                    }
+                }
+            } else {
+                Column(
+                    Modifier.widthIn(max = 1100.dp).fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
+                ) {
+                    SummaryCard(summary, wide)
+                    PlacesCard(places)
+                    LuckCard(luck)
+                    lists()
+                    note()
+                }
             }
         }
     }
@@ -179,6 +213,13 @@ private fun SummaryCard(s: Summary, wide: Boolean) {
                     Text(line, color = P.Text, fontSize = 14.sp, lineHeight = 20.sp)
                     Text(sub, color = P.Faint, fontSize = 12.sp, lineHeight = 16.sp)
                 }
+            }
+            if (s.withReference > 0) {
+                Fact(
+                    "${Forecasts.percent(s.beat.toDouble() / s.withReference)}%",
+                    "beat the reference: the market, the price or the crowd when you called (${s.beat} of ${s.withReference})",
+                    P.Accent
+                )
             }
             Fact("${s.toCheck}", "to check now", if (s.toCheck > 0) P.Accent else P.Text)
         }
@@ -353,7 +394,11 @@ private fun CallPage(c: Call, today: LocalDate, vm: ForecastsViewModel, onBack: 
                         )
                     }
                     score?.let { Fact(String.format(java.util.Locale.ENGLISH, "%.2f", it), "this call's Brier score") }
+                    Forecasts.beat(c)?.let { b ->
+                        Fact(if (b) "beat it" else "didn't", "against ${Forecasts.place(c).reference} when you called", if (b) P.Accent else P.Muted)
+                    }
                 }
+                if (c.evidence.isNotBlank()) Text("Settled on: ${c.evidence}", color = P.Muted, fontSize = 13.sp, lineHeight = 18.sp)
                 if (c.kind != CallKind.ONE_OF && (c.estimates.size > 1 || c.market.isNotEmpty())) {
                     Column(
                         Modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(P.Card).padding(16.dp),
@@ -389,6 +434,17 @@ private fun CallPage(c: Call, today: LocalDate, vm: ForecastsViewModel, onBack: 
                     OutlinedButton(onClick = onDesk) { Text("Open SlothDesk", color = P.Text) }
                 } else {
                     Actions(c, onChance = { dialog = Open.Chance }, onMarket = { dialog = Open.Market }, onMark = { h, v -> vm.mark(c.id, h, v) })
+                    if (!c.open && !c.void && c.estimates.isNotEmpty()) {
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            SmallLabel("Was the reasoning sound? (optional)")
+                            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                listOf("sound" to "Sound", "partly" to "Partly", "no" to "Shaky").forEach { (key, label) ->
+                                    ChoicePill(label, c.reasoning == key, { vm.rate(c.id, if (c.reasoning == key) "" else key) }, color = P.Muted)
+                                }
+                            }
+                            Text("Judged on what you knew then, not on how it turned out.", color = P.Faint, fontSize = 12.sp)
+                        }
+                    }
                 }
             }
         }

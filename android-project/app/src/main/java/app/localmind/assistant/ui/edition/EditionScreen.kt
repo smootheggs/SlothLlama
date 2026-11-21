@@ -339,11 +339,14 @@ private fun Paper(
                         Column(Modifier.weight(1.4f)) { news() }
                         Box(Modifier.padding(horizontal = 28.dp, vertical = 24.dp).width(1.dp).heightIn(min = 400.dp).background(P.Card))
                         Column(Modifier.weight(1f)) {
+                            // Watch items due today: asked at the top of the right-hand page.
+                            DueCalls(Modifier.padding(top = 18.dp))
                             desk()
                             corners()
                         }
                     }
                 } else {
+                    DueCalls(Modifier.padding(top = 14.dp))
                     news()
                     desk()
                     corners()

@@ -76,6 +76,17 @@ class ForecastBook @Inject constructor(@ApplicationContext context: Context) {
         it.copy(happened = happened, void = void, markedOn = if (happened == null && !void) "" else LocalDate.now().toString())
     }
 
+    /** (1.41) Marks it with what settled it ([evidence]) and how you rated your reasoning, in one write. */
+    suspend fun settle(id: String, happened: Int?, void: Boolean, evidence: String = "", reasoning: String = "") = update(id) {
+        it.copy(
+            happened = happened, void = void, markedOn = LocalDate.now().toString(),
+            evidence = evidence.trim().take(200), reasoning = reasoning.ifBlank { it.reasoning }
+        )
+    }
+
+    /** How you rate the reasoning behind a call you've marked: "sound", "partly", "no", or blank. */
+    suspend fun rate(id: String, reasoning: String) = update(id) { it.copy(reasoning = reasoning) }
+
     suspend fun backupText(): String {
         load()
         return Forecasts.encode(_calls.value)

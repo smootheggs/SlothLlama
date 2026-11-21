@@ -1,5 +1,7 @@
 package app.localmind.assistant.ui.home
 
+
+import androidx.compose.material.icons.outlined.TrackChanges
 import android.provider.Settings
 import android.text.format.DateUtils
 import androidx.compose.animation.animateContentSize
@@ -143,6 +145,12 @@ data class HomeTile(
 )
 
 /**
+ * (1.41) The line under Weigh: your record across every call ([detail]: calls checked, the Brier
+ * score, how often you beat the reference), what's left to mark, and a tap to the whole record.
+ */
+data class RecordLine(val label: String, val detail: String, val toMark: Int, val onClick: () -> Unit)
+
+/**
  * One calm fact for the line under the hello ("backup saved Wed", "nothing new from the Lobster"),
  * or a problem (in red) that needs a look. A tap goes where it's from.
  */
@@ -196,8 +204,10 @@ fun HomeScreen(
     learn: List<HomeTile>,
     /** Know: SlothBooks, Notes, Later. */
     know: List<HomeTile>,
-    /** Weigh: SlothDesk, Forecasts, Projects (and Sports, when it comes). */
+    /** Weigh: SlothDesk and Sports (World joins in 1.42). */
     act: List<HomeTile>,
+    /** The record line under Weigh; null hides it. */
+    record: RecordLine? = null,
     more: List<HomeTile>,
     /** Favourite personas, in order: a chip each that starts a chat. */
     favourites: List<Persona> = emptyList(),
@@ -414,6 +424,13 @@ fun HomeScreen(
             }
         }
     }
+    // Weigh, with your record as one line under its tiles.
+    val weigh: @Composable () -> Unit = {
+        Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            pillar("Weigh", "do", act)
+            record?.let { RecordRow(it) }
+        }
+    }
     val footer: @Composable () -> Unit = {
         Column {
             HorizontalDivider(color = P.Border)
@@ -433,14 +450,14 @@ fun HomeScreen(
                     )
                 } else {
                     // One line. When the full names don't fit, step by step: Models shows just the
-                    // model's name (its chip icon says what it is); then the Lobster and Ourjong keep
-                    // only their marks (and a catch's count); then every link but Models does. Only a
+                    // model's name (its chip icon says what it is); then the Lobster, Ourjong and Projects
+                    // keep only their marks (and a catch's count); then every link but Models does. Only a
                     // narrow phone wraps.
                     BoxWithConstraints(Modifier.weight(1f)) {
                         val room = maxWidth
                         val shortened = more.map { t -> if (t.key == "models" && t.detail.isNotBlank()) t.copy(label = t.detail, detail = "") else t }
                         val bare = shortened.filter { it.key != "models" }.map { it.key }.toSet()
-                        val iconOnly = listOf(emptySet(), emptySet(), setOf("lobster", "ourjong"), bare)
+                        val iconOnly = listOf(emptySet(), emptySet(), setOf("lobster", "ourjong", "projects"), bare)
                             .zip(listOf(more, shortened, shortened, shortened))
                             .firstOrNull { (marks, tiles) -> laneWidth(tiles, marks) <= room }
                             ?: (bare to shortened)
@@ -483,7 +500,7 @@ fun HomeScreen(
                         favouritesRow()
                         learnSection()
                         pillar("Know", "know", know)
-                        pillar("Weigh", "do", act)
+                        weigh()
                         footer()
                     }
                 }
@@ -500,7 +517,7 @@ fun HomeScreen(
                     favouritesRow()
                     learnSection()
                     pillar("Know", "know", know)
-                    pillar("Weigh", "do", act)
+                    weigh()
                     footer()
                 }
             }
@@ -1148,3 +1165,25 @@ private fun MoreButton(tile: HomeTile, iconOnly: Boolean = false) {
 
 /** Screens at least this wide get two panes (a Y700 in landscape is about 1,280 dp). */
 val WIDE = 840.dp
+
+/** The record line under Weigh: a quiet bordered row, the count to mark in the accent. */
+@Composable
+private fun RecordRow(r: RecordLine) {
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 48.dp)
+            .clip(RoundedCornerShape(12.dp))
+            .border(1.dp, P.Border, RoundedCornerShape(12.dp))
+            .clickable(role = Role.Button, onClick = r.onClick)
+            .padding(horizontal = 14.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Icon(Icons.Outlined.TrackChanges, contentDescription = null, tint = P.Accent, modifier = Modifier.size(18.dp))
+        Text(r.label, color = P.Text, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        Text(r.detail, color = P.Muted, fontSize = 13.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f))
+        if (r.toMark > 0) Text("${r.toMark} to mark", color = P.Accent, fontSize = 13.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = P.Faint, modifier = Modifier.size(18.dp))
+    }
+}

@@ -53,8 +53,14 @@ data class Call(
     /** Marked as not counting (called off, or the question stopped making sense). */
     val void: Boolean = false,
     val markedOn: String = "",
-    /** "you", "idea:<id>" (read from SlothDesk), and later "sports:…" or "briefing:…". */
-    val source: String = "you"
+    /** "you", "idea:<id>" (read from SlothDesk), "sports:…", "briefing", "price:<series>" or "world:…". */
+    val source: String = "you",
+    /** How you rated your reasoning once it was marked: "sound", "partly" or "no"; blank if you didn't. */
+    val reasoning: String = "",
+    /** (1.41) A price call: a level by a date, settled from SlothDesk's daily closes once you confirm. */
+    val price: PriceTerms? = null,
+    /** What settled it, as shown when you confirmed ("251.30 on 31 Dec 2026 · Tiingo"). */
+    val evidence: String = ""
 ) {
     val outcomes: List<String> get() = Forecasts.outcomes(this)
     val open: Boolean get() = happened == null && !void
@@ -75,8 +81,30 @@ data class Summary(
     val brier: Double?,
     val bands: List<Band>,
     val toCheck: Int,
-    val open: Int
+    val open: Int,
+    /** Checked calls that beat their reference (the market, the price or the crowd when you called), of those with one. */
+    val beat: Int = 0,
+    val withReference: Int = 0
 )
+
+/** Where a call was made: Weigh's three places, and your own. */
+enum class Place(val label: String, val reference: String) {
+    MARKETS("Markets", "the market"),
+    SPORTS("Sports", "the market"),
+    WORLD("World", "the crowd"),
+    OWN("Your own", "the market")
+}
+
+/** One place's record: checked calls, their Brier score, and how many beat their reference. */
+data class PlaceStat(val place: Place, val checked: Int, val open: Int, val brier: Double?, val beat: Int, val withReference: Int)
+
+/**
+ * Reasoning against result, for the calls you rated when you marked them: sound reasoning that
+ * went your way, sound but unlucky, shaky but lucky, shaky and wrong. "Partly" counts as shaky.
+ */
+data class Luck(val soundRight: Int, val soundWrong: Int, val shakyRight: Int, val shakyWrong: Int) {
+    val total: Int get() = soundRight + soundWrong + shakyRight + shakyWrong
+}
 
 /**
  * Forecasts: every call with a chance and a date, scored when it's marked. The Brier score is the
@@ -164,13 +192,73 @@ object Forecasts {
 
     fun summary(calls: List<Call>, today: LocalDate): Summary {
         val scores = calls.mapNotNull { score(it) }
+        val beats = calls.mapNotNull { beat(it) }
         return Summary(
             checked = calls.count { it.happened != null && !it.void },
             brier = if (scores.isEmpty()) null else scores.average(),
             bands = bands(calls),
             toCheck = calls.count { due(it, today) },
-            open = calls.count { it.open }
+            open = calls.count { it.open },
+            beat = beats.count { it },
+            withReference = beats.size
         )
+    }
+
+    // --- places, references and reasoning (1.41) ---
+
+    fun place(c: Call): Place = when (c.area) {
+        Area.MARKETS -> Place.MARKETS
+        Area.SPORTS -> Place.SPORTS
+        Area.POLITICS, Area.WATCHLIST -> Place.WORLD
+        Area.OTHER -> Place.OWN
+    }
+
+    /** The reference a call is measured against: the market's (or crowd's) chances when you made it. */
+    fun reference(c: Call): List<Double>? = c.market.firstOrNull()?.chances?.takeIf { it.size == c.outcomes.size && it.isNotEmpty() }
+
+    /**
+     * Did your call beat its reference? Your Brier score (over the days you held it) against the
+     * reference's, both on what happened; a tie doesn't beat it. Null when there's nothing to compare.
+     */
+    fun beat(c: Call): Boolean? {
+        val h = c.happened ?: return null
+        if (c.void) return null
+        val ref = reference(c) ?: return null
+        val mine = score(c) ?: return null
+        return mine < brier(ref, h) - 1e-12
+    }
+
+    /** Did it go the way you leaned (the outcome you gave the biggest chance)? */
+    fun wentYourWay(c: Call): Boolean? {
+        val h = c.happened ?: return null
+        if (c.void) return null
+        val ch = c.latest?.chances ?: return null
+        return ch.indices.maxByOrNull { ch[it] } == h
+    }
+
+    fun byPlace(calls: List<Call>): List<PlaceStat> = Place.entries.mapNotNull { p ->
+        val here = calls.filter { place(it) == p }
+        if (here.isEmpty()) return@mapNotNull null
+        val checked = here.filter { it.happened != null && !it.void }
+        val scores = checked.mapNotNull { score(it) }
+        val beats = checked.mapNotNull { beat(it) }
+        PlaceStat(p, checked.size, here.count { it.open }, if (scores.isEmpty()) null else scores.average(), beats.count { it }, beats.size)
+    }
+
+    fun luck(calls: List<Call>): Luck {
+        var sr = 0; var sw = 0; var kr = 0; var kw = 0
+        for (c in calls) {
+            if (c.reasoning.isBlank()) continue
+            val right = wentYourWay(c) ?: continue
+            val sound = c.reasoning == "sound"
+            when {
+                sound && right -> sr++
+                sound -> sw++
+                right -> kr++
+                else -> kw++
+            }
+        }
+        return Luck(sr, sw, kr, kw)
     }
 
     /** "today", "tomorrow", "in 6 days", "2 days ago". */

@@ -99,6 +99,9 @@ class ForecastsViewModel @Inject constructor(
 
     fun mark(id: String, happened: Int?, void: Boolean = false) = viewModelScope.launch { book.mark(id, happened, void) }
 
+    /** How sound the reasoning was, rated after marking: "sound", "partly", "no", or blank to clear it. */
+    fun rate(id: String, reasoning: String) = viewModelScope.launch { book.rate(id, reasoning) }
+
     fun delete(id: String) = viewModelScope.launch {
         if (_openId.value == id) _openId.value = null
         book.delete(id)

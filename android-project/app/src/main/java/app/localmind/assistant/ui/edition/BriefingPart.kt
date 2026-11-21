@@ -1,5 +1,8 @@
 package app.localmind.assistant.ui.edition
 
+import app.localmind.assistant.domain.forecasts.Forecasts
+import app.localmind.assistant.ui.common.Preset
+import app.localmind.assistant.ui.common.CallItSheet
 import android.content.ClipboardManager
 import android.content.Context
 import android.widget.Toast
@@ -116,7 +119,20 @@ internal fun BriefingPart(modifier: Modifier, onPlace: (String) -> Unit) {
         }
     }
     if (pasting) PasteBriefing(onDismiss = { pasting = false }) { text, source -> vm.paste(text, source) }
-    watching?.let { q -> WatchDialog(q, onDismiss = { watching = null }) { question, check, chance, why -> vm.watch(question, check, chance, why) } }
+    watching?.let { seen ->
+        CallItSheet(
+            where = "Express · ${b?.source ?: "Briefing"}",
+            question = seen,
+            editable = true,
+            context = "From what the briefing saw: \u201c$seen\u201d Its words, unchecked.",
+            start = 0.3,
+            presets = listOf(0.1, 0.3, 0.5, 0.7, 0.9).map { Preset("${Forecasts.percent(it)}", it) },
+            optionalChance = true,
+            note = "When the day comes, it asks \u201cDid this happen?\u201d at the top of the paper.",
+            onDismiss = { watching = null },
+            onCall = { question, chance, check, why -> vm.watch(question, check, chance, why) }
+        )
+    }
     news?.let { t -> NewsDialog(t, onDismiss = { news = null }) { vm.watchNews(it) } }
 }
 
@@ -158,7 +174,7 @@ private fun BriefingBody(
             Column(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
                 Text("· $item", color = P.Text, fontSize = 15.sp, lineHeight = 22.sp)
                 Row {
-                    TextButton(onClick = { onWatch(item) }) { Text("Watch it in Forecasts", color = P.Accent, fontSize = 13.sp) }
+                    TextButton(onClick = { onWatch(item) }) { Text("Call it", color = P.Accent, fontSize = 13.sp) }
                     TextButton(onClick = { onNews(item.split(' ').take(8).joinToString(" ").trimEnd('.', ',', ';')) }) {
                         Text("Lobster: watch the news", color = P.Lobster, fontSize = 13.sp)
                     }
@@ -267,41 +283,54 @@ private fun PasteBriefing(onDismiss: () -> Unit, onSave: (String, String) -> Uni
 }
 
 @Composable
-private fun WatchDialog(seen: String, onDismiss: () -> Unit, onSave: (String, String, Double?, String) -> Unit) {
-    var question by remember { mutableStateOf(seen) }
-    var check by remember { mutableStateOf(LocalDate.now().plusDays(7).toString()) }
-    var withChance by remember { mutableStateOf(false) }
-    var chance by remember { mutableFloatStateOf(30f) }
-    var why by remember { mutableStateOf("") }
-    EditDialog("Watch it in Forecasts", onDismiss, { onSave(question, check, if (withChance) chance / 100.0 else null, why); onDismiss() }, canSave = question.isNotBlank()) {
-        Text("Make it a question that will have an answer by the day you check, such as \"Is the strike over by then?\"", color = P.Faint, fontSize = 12.sp, lineHeight = 16.sp)
-        FormField("The question", question, { question = it.take(240) }, lines = 3)
-        DateField("Check on", check) { if (it.isNotBlank()) check = it }
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("Give it a chance now", color = P.Text, fontSize = 15.sp, modifier = Modifier.weight(1f))
-            Switch(checked = withChance, onCheckedChange = { withChance = it }, colors = SwitchDefaults.colors(checkedTrackColor = P.Accent, checkedThumbColor = P.OnAccent))
-        }
-        if (withChance) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text("Your chance of yes", color = P.Muted, fontSize = 14.sp, modifier = Modifier.weight(1f))
-                Text("${chance.roundToInt()}%", color = P.Accent, fontSize = 22.sp, fontFamily = FontFamily.Serif)
-            }
-            Slider(
-                value = chance, onValueChange = { chance = it.roundToInt().toFloat() }, valueRange = 1f..99f, steps = 97,
-                colors = SliderDefaults.colors(thumbColor = P.Accent, activeTrackColor = P.Accent, inactiveTrackColor = P.Elevated)
-            )
-            FormField("Why (optional)", why, { why = it.take(300) }, lines = 2)
-        } else {
-            Text("Without a chance it's counted (happened or not) but not scored.", color = P.Faint, fontSize = 12.sp)
-        }
-    }
-}
-
-@Composable
 private fun NewsDialog(topic: String, onDismiss: () -> Unit, onSend: (String) -> Unit) {
     var t by remember { mutableStateOf(topic) }
     EditDialog("Lobster: watch the news", onDismiss, { onSend(t); onDismiss() }, canSave = t.isNotBlank(), saveLabel = "Send") {
         Text("A few key words work best. The Lobster checks the news and sends an alert when there's more; it never posts or acts.", color = P.Faint, fontSize = 12.sp, lineHeight = 16.sp)
         FormField("Topic", t, { t = it.take(120) })
+    }
+}
+
+/**
+ * (1.41) Did this happen? The watch items whose day has come, asked at the top of the paper, one at a
+ * time. Marking takes a tap; how sound the reasoning was is optional, and only asked for a call with
+ * a chance. The card goes when nothing's left to mark.
+ */
+@Composable
+internal fun DueCalls(modifier: Modifier = Modifier) {
+    val vm: BriefingViewModel = hiltViewModel()
+    val due by vm.due.collectAsStateWithLifecycle()
+    val c = due.firstOrNull() ?: return
+    val today = LocalDate.now()
+    var reasoning by remember(c.id) { mutableStateOf("") }
+    Column(
+        modifier.fillMaxWidth().clip(RoundedCornerShape(16.dp)).background(P.AccentSoft).padding(horizontal = 16.dp, vertical = 14.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp)
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                "DID THIS HAPPEN?" + if (due.size > 1) " · ${due.size}" else "", color = P.Muted, fontSize = 11.sp,
+                fontWeight = FontWeight.Medium, letterSpacing = 1.2.sp, modifier = Modifier.weight(1f)
+            )
+            Text("from your briefing", color = P.Faint, fontSize = 12.sp)
+        }
+        Text(c.question, color = P.Text, fontSize = 17.sp, lineHeight = 24.sp, fontFamily = FontFamily.Serif)
+        Row(horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+            Text(c.latest?.let { "You said ${Forecasts.percent(it.chances[0])}%" } ?: "No chance given", color = P.Muted, fontSize = 13.sp)
+            Forecasts.date(c.checkOn)?.let { Text("checked ${Forecasts.relative(it, today)}", color = P.Faint, fontSize = 13.sp) }
+        }
+        if (c.latest != null) {
+            Row(Modifier.horizontalScroll(rememberScrollState()), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("The reasoning, if you like:", color = P.Faint, fontSize = 12.sp)
+                listOf("sound" to "Sound", "partly" to "Partly", "no" to "Shaky").forEach { (key, label) ->
+                    ChoicePill(label, reasoning == key, { reasoning = if (reasoning == key) "" else key }, color = P.Muted)
+                }
+            }
+        }
+        Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            ChoicePill("It happened", false, { vm.mark(c.id, 0, false, reasoning) })
+            ChoicePill("It didn't", false, { vm.mark(c.id, 1, false, reasoning) })
+            ChoicePill("Doesn't count", false, { vm.mark(c.id, null, true, "") }, color = P.Muted)
+        }
     }
 }

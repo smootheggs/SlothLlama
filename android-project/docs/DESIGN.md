@@ -202,21 +202,32 @@ sleepy z's) are decoration: hidden from TalkBack and switchable in Settings → 
 - Documents read like a page: a serif title, small-caps headings, the chat's markdown for the
   rest. A note at the foot says whether it was built on the tablet or kept from a chat.
 
-## Weigh and Forecasts
+## Weigh and Your record
 
-- Home's pillars are Learn, Know and Weigh. Weigh is for things with a chance attached:
-  SlothDesk, Sports, Forecasts, Projects. The Lobster and Ourjong are places you go, so
-  they sit in the bottom row; when the names don't fit on one line, the Lobster and Ourjong keep
-  only their marks first, then every link but Models.
-- Forecasts' ledger: area pills, a card with the calibration chart (what you said across, how
-  often it happened up; the dashed diagonal is spot on; dots grow with the number of calls), the
-  Brier score with a thin gauge toward 0.25, and one plain sentence about the band furthest off.
-  Then To check (soonest first) and Checked (a tick or a cross: did it go your way).
+- Home's pillars are Learn, Know and Weigh. Weigh is for things with a chance attached: SlothDesk
+  and Sports (World joins in 1.42), with **Your record** as one bordered line under the tiles
+  (calls, Brier, beat the reference; "N to mark" in moss). Projects, the Lobster and Ourjong are
+  places you go, so they sit in the bottom row; when the names don't fit on one line, the Lobster,
+  Ourjong and Projects keep only their marks first, then every link but Models.
+- **Call it** is one sheet: upright it rises from the bottom (at most 720 dp wide); on a screen
+  840 dp or wider lying on its side it opens at the right, 460 dp, so what you were looking at
+  stays in view. The chance is large in moss with a slider and one-tap presets (the model's, the
+  market's, the crowd's, round numbers); the check is either a line saying how it settles by
+  itself or a few date chips.
+- Marking happens where the call was made: a pick by its score; a watch item by "Did this
+  happen?" at the top of the paper (a soft moss card, one at a time); a price call by a "Check this
+  result" card that shows the close, its source and a second source with a tick, and needs a
+  confirm. The reasoning question is optional, quiet pills: Sound, Partly, Shaky.
+- Your record: the calibration card (what you said across, how often it happened up; dots grow
+  with the number of calls), the Brier score with a thin gauge toward 0.25, beat the reference in
+  moss, then By place, Reasoning and result (four cells), To check and Checked. Sideways: the
+  card and reasoning on the left, places and lists on the right.
 - A call's page: the question in serif, your chance large in moss, a market's in grey, the days
-  to the check date, the trail of your chance (solid) and the market's (dashed), and your reasons
-  newest first. Marking is a row of pills: It happened, It didn't (or each outcome), Doesn't
-  count.
-- Ideas read in from SlothDesk say so and send you back there to review them.
+  to the check date, whether it beat its reference, what settled it, the trail of your chance
+  (solid) and the market's (dashed), and your reasons newest first.
+- Sideways (840 dp and wider, lying on its side), lists keep their place on the left and what you
+  open shows beside them: Sports' games, SlothDesk's price calls (chart and calls left, checks and
+  the new call right).
 
 ## Music
 

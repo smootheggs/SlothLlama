@@ -31,8 +31,9 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
 
 - **Learn**: the tutors (as favourites and practice dots), Core words, Flashcards, Dictionary, Music.
 - **Know**: SlothBooks, The Sloth Express, Atlas, Later.
-- **Weigh** (was Do, until 1.37): SlothDesk, Sports, Forecasts, Projects.
-- **Quiet row**: Chats, Personas, Models (with the model's name), Library, Notes, the Lobster
+- **Weigh** (was Do, until 1.37): SlothDesk and Sports, with **Your record** as a line beneath
+  (1.41; World joins in 1.42).
+- **Quiet row**: Chats, Personas, Models (with the model's name), Library, Notes, Projects, the Lobster
   (coral with a count when there's a catch), Ourjong (a separate mahjong app, opened from here),
   Arrange.
 - **Lit**: a tile that needs you shows it on the tile itself (a count on the icon, an accent
@@ -100,8 +101,14 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
   plain text with the sums done, attached to a chat. **Write it up** makes a **document**: built
   on the tablet (risk register, stakeholder map) or written by the Scribe and kept with "Keep in
   <project>". Personal projects, not team scheduling.
-- **Forecasts**: every **call** (a question, its outcomes, your **chance** for each, a **check
-  date**), in **areas** (Markets, Sports, Politics, Watchlist, Other). Each change of chance keeps
+- **Your record** (Forecasts until 1.41; still `forecasts` in code): every **call** (a question, its
+  outcomes, your **chance** for each, a **check date**), in **areas** (Markets, Sports, Politics,
+  Watchlist, Other) that fall into **places** (Markets, Sports, World, your own). **Call it** is the
+  one sheet calls are made on. The **reference** is the market's (or the crowd's) chance when you
+  called; you **beat the reference** when your Brier score is lower than its. **Reasoning**
+  (sound, partly, shaky) is rated when marking, kept apart from the result. A **price call** is a
+  level by a date on GLD, SLV or USD/JPY, **checked** against SlothDesk's closes (a **second
+  source** where there is one) and **confirmed** by you; its **evidence** stays on the call. Each change of chance keeps
   its **reason**. **Marking** says what happened (or that it doesn't count). The **Brier score**
   (0 never wrong, 0.25 a coin flip on a yes-or-no) is averaged over the days you held the call;
   **calibration** is how often your calls at each level came true. A **market's chance** is one
@@ -110,7 +117,8 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
 - **Briefing**: a paper pasted from elsewhere into the edition, read into **stories** (what it
   says happened, why it matters, what's unclear, its **source rating**) and its **watchlist**
   (what it **saw**, kept apart from its **speculation**). Its words, not checked on the tablet; **Check
-  it** sends a story to the Lobster. A **watch item** is a Watchlist call in Forecasts made from one.
+  it** sends a story to the Lobster. A **watch item** is a Watchlist call made from one, asked
+  about ("Did this happen?") at the top of the paper when its day comes.
 - **Sports**: the **leagues** you follow; **games** and **races** with their **results**, brought by
   the Lobster; **tables** counted from them. A game has **ratings** (Elo, or attack and defence),
   your **factors** (points, goals or places toward one side, each with a reason) and a **book**
@@ -147,4 +155,6 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
 | call, chance | bet, prediction, confidence |
 | Weigh | Do (the old name) |
 | pick (paper) | bet, wager, stake |
+| Your record | Forecasts (the old name), stats, scoreboard |
+| Call it (make a call) | predict, bet |
 | briefing (pasted) | report, intel, digest |

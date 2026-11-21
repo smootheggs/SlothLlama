@@ -167,6 +167,9 @@ fun HomeRoute(
         HomeTile(Icons.Outlined.MusicNote, "Music", "", onMusic)
     )
 
+    // Watch items from the briefing whose day has come: marked in the paper.
+    val watchDue = callList.count { it.source == "briefing" && app.localmind.assistant.domain.forecasts.Forecasts.due(it, todayDate) }
+
     // Know: what you read (SlothBooks), what you note, and what's saved for later.
     val know = buildList {
         val reading = bookList.filter { !it.isPaper && it.status == app.localmind.assistant.domain.books.Status.READING }
@@ -191,8 +194,14 @@ fun HomeRoute(
         if (onLobster != null || paper != null) {
             add(
                 HomeTile(
-                    Icons.Outlined.Newspaper, "The Sloth Express", "", onEdition,
-                    if (unreadNews != null) Tone.ACCENT else Tone.QUIET,
+                    Icons.Outlined.Newspaper, "The Sloth Express",
+                    when {
+                        watchDue == 1 -> "1 to mark"
+                        watchDue > 1 -> "$watchDue to mark"
+                        else -> ""
+                    },
+                    onEdition,
+                    if (unreadNews != null || watchDue > 0) Tone.ACCENT else Tone.QUIET,
                     key = "edition",
                     badge = unreadNews?.let(::badgeCount)
                 )
@@ -210,20 +219,23 @@ fun HomeRoute(
         )
     }
 
-    // Weigh: SlothDesk (strategies, ideas, sums), Sports, Forecasts (every call, scored) and Projects.
+    // Weigh: SlothDesk (strategies, ideas, price calls) and Sports; Your record is the line beneath (1.41).
     val act = buildList {
         val ideasDue = tradingStats.due
+        val priceDue = callList.count { it.price != null && app.localmind.assistant.domain.forecasts.Forecasts.due(it, todayDate) }
         add(
             HomeTile(
                 Icons.Outlined.ShowChart, "SlothDesk",
                 when {
+                    priceDue == 1 -> "1 price call to check"
+                    priceDue > 1 -> "$priceDue price calls to check"
                     ideasDue == 1 -> "1 idea to review"
                     ideasDue > 1 -> "$ideasDue ideas to review"
                     ticketsToMark != null -> if (ticketsToMark == 1) "1 ticket to mark" else "$ticketsToMark tickets to mark"
                     else -> glance?.let { "Prices to ${shortDate(it.dataDate.toString())}" } ?: ""
                 },
                 onDesk,
-                if (ideasDue > 0 || ticketsToMark != null) Tone.ACCENT else Tone.QUIET,
+                if (ideasDue > 0 || priceDue > 0 || ticketsToMark != null) Tone.ACCENT else Tone.QUIET,
                 key = "desk"
             )
         )
@@ -241,48 +253,21 @@ fun HomeRoute(
                 key = "sports"
             )
         )
-        // Forecasts: lit with the calls whose check day has come; otherwise the next check.
-        val dueCalls = callList.count { app.localmind.assistant.domain.forecasts.Forecasts.due(it, todayDate) }
-        val nextCall = callList.filter { it.open }.minByOrNull { it.checkOn }
-            ?.let { c -> app.localmind.assistant.domain.forecasts.Forecasts.date(c.checkOn)?.let { c to it } }
-        add(
-            HomeTile(
-                Icons.Outlined.TrackChanges, "Forecasts",
-                when {
-                    dueCalls == 1 -> "1 to check"
-                    dueCalls > 1 -> "$dueCalls to check"
-                    nextCall != null -> "Next check ${app.localmind.assistant.domain.forecasts.Forecasts.relative(nextCall.second, todayDate)}"
-                    else -> ""
-                },
-                onForecasts,
-                if (dueCalls > 0) Tone.ACCENT else Tone.QUIET,
-                key = "forecasts",
-                badge = dueCalls.takeIf { it > 0 }?.let(::badgeCount)
-            )
-        )
-        // Projects: lit when a milestone is late; otherwise the next one due, across your projects.
-        val current = projectList.filter { !it.archived }
-        val glances = current.map { app.localmind.assistant.domain.projects.Projects.glance(it, todayDate) }
-        val late = glances.sumOf { it.overdue.size }
-        val soonest = glances.mapNotNull { g -> g.next?.let { n -> app.localmind.assistant.domain.projects.Projects.date(n.due)?.let { n to it } } }
-            .minByOrNull { it.second }
-        add(
-            HomeTile(
-                Icons.Outlined.WorkOutline, "Projects",
-                when {
-                    late == 1 -> "1 milestone late"
-                    late > 1 -> "$late milestones late"
-                    soonest != null -> "${soonest.first.title} · ${app.localmind.assistant.domain.projects.Projects.relative(soonest.second, todayDate)}"
-                    current.size == 1 -> "1 project"
-                    current.size > 1 -> "${current.size} projects"
-                    else -> ""
-                },
-                onProjects,
-                if (late > 0) Tone.ACCENT else Tone.QUIET,
-                key = "projects"
-            )
-        )
     }
+
+    // Projects (in the bottom row since 1.41): lit when a milestone is late, across your projects.
+    val current = projectList.filter { !it.archived }
+    val glances = current.map { app.localmind.assistant.domain.projects.Projects.glance(it, todayDate) }
+    val late = glances.sumOf { it.overdue.size }
+    val projectsTile =
+        HomeTile(
+            Icons.Outlined.WorkOutline, "Projects",
+            // The bottom row shows a short status only when a milestone is late.
+            if (late > 0) "$late late" else "",
+            onProjects,
+            if (late > 0) Tone.ACCENT else Tone.QUIET,
+            key = "projects"
+        )
 
     // The Library is what SlothLlama reads (files and Wikipedia it searches): set up once, like Models.
     val more = listOf(
@@ -291,7 +276,9 @@ fun HomeRoute(
         HomeTile(Icons.Outlined.Memory, "Models", ui.activeModelName.ifBlank { "choose one" }, onModels, key = "models"),
         HomeTile(Icons.Outlined.LocalLibrary, "Library", "", onLibrary),
         // Notes is a tool you go to, like the Library: it moved here so Know stays one row.
-        HomeTile(Icons.Outlined.StickyNote2, "Notes", "", onNotes)
+        HomeTile(Icons.Outlined.StickyNote2, "Notes", "", onNotes),
+        // Projects is a place you go, not a call to weigh: it joined this row in 1.41, lit when a milestone is late.
+        projectsTile
     ) + buildList {
         // The Lobster and Ourjong are places you go, not things to weigh: they joined this row in 1.37.
         // A catch still shows: the Lobster's coral, with the count.
@@ -349,6 +336,21 @@ fun HomeRoute(
     val favourites = settings.favourites.mapNotNull { id -> ui.personas.firstOrNull { it.id == id } }
     val favouriteNotes = favourites.mapNotNull { p -> practisedAgo(lastByPersona[p.id], todayDate, zone)?.let { p.id to it } }.toMap()
 
+    // Your record: one line under Weigh (calls checked, the Brier score, how often you beat the
+    // reference, and what's left to mark), opening the record of every call.
+    val summary = remember(callList, todayDate) { app.localmind.assistant.domain.forecasts.Forecasts.summary(callList, todayDate) }
+    val record = if (callList.isEmpty()) RecordLine("Your record", "make a call in Sports, SlothDesk or the Express", 0, onForecasts)
+    else RecordLine(
+        "Your record",
+        buildList {
+            add(if (summary.checked == 1) "1 call" else "${summary.checked} calls")
+            summary.brier?.let { add(String.format(java.util.Locale.ENGLISH, "%.2f", it)) }
+            if (summary.withReference > 0) add("beat the reference ${app.localmind.assistant.domain.forecasts.Forecasts.percent(summary.beat.toDouble() / summary.withReference)}%")
+        }.joinToString(" · "),
+        summary.toCheck,
+        onForecasts
+    )
+
     HomeScreen(
         script = script,
         conversations = ui.conversations,
@@ -357,6 +359,7 @@ fun HomeRoute(
         learn = learn,
         know = knowArranged,
         act = actArranged,
+        record = record,
         more = more,
         favourites = favourites,
         favouriteNotes = favouriteNotes,

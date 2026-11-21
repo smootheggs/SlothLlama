@@ -324,7 +324,7 @@ class DeskViewModel @Inject constructor(
     }
 
     companion object {
-        const val ORDER_TEXT = "Prices for SlothDesk: GLD SLV USDJPY DTB3 JP3M GVZ from 2008-01-01"
+        const val ORDER_TEXT = "Prices for SlothDesk: GLD SLV USDJPY DTB3 JP3M GVZ DEXJPUS from 2008-01-01"
         private const val MAX_JOURNAL = 3_000
         private const val MAX_FILE_BYTES = 30 * 1024 * 1024
     }

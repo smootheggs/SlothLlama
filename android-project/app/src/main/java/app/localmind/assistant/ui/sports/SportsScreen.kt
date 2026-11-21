@@ -1,6 +1,14 @@
 package app.localmind.assistant.ui.sports
 
 import android.widget.Toast
+import app.localmind.assistant.ui.home.WIDE
+import app.localmind.assistant.ui.common.Preset
+import app.localmind.assistant.ui.common.CallItSheet
+import app.localmind.assistant.domain.sports.Market
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -90,47 +98,69 @@ fun SportsScreen(viewModel: SportsViewModel, onBack: () -> Unit, onForecasts: ()
     val league = chosen ?: followed.firstOrNull { results?.leagues?.containsKey(it.id) == true } ?: followed.firstOrNull()
     val data = league?.let { results?.leagues?.get(it.id) }
 
-    Box(Modifier.fillMaxSize().background(P.Canvas)) {
-        val o = opened
-        if (o != null && data != null) {
-            if (o.league.kind == Kind.RACE) RacePage(o, data, yours, viewModel)
-            else data.games.firstOrNull { it.id == o.id }?.let { g -> GamePage(o.league, g, data, yours, calls, viewModel) }
-                ?: Text("That game isn't here any more.", color = P.Muted, modifier = Modifier.padding(24.dp))
-        } else {
-            Column(Modifier.fillMaxSize()) {
-                SlothTopBar(title = "Sports", subtitle = followed.joinToString(" · ") { it.label }.ifBlank { "Pick what you follow" }, onBack = onBack) {
-                    TextButton(onClick = { viewModel.askLobster(daily = !yours.dailySent) }) { Text("Ask the Lobster", color = P.Lobster, fontSize = 14.sp) }
-                }
-                Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+    // Upright, a game opens over the list. Sideways on a wide screen, the list stays on the left and
+    // the game or race opens beside it.
+    val list: @Composable (Modifier) -> Unit = { m ->
+        Column(m) {
+            SlothTopBar(title = "Sports", subtitle = followed.joinToString(" · ") { it.label }.ifBlank { "Pick what you follow" }, onBack = onBack) {
+                TextButton(onClick = { viewModel.askLobster(daily = !yours.dailySent) }) { Text("Ask the Lobster", color = P.Lobster, fontSize = 14.sp) }
+            }
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                SportsTab.entries.forEach { t -> ChoicePill(t.label, tab == t, { viewModel.showTab(t) }) }
+                Box(Modifier.width(12.dp))
+                followed.forEach { l -> ChoicePill(l.label, league == l, { viewModel.showLeague(l) }, color = P.Muted) }
+            }
+            Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                Column(
+                    Modifier.widthIn(max = 1000.dp).fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 6.dp),
+                    verticalArrangement = Arrangement.spacedBy(14.dp)
                 ) {
-                    SportsTab.entries.forEach { t -> ChoicePill(t.label, tab == t, { viewModel.showTab(t) }) }
-                    Box(Modifier.width(12.dp))
-                    followed.forEach { l -> ChoicePill(l.label, league == l, { viewModel.showLeague(l) }, color = P.Muted) }
-                }
-                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                    Column(
-                        Modifier.widthIn(max = 1000.dp).fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 16.dp, vertical = 6.dp),
-                        verticalArrangement = Arrangement.spacedBy(14.dp)
-                    ) {
-                        when {
-                            results == null -> Setup(yours, viewModel)
-                            tab == SportsTab.PICKS -> Picks(calls, results!!, onForecasts)
-                            league == null || data == null -> {
-                                EmptyLine("Nothing for ${league?.label ?: "this league"} yet. Ask the Lobster, or pick another.")
-                                Setup(yours, viewModel)
-                            }
-                            tab == SportsTab.TABLES -> Tables(league, data)
-                            else -> Games(league, data, yours, viewModel)
+                    when {
+                        results == null -> Setup(yours, viewModel)
+                        tab == SportsTab.PICKS -> Picks(calls, results!!, onForecasts)
+                        league == null || data == null -> {
+                            EmptyLine("Nothing for ${league?.label ?: "this league"} yet. Ask the Lobster, or pick another.")
+                            Setup(yours, viewModel)
                         }
-                        Text(
-                            "Results from ESPN's scoreboard and Jolpica-F1, through the Lobster. Ratings, tables and chances are worked out on the tablet. Paper only: nothing is ever bet.",
-                            color = P.Faint, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(horizontal = 4.dp, vertical = 10.dp)
-                        )
+                        tab == SportsTab.TABLES -> Tables(league, data)
+                        else -> Games(league, data, yours, calls, viewModel)
                     }
+                    Text(
+                        "Results from ESPN's scoreboard and Jolpica-F1, through the Lobster. Ratings, tables and chances are worked out on the tablet. Paper only: nothing is ever bet.",
+                        color = P.Faint, fontSize = 12.sp, lineHeight = 17.sp, modifier = Modifier.padding(horizontal = 4.dp, vertical = 10.dp)
+                    )
                 }
             }
+        }
+    }
+    val showDetail = opened != null && data != null
+    val detail: @Composable () -> Unit = {
+        val o = opened
+        val d = data
+        if (o != null && d != null) {
+            if (o.league.kind == Kind.RACE) RacePage(o, d, yours, viewModel)
+            else d.games.firstOrNull { it.id == o.id }?.let { g -> GamePage(o.league, g, d, yours, calls, viewModel) }
+                ?: Text("That game isn't here any more.", color = P.Muted, modifier = Modifier.padding(24.dp))
+        }
+    }
+    BoxWithConstraints(Modifier.fillMaxSize().background(P.Canvas)) {
+        val twoPanes = maxWidth >= WIDE && maxWidth > maxHeight
+        when {
+            twoPanes -> Row(Modifier.fillMaxSize()) {
+                list(Modifier.width(minOf(600.dp, maxWidth * 0.48f)).fillMaxHeight())
+                Box(Modifier.width(1.dp).fillMaxHeight().background(P.Border))
+                Box(Modifier.weight(1f).fillMaxHeight()) {
+                    if (showDetail) detail() else Text(
+                        "Tap a game for its numbers: ratings, your factors and prices, and the game played out.",
+                        color = P.Faint, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.padding(32.dp)
+                    )
+                }
+            }
+            showDetail -> detail()
+            else -> list(Modifier.fillMaxSize())
         }
     }
 }
@@ -162,38 +192,30 @@ private fun Setup(yours: SportsYours, vm: SportsViewModel) {
 }
 
 @Composable
-private fun Games(league: League, data: LeagueData, yours: SportsYours, vm: SportsViewModel) {
+private fun Games(league: League, data: LeagueData, yours: SportsYours, calls: List<Call>, vm: SportsViewModel) {
     if (league.kind == Kind.RACE) return Races(league, data, vm)
     val today = LocalDate.now()
     val coming = data.games.filter { !it.played && SportsViewModel.dayOf(it) >= today.minusDays(1) }.take(40)
     val done = data.games.filter { it.played }.sortedByDescending { it.date }.take(30)
     Section("Coming up", note = if (coming.isEmpty()) null else "Tap a game for its numbers") {
         if (coming.isEmpty()) EmptyLine("No games in the next two weeks.")
-        coming.forEach { g -> GameRowView(league, g, data, yours, vm) }
+        coming.forEach { g -> GameRowView(league, g, data, yours, calls, vm) }
     }
     Section("Results") {
         if (done.isEmpty()) EmptyLine("No results yet.")
-        done.forEach { g -> GameRowView(league, g, data, yours, vm) }
+        done.forEach { g -> GameRowView(league, g, data, yours, calls, vm) }
     }
 }
 
 @Composable
-private fun GameRowView(league: League, g: GameRow, data: LeagueData, yours: SportsYours, vm: SportsViewModel) {
+private fun GameRowView(league: League, g: GameRow, data: LeagueData, yours: SportsYours, calls: List<Call>, vm: SportsViewModel) {
     val notes = yours.notes[vm.key(league, g.id)]
-    // The model's favourite, for games still to come (a quick look; the page plays it out).
-    val lean = remember(g.id, data.games.size, notes) {
-        if (g.played) null else when (league.kind) {
-            Kind.POINTS -> SportsModels.expect(g, data.games, league, notes?.factors.orEmpty()).let { e ->
-                val p = SportsModels.play(e, null, null, runs = 4_000).homeWins
-                if (p >= 0.5) "${g.homeAbbr.ifBlank { g.home }} ${Forecasts.percent(p)}%" else "${g.awayAbbr.ifBlank { g.away }} ${Forecasts.percent(1 - p)}%"
-            }
-            Kind.GOALS -> SportsModels.goals(g, data.games, notes?.factors.orEmpty()).let { x ->
-                val best = listOf(g.home to x.homeWin, "Draw" to x.draw, g.away to x.awayWin).maxBy { it.second }
-                "${best.first} ${Forecasts.percent(best.second)}%"
-            }
-            Kind.RACE -> null
-        }
-    }
+    val book = notes?.book ?: SportsLines.fromLine(g)
+    // The model's favourite, for games still to come (a quick look; the page plays it out), as a
+    // pick you can call from the row: its chance, and the market's with the margin out if there's a price.
+    val lean = remember(g.id, data.games.size, notes) { if (g.played || g.state == "in") null else quickOffer(league, g, data, notes?.factors.orEmpty(), book) }
+    val picked = calls.firstOrNull { it.open && it.source.startsWith("sports:${league.id}:${g.id}:") }
+    var calling by remember { mutableStateOf(false) }
     Row(
         Modifier.fillMaxWidth().heightIn(min = 56.dp).clip(RoundedCornerShape(10.dp)).clickable { vm.open(Opened(league, g.id)) }.padding(vertical = 8.dp, horizontal = 4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -209,8 +231,70 @@ private fun GameRowView(league: League, g: GameRow, data: LeagueData, yours: Spo
                 color = P.Text, fontSize = 15.sp, fontWeight = FontWeight.Medium
             )
             g.state == "in" -> Text("on now", color = P.Accent, fontSize = 13.sp)
-            lean != null -> Text(lean, color = P.Muted, fontSize = 13.sp)
+            lean != null -> {
+                Column(horizontalAlignment = Alignment.End) {
+                    Text("${lean.label} ${Forecasts.percent(lean.model)}%", color = P.Muted, fontSize = 13.sp, maxLines = 1)
+                    lean.marketChance?.let { m -> Text("market ${Forecasts.percent(m)}%", color = P.Faint, fontSize = 11.sp, maxLines = 1) }
+                }
+                if (picked != null) {
+                    Text(
+                        "picked · ${picked.latest?.chances?.firstOrNull()?.let { Forecasts.percent(it) } ?: "—"}%",
+                        color = P.Accent, fontSize = 12.sp, fontWeight = FontWeight.Medium, maxLines = 1,
+                        modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(P.AccentSoft).padding(horizontal = 10.dp, vertical = 6.dp)
+                    )
+                } else {
+                    Text(
+                        "Call it", color = P.Accent, fontSize = 13.sp, fontWeight = FontWeight.Medium,
+                        modifier = Modifier.heightIn(min = 40.dp).clip(RoundedCornerShape(20.dp)).clickable { calling = true }.padding(horizontal = 12.dp, vertical = 10.dp)
+                    )
+                }
+            }
         }
+    }
+    if (calling && lean != null) {
+        CallItSheet(
+            where = "Sports · ${league.label}",
+            question = lean.question,
+            context = "Model ${Forecasts.percent(lean.model)}%" +
+                (lean.marketChance?.let { " · market ${Forecasts.percent(it)}% (${book?.source ?: "the line"}, margin out)" } ?: " · no price yet") +
+                (if (notes?.factors.isNullOrEmpty()) "" else " · with your factors"),
+            start = lean.model,
+            presets = listOfNotNull(
+                Preset("Model ${Forecasts.percent(lean.model)}%", lean.model),
+                lean.marketChance?.let { Preset("Market ${Forecasts.percent(it)}%", it) }
+            ) + listOf(0.55, 0.7, 0.8).map { Preset("${Forecasts.percent(it)}", it) },
+            settles = "Marks itself from the final score. Nothing to remember.",
+            fixedCheckOn = SportsViewModel.dayOf(g).toString(),
+            onDismiss = { calling = false },
+            onCall = { _, chance, _, why ->
+                val c = chance ?: lean.model
+                val made = "model ${Forecasts.percent(lean.model)}%" + (lean.marketChance?.let { m -> ", market ${Forecasts.percent(m)}%" } ?: "")
+                vm.pick(league, g.id, SportsViewModel.dayOf(g), lean.market, lean.arg, lean.question, c, lean.marketChance, book?.source ?: "", if (why.isBlank()) made else "$made. $why")
+            }
+        )
+    }
+}
+
+/** The favourite on a game still to come, as an offer: who, the model's chance, the market's. */
+private fun quickOffer(league: League, g: GameRow, data: LeagueData, factors: List<app.localmind.assistant.domain.sports.Factor>, book: app.localmind.assistant.domain.sports.Book?): Offer? {
+    val day = whenOf(g).substringBefore(" ·")
+    return when (league.kind) {
+        Kind.POINTS -> {
+            val p = SportsModels.play(SportsModels.expect(g, data.games, league, factors), null, null, runs = 4_000).homeWins
+            val fair = book?.fair(false)
+            if (p >= 0.5) Offer(Market.HOME, "", g.homeAbbr.ifBlank { g.home }, "${g.home} beat the ${g.away} ($day)", p, fair?.get(0))
+            else Offer(Market.AWAY, "", g.awayAbbr.ifBlank { g.away }, "${g.away} beat the ${g.home} ($day)", 1 - p, fair?.get(1))
+        }
+        Kind.GOALS -> {
+            val x = SportsModels.goals(g, data.games, factors)
+            val fair = book?.fair(true)
+            listOf(
+                Offer(Market.HOME, "", g.home, "${g.home} beat ${g.away} ($day)", x.homeWin, fair?.get(0)),
+                Offer(Market.DRAW, "", "Draw", "${g.home} and ${g.away} draw ($day)", x.draw, fair?.get(2)),
+                Offer(Market.AWAY, "", g.away, "${g.away} beat ${g.home} ($day)", x.awayWin, fair?.get(1))
+            ).maxBy { it.model }
+        }
+        Kind.RACE -> null
     }
 }
 

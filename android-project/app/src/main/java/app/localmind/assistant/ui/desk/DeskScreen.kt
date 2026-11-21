@@ -1,5 +1,6 @@
 package app.localmind.assistant.ui.desk
 
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
@@ -162,7 +163,10 @@ fun DeskScreen(viewModel: DeskViewModel, trading: TradingViewModel, onBack: () -
                 }
             }
             DeskTabs(tab, onTab = { tab = it }, modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 4.dp))
-            if (tab != DeskTab.STRATEGIES) {
+            if (tab == DeskTab.CALLS) {
+                val priceCalls: PriceCallsViewModel = hiltViewModel()
+                BoxWithConstraints(Modifier.fillMaxSize()) { PriceCallsPane(priceCalls, maxWidth >= WIDE, onAskPrices = { viewModel.updateNow() }) }
+            } else if (tab != DeskTab.STRATEGIES) {
                 BoxWithConstraints(Modifier.fillMaxSize()) { TradingPane(trading, tab, maxWidth >= WIDE, snackbar) }
             } else BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
                 val wide = maxWidth >= WIDE

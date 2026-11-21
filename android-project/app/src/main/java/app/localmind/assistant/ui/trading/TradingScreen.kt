@@ -67,7 +67,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /** SlothDesk's three tabs: the strategies, the idea book, the desk's sums. */
-enum class DeskTab(val label: String) { STRATEGIES("Strategies"), IDEAS("Ideas"), SUMS("Calculators") }
+enum class DeskTab(val label: String) { STRATEGIES("Strategies"), IDEAS("Ideas"), CALLS("Price calls"), SUMS("Calculators") }
 
 /** Plain text tabs with a moss underline: navigation, so quieter than any button. */
 @Composable

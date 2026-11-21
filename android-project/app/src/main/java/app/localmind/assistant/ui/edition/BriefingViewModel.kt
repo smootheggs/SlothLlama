@@ -24,6 +24,9 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import java.time.LocalDate
@@ -58,7 +61,18 @@ class BriefingViewModel @Inject constructor(
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
+    /** (1.41) Watch items whose check day has come: asked about at the top of the paper, where they were made. */
+    val due: StateFlow<List<Call>> = forecasts.calls
+        .map { list -> list.filter { it.source == "briefing" && Forecasts.due(it, LocalDate.now()) }.sortedBy { it.checkOn } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+
+    /** Marks a watch item (and how sound the reasoning was, if you said). */
+    fun mark(id: String, happened: Int?, void: Boolean, reasoning: String) = viewModelScope.launch {
+        forecasts.settle(id, happened, void, reasoning = reasoning)
+    }
+
     init {
+        viewModelScope.launch { forecasts.load() }
         viewModelScope.launch {
             book.load()
             book.briefings.value.firstOrNull()?.let { placesFor(it) }
