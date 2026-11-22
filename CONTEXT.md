@@ -65,7 +65,7 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
 ## Learn
 
 - **Core words**: frequency word lists per language (Mandarin with HSK 3.0 levels).
-- **Flashcards**: spaced repetition (FSRS). "Due" means due for review today.
+- **Flashcards**: spaced repetition (FSRS). "Due" means ready to review today: reviews due plus new cards up to 20 a day. Review and Browse are separate tabs so nothing gives an answer away; the meaning→word side has its own schedule in study/study.json (in backups).
 - **Dictionary**: offline CC-CEDICT with Jyutping for Cantonese; tap a word to look it up.
 - **Practice week**: the seven dots on Home, filled for a day with any practice.
 - **Music**: the **tuner** (a **tuning**, or chromatic; a **horn** setting shows saxophones'

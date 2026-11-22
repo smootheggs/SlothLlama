@@ -112,12 +112,14 @@ object Scheduler {
             difficulty = nextDifficulty(before.difficulty, g)
         }
         val s = stability.coerceIn(0.01, 36_500.0)
+        // A lapse is a review forgotten, not a same-day relearning miss (1.51, as Anki counts them for leeches).
+        val elapsedDays = before?.let { max(0.0, (now - it.lastReview).toDouble() / DAY) } ?: 0.0
         val memory = CardMemory(
             stability = s,
             difficulty = difficulty,
             lastReview = now,
             reviews = (before?.reviews ?: 0) + 1,
-            lapses = (before?.lapses ?: 0) + if (g == 1 && before != null) 1 else 0
+            lapses = (before?.lapses ?: 0) + if (g == 1 && before != null && elapsedDays >= 1.0) 1 else 0
         ).encode()
         if (g == 1) return Next(card.ease, 0, now + 10 * MINUTE, memory)
         val days = interval(s).roundToInt().coerceIn(1, 3650)
@@ -211,6 +213,22 @@ class FlashcardRepository @Inject constructor(private val dao: LocalMindDao) {
     }
 
     suspend fun delete(card: Flashcard) = dao.deleteVocabularyItem(card.id)
+
+    /** Puts [card] back exactly as it was: an undone review, or an undone delete (1.51). */
+    suspend fun restore(card: Flashcard) = dao.upsertVocabularyItem(
+        VocabularyItemEntity(
+            id = card.id,
+            targetLanguage = card.language.code,
+            term = card.term,
+            transliteration = card.pronunciation.ifEmpty { null },
+            translation = card.meaning,
+            exampleSentence = card.example,
+            cefrLevel = card.memory,
+            easeFactor = card.ease,
+            intervalDays = card.intervalDays,
+            nextReviewAt = card.dueAt
+        )
+    )
 
     private fun VocabularyItemEntity.toCard() = Flashcard(
         id = id,

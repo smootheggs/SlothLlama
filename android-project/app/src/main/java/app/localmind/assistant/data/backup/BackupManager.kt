@@ -67,7 +67,9 @@ data class BackupContents(
     /** Briefings you pasted into the Sloth Express (editions/briefings.json). */
     val briefings: String? = null,
     /** World: the markets you follow, the crowd's history and the news watches (world/world.json); prices are read again. */
-    val world: String? = null
+    val world: String? = null,
+    /** Flashcard review: settings and each card's meaning→word schedule (study/study.json); the cards are in [flashcards]. */
+    val study: String? = null
 )
 
 /** Names of the models and Library files, which are too large to go into a backup. */
@@ -117,6 +119,7 @@ class BackupManager @Inject constructor(
     private val projects: app.localmind.assistant.data.projects.ProjectBook,
     private val forecasts: app.localmind.assistant.data.forecasts.ForecastBook,
     private val songs: app.localmind.assistant.data.music.SongBook,
+    private val study: app.localmind.assistant.data.study.StudyBook,
     private val sports: app.localmind.assistant.data.sports.SportsStore,
     private val briefings: app.localmind.assistant.data.briefing.BriefingBook,
     private val world: app.localmind.assistant.data.world.WorldStore
@@ -142,6 +145,7 @@ class BackupManager @Inject constructor(
             projects = runCatching { projects.backupText() }.getOrNull(),
             forecasts = runCatching { forecasts.backupText() }.getOrNull(),
             songs = runCatching { songs.backupText() }.getOrNull(),
+            study = runCatching { study.backupText() }.getOrNull(),
             sports = runCatching { sports.backupText() }.getOrNull(),
             briefings = runCatching { briefings.backupText() }.getOrNull(),
             world = runCatching { world.backupText() }.getOrNull()
@@ -195,6 +199,7 @@ class BackupManager @Inject constructor(
         contents.projects?.let { runCatching { projects.mergeBackup(it) } }
         contents.forecasts?.let { runCatching { forecasts.mergeBackup(it) } }
         contents.songs?.let { runCatching { songs.mergeBackup(it) } }
+        contents.study?.let { runCatching { study.mergeBackup(it) } }
         contents.sports?.let { runCatching { sports.mergeBackup(it) } }
         contents.briefings?.let { runCatching { briefings.mergeBackup(it) } }
         contents.world?.let { runCatching { world.mergeBackup(it) } }

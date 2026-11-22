@@ -69,7 +69,13 @@ model too big for the GPU falls back to the CPU on its own.
   for Mandarin, Cantonese tutors for Cantonese. The transcript lands in the box to check first.
 - **Flashcards.** Tap ☆ under a tutor reply to save its ⭐ words and word-list entries; review
   them under **Flashcards** (spaced repetition with FSRS, the scheduler Anki uses: Again / Hard /
-  Good / Easy; cards from older versions keep their progress).
+  Good / Easy; cards from older versions keep their progress). Review shows only the card until
+  you flip it; Browse keeps meanings hidden until you tap. Ask with the word, the meaning or both
+  (the meaning side opens once you've recalled the word across a day, with its own schedule);
+  type the answer first if you like, and a near miss is pointed out but never graded for you.
+  New cards come 20 a day, a missed card returns a few cards later, Undo takes back the last
+  answer, and cards missed 8 times are flagged as "keeps slipping". With a keyboard: Space flips,
+  1 to 4 grade, Ctrl+Z undoes.
 - **Ask SlothLlama.** Select text in any app → **Ask SlothLlama** opens a new chat with the
   question waiting in the box.
 - **A model per persona.** Personas → Model, e.g. a Cantonese model for the Cantonese tutors.

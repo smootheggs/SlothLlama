@@ -4,6 +4,32 @@ Every release of SlothLlama and the SlothLobster, newest first, in the words of 
 Each GitHub release carries its entry from here; this file keeps them all (GitHub keeps only the
 newest five releases of each app).
 
+## SlothLlama 1.51.0 — 2026-11-22
+
+**Flashcards that don't give the answer away**
+
+On the phone and the tablet, upright and sideways:
+
+- **Review and Browse are separate.** Review shows only the card: tap it (or Show answer) to flip,
+  and the four grades sit at your thumb, or down the right edge on a tablet held sideways, each
+  saying when the card comes back. Browse lists the cards with their meanings hidden until you
+  tap one. Before, every card's meaning was listed right under the card being reviewed.
+- **Ask with the word, the meaning, or both.** The meaning→word side opens once you've recalled
+  a word across a day (recognise first, then produce) and keeps its own schedule, as Anki's
+  reverse cards do. In Mixed, a card shows one way per day.
+- **Type the answer first**, if you like. A near miss is pointed out: one character off in
+  Chinese or Japanese, missing accents, a missing article, a typo (never in words under four
+  letters, where a typo is often another word). It suggests a grade; you still choose.
+- **Best practice from Anki:** new cards 20 a day; a missed card comes back three cards later in
+  the same session; Undo takes back the last answer; cards missed 8 times or more are flagged
+  as "keeps slipping", worth rewriting or giving an example.
+- **The end of a session** says how many you got right first time, lists the ones you missed,
+  and lets you go over them again as practice, which changes no schedule.
+- Hide or show the pinyin (or other reading) on the front; choose which languages to review.
+- With a keyboard: Space or Enter flips, 1 to 4 grade, Ctrl+Z undoes.
+- Deleting a card from Browse can be undone. Your review settings and the meaning-side schedules
+  are in backups (study/study.json); the cards stay in the database, unchanged.
+
 ## SlothLlama 1.50.3 · SlothLobster 1.13.2 — 2026-11-22
 
 **No more "Edition edition"**
