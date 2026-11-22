@@ -103,4 +103,24 @@ class ReaderUnitTests {
         assertEquals("Morning brief" to "Body", ReaderViewModel.splitNote("Morning brief\n\nBody"))
         assertEquals("Note" to "Just one line", ReaderViewModel.splitNote("Just one line"))
     }
+
+    @Test
+    fun `the page's lines around an article fold together, out of read aloud and find`() {
+        val m = app.localmind.assistant.domain.edition.Editions.ASIDE_MARK
+        val text = "${m}By A. Writer\n\nGold rose on Tuesday.\n\n${m}[Silver slips](https://www.bbc.co.uk/news/s)\n\n${m}Published 2 days ago\n\nIt fell later."
+        val blocks = readerBlocks(text)
+        assertEquals(4, blocks.size)
+        val first = blocks[0] as ReaderBlock.Aside
+        assertEquals(listOf("By A. Writer"), first.lines.map { it.text })
+        assertEquals("Gold rose on Tuesday.", blocks[1].text)
+        // Neighbouring lines make one fold; its link is still a link.
+        val second = blocks[2] as ReaderBlock.Aside
+        assertEquals(listOf("Silver slips", "Published 2 days ago"), second.lines.map { it.text })
+        assertEquals("https://www.bbc.co.uk/news/s", second.lines[0].links.single().url)
+        assertEquals("", second.text)
+        assertEquals(listOf(1), findMatches(blocks, "Gold"))
+        assertTrue(findMatches(blocks, "Published").isEmpty())
+        // Reading time counts the article alone.
+        assertEquals(readingMinutes("Gold rose on Tuesday.\n\nIt fell later."), readingMinutes(app.localmind.assistant.domain.edition.Editions.withoutAsides(text)))
+    }
 }

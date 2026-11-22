@@ -1001,7 +1001,7 @@ class Engine(private val lobster: Lobster) {
             withTimeoutOrNull(CLEAN_STORY_MS) {
                 val page = Web.get(story.url)
                 if (!page.isHtml) return@withTimeoutOrNull story.copy(pageOnly = Clean.WHY_NOT_PAGE)
-                val paras = Clean.paras(Readable.extract(page.text, page.url).lines, story.title)
+                val paras = Readable.extract(page.text, page.url).let { Clean.paras(it.lines, story.title, it.asides) }
                 val shut = Clean.shut(paras)
                 if (shut != null) return@withTimeoutOrNull story.copy(pageOnly = shut)
                 val picUrl = Clean.leadPicture(page.text, page.url)

@@ -234,7 +234,7 @@ fun EditionScreen(
         EditionPage.SETTINGS -> BackHandler { page = EditionPage.PAPER }
         EditionPage.PAPER -> BackHandler(enabled = clean != null) { reader.close() }
     }
-    val cleanView: @Composable (ReaderDoc) -> Unit = { doc ->
+    val cleanView: @Composable (ReaderDoc, Boolean) -> Unit = { doc, topOfScreen ->
         Reading(
             reader, doc, onBack = reader::close,
             onCatchToLibrary = {}, onCatchToNotes = {}, onCatchDismiss = {},
@@ -242,7 +242,8 @@ fun EditionScreen(
             onOpenPage = { url ->
                 val st = shown?.edition?.let { Editions.findNews(it, url) }
                 if (st != null) openPage(st) else LobsterHandOff.open(context, url, true)?.let(viewModel::say)
-            }
+            },
+            topOfScreen = topOfScreen
         )
     }
 
@@ -251,7 +252,7 @@ fun EditionScreen(
         // (Worked out here: the Row below hides this scope's maxWidth.)
         val beside = maxWidth >= WIDE && maxWidth > maxHeight
         if (clean != null && !beside) {
-            cleanView(clean)
+            cleanView(clean, true)
             SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
             return@BoxWithConstraints
         }
@@ -297,7 +298,7 @@ fun EditionScreen(
             }
             if (clean != null) {
                 VerticalDivider(color = P.Border)
-                Box(Modifier.weight(1.1f).fillMaxHeight()) { cleanView(clean) }
+                Box(Modifier.weight(1.1f).fillMaxHeight()) { cleanView(clean, false) }
             }
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))

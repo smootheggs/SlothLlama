@@ -61,7 +61,12 @@ data class EditionPlan(
 
 /** A paragraph of a corner story; [en] is the source's own English line for it, when it gives one. */
 @Serializable
-data class EdPara(val t: String, val en: String = "")
+data class EdPara(
+    val t: String,
+    val en: String = "",
+    /** (1.13.3) From the page around the article (a related link, a date, a caption): SlothLlama folds it away. */
+    val aside: Boolean = false
+)
 
 @Serializable
 data class EdStory(

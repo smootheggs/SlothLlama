@@ -4,8 +4,12 @@ import org.jsoup.Jsoup
 import org.jsoup.nodes.Document
 import org.jsoup.nodes.Element
 
-/** A web page boiled down to its title and its readable text. */
-data class ReadablePage(val title: String, val lines: List<String>) {
+/**
+ * A web page boiled down to its title and its readable text. [asides] (1.13.3) are the lines that
+ * look like the page around the article rather than the article: related-story links, dates,
+ * captions and bylines. They're marked, never dropped, so nothing of the article can be lost.
+ */
+data class ReadablePage(val title: String, val lines: List<String>, val asides: Set<Int> = emptySet()) {
     /** Markdown: headings as #, list items as -, paragraphs between blank lines. */
     val text: String get() = lines.joinToString("\n\n")
 }
@@ -35,7 +39,8 @@ object Readable {
             .ifBlank { Web.site(baseUrl) }
         doc.select(JUNK).remove()
         val root = mainPart(doc)
-        return ReadablePage(title, blocks(root))
+        val (lines, asides) = blocks(root)
+        return ReadablePage(title, lines, asides)
     }
 
     /** The part of the page with the most paragraph text: the article itself. */
@@ -60,8 +65,9 @@ object Readable {
 
     private fun paragraphChars(e: Element): Int = e.select("p").sumOf { it.text().length }
 
-    private fun blocks(root: Element): List<String> {
+    private fun blocks(root: Element): Pair<List<String>, Set<Int>> {
         val out = ArrayList<String>()
+        val asides = HashSet<Int>()
         var chars = 0
         for (el in root.select(BLOCKS)) {
             // Only the innermost blocks, so a list item holding a paragraph isn't read twice.
@@ -77,6 +83,7 @@ object Readable {
                 else -> text
             }
             if (out.lastOrNull() == line) continue
+            if (isAside(el, text, root)) asides += out.size
             out += line
             chars += line.length
             if (chars > MAX_CHARS) break
@@ -85,8 +92,45 @@ object Readable {
             val all = root.text().trim()
             if (all.isNotEmpty()) out += all.take(MAX_CHARS)
         }
-        return out
+        // When in doubt, show everything: rules that would set aside half the text have misread the page.
+        val asideChars = asides.sumOf { out[it].length }
+        return out to if (asideChars * 2 > out.sumOf { it.length }) emptySet() else asides
     }
+
+    /**
+     * (1.13.3) A line from the page around the article, by three signs readers such as Readability
+     * use: it sits in a box the page itself calls related, promo, byline, caption and so on; it is
+     * mostly link text (a teaser headline is all link, a paragraph mostly words); or it is a date
+     * or caption line ("Published 2 days ago", "Image source, …").
+     */
+    fun isAside(el: Element, text: String, root: Element): Boolean {
+        if (META.matches(text)) return true
+        if (el.closest("figure, figcaption") != null) return true
+        var e: Element? = el
+        while (e != null && e != root) {
+            val labels = (e.className() + " " + e.id() + " " + e.attr("data-component") + " " + e.attr("data-testid")).lowercase()
+            if (ASIDE_BOX.containsMatchIn(labels)) return true
+            e = e.parent()
+        }
+        val linked = if (el.closest("a") != null) text.length else el.select("a").sumOf { it.text().length }
+        val density = linked.toDouble() / text.length.coerceAtLeast(1)
+        return density >= 0.9 || (density >= 0.6 && text.length < 160)
+    }
+
+    /** Labels pages give the boxes around an article (whole words, so "figcaption" or "promotional-…" don't match by accident). */
+    private val ASIDE_BOX = Regex(
+        "(^|[^a-z])(links?-block|tag-list|topic-list|related|promo|teaser|recommended|recommendations|more-stories|" +
+            "more-on-this|read-?more|newsletter|outbrain|taboola|most-?read|trending|byline|byline-block|image-block|caption)([^a-z]|$)"
+    )
+
+    /** Date, caption and label lines. */
+    private val META = Regex(
+        "^(published|updated|posted|last updated|first published|modified)\\b[^.]{0,60}$" +
+            "|^\\d{1,3} (seconds?|minutes?|mins?|hours?|hrs?|days?|weeks?|months?) ago$" +
+            "|^(image|media|video|photo) (source|caption|credit)s?\\b.{0,240}$" +
+            "|^(related topics|related|more on this story|more from \\S+|read more|see also|share|share this( article)?|listen|watch|advertisement|sponsored)\\s*:?$",
+        RegexOption.IGNORE_CASE
+    )
 
     private fun hasBlockChild(el: Element): Boolean =
         el.getAllElements().drop(1).any { it.tagName() in BLOCK_TAGS }

@@ -175,6 +175,9 @@ it short):
 
 - SlothLlama keeps the paper in its private storage (30 days), removes the catch, and checks it
   on the way in: known format, sizes capped, links only https. Nothing in it is run.
+- A top story read clean carries its article in `paras`. A paragraph with `"aside": true` (1.13.3)
+  is a line the page put around the article: a byline, a date, a caption, a link to another
+  story. SlothLlama folds those in the reader and leaves them out of chats; it never drops them.
 
 ## Status (Lobster → SlothLlama), JSON
 

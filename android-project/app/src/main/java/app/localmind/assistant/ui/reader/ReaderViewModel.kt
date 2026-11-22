@@ -1,6 +1,8 @@
 package app.localmind.assistant.ui.reader
 
+import app.localmind.assistant.domain.edition.Editions
 import android.content.Context
+import android.content.SharedPreferences
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import app.localmind.assistant.data.ask.AskInbox
@@ -110,6 +112,23 @@ class ReaderViewModel @Inject constructor(
         prefs.edit().putBoolean(KEY_WHITE, v).apply()
     }
 
+    // Two readers share these settings (the Reader and the Express's own), so a change in one shows in the other.
+    private val prefsListener = SharedPreferences.OnSharedPreferenceChangeListener { p, key ->
+        when (key) {
+            KEY_WHITE -> _whitePage.value = p.getBoolean(KEY_WHITE, false)
+            KEY_SCALE -> _scale.value = p.getFloat(KEY_SCALE, 1f).coerceIn(MIN_SCALE, MAX_SCALE)
+        }
+    }
+
+    init {
+        prefs.registerOnSharedPreferenceChangeListener(prefsListener)
+    }
+
+    override fun onCleared() {
+        prefs.unregisterOnSharedPreferenceChangeListener(prefsListener)
+        super.onCleared()
+    }
+
     private val _picked = MutableStateFlow<Set<String>>(emptySet())
     /** Links picked to send to the Lobster together. */
     val picked: StateFlow<Set<String>> = _picked.asStateFlow()
@@ -136,7 +155,7 @@ class ReaderViewModel @Inject constructor(
                 loaded?.let { d ->
                     _places.value = runCatching {
                         val finder = atlas.finder()
-                        withContext(Dispatchers.Default) { finder.find(d.title + "\n" + d.text.take(40_000), 4) }
+                        withContext(Dispatchers.Default) { finder.find(d.title + "\n" + Editions.withoutAsides(d.text).take(40_000), 4) }
                     }.getOrDefault(emptyList())
                 }
             } catch (e: CancellationException) {
@@ -277,7 +296,8 @@ class ReaderViewModel @Inject constructor(
     fun laterToLibrary(id: String) = act {
         val item = later.items.value.firstOrNull { it.id == id } ?: return@act null
         val text = withContext(Dispatchers.IO) { later.text(id) } ?: return@act null
-        library.addText(item.title, if (item.url.isBlank()) text else "$text\n\nSource: ${item.url}")
+        val body = Editions.withoutAsides(text)
+        library.addText(item.title, if (item.url.isBlank()) body else "$body\n\nSource: ${item.url}")
         "Added to your library 📚"
     }
 
@@ -358,8 +378,9 @@ class ReaderViewModel @Inject constructor(
         _message.value = null
     }
 
+    /** The text as it goes out of the reader (a chat, Share): the page's lines around the article stay behind. */
     private fun withSources(d: ReaderDoc): String = buildString {
-        append(d.text.trim())
+        append(Editions.withoutAsides(d.text).trim())
         if (d.sources.isNotEmpty() && d.sources.none { s -> s.url.isNotBlank() && d.text.contains(s.url) }) {
             append("\n\nSources:\n")
             d.sources.forEachIndexed { i, s -> append("${i + 1}. ${s.title.ifBlank { s.url }} ${s.url}\n") }

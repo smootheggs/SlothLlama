@@ -4,6 +4,31 @@ Every release of SlothLlama and the SlothLobster, newest first, in the words of 
 Each GitHub release carries its entry from here; this file keeps them all (GitHub keeps only the
 newest five releases of each app).
 
+## SlothLlama 1.51.1 · SlothLobster 1.13.3 — 2026-11-22
+
+**Read clean: the white page works again, and the page's clutter folds away**
+
+- **The white page switch works in the Express.** Reading a story clean in the Express ignored
+  the switch: only the Reader screen put its pages on white, and the Express shows its stories
+  through the reading page alone. The reading page now takes the white page itself, wherever it
+  is shown, and the status bar follows it when the page has the top of the screen. The Reader and
+  the Express keep the switch and the text size in step.
+- **Headlines, links, dates and captions inside an article are told apart from it.** The Lobster
+  now marks the page's own lines around an article instead of reading them as part of it:
+  bylines, "Published 2 days ago", image captions and credits, "Related topics", "Share", and the
+  boxes of links to other stories that sites put between paragraphs. It looks at how the page is
+  built (a figure, a box named for related stories, links, bylines or promotions), at how much of
+  a line is links, and at a short list of labels, never at what the sentence says.
+- **Nothing is thrown away.** Marked lines fold into one faint row in the reader ("3 lines from
+  the page · links, dates, captions"); a tap shows them, and their links can still be fetched.
+  Short scraps the Lobster used to drop are now kept the same way. The page's lines have an
+  allowance of their own (60 lines), so they never use up the room kept for the article. If more
+  than half a page would fold, the Lobster folds none of it: on an odd page it's safer to show
+  everything.
+- Folded lines stay out of read aloud, Find, the reading time, Ask, Share and the library, and
+  come along when a story goes to Later. Papers from before this read as they always did.
+- The folding needs both apps updated; with only one, stories read as they did.
+
 ## SlothLlama 1.51.0 — 2026-11-22
 
 **Flashcards that don't give the answer away**

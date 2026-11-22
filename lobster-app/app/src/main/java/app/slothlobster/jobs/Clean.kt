@@ -16,6 +16,10 @@ object Clean {
     /** Kept per story: enough for a long article, small enough for a paper of forty. */
     const val MAX_PARAS = 120
     const val MAX_CHARS = 24_000
+    /** The page's own lines around an article (1.13.3): kept within an allowance of their own. */
+    const val MAX_ASIDES = 60
+    const val MAX_ASIDE_CHARS = 6_000
+    const val MAX_ASIDE_LINE = 1_200
     /** Less than this and the page most likely kept its text back (a paywall, or a script that writes it). */
     const val MIN_CHARS = 600
     const val PIC_WIDTH = 720
@@ -36,34 +40,49 @@ object Clean {
 
     /**
      * The reader's lines as the story's paragraphs: headings and lists keep their Markdown marks,
-     * the story's own title (already shown) and short scraps (bylines, "Share", captions of icons)
-     * are left out, within [MAX_PARAS] and [MAX_CHARS].
+     * the story's own title (already shown) is left out, and lines from the page around the
+     * article ([asides], and short scraps such as bylines and "Share") are kept but marked aside,
+     * so the reader can fold them away without anything being lost (1.13.3). The article within
+     * [MAX_PARAS] and [MAX_CHARS]; the page's lines within [MAX_ASIDES] and [MAX_ASIDE_CHARS] of their own.
      */
-    fun paras(lines: List<String>, title: String): List<EdPara> {
+    fun paras(lines: List<String>, title: String, asides: Set<Int> = emptySet()): List<EdPara> {
         val out = ArrayList<EdPara>()
         val own = fold(title)
         var chars = 0
-        for (raw in lines) {
+        var count = 0
+        var asideChars = 0
+        var asideCount = 0
+        for ((i, raw) in lines.withIndex()) {
             val line = raw.trim()
             val words = line.trimStart('#', '-', '>', ' ').trim()
             if (words.isEmpty()) continue
             val heading = line.startsWith("#")
             if (heading && fold(words) == own) continue
             // Headings and list items may be short; a plain paragraph this short is a scrap.
-            if (!heading && !line.startsWith("- ") && words.length < 40 && !words.endsWith('.')) continue
+            val scrap = !heading && !line.startsWith("- ") && words.length < 40 && !words.endsWith('.')
             if (out.lastOrNull()?.t == line) continue
+            if (scrap || i in asides) {
+                // The page's lines have their own allowance, so they never crowd out the article.
+                val room = MAX_ASIDE_CHARS - asideChars
+                if (asideCount >= MAX_ASIDES || room <= 0) continue
+                val t = line.take(minOf(room, MAX_ASIDE_LINE))
+                out += EdPara(t, aside = true)
+                asideChars += t.length
+                asideCount++
+                continue
+            }
             val room = MAX_CHARS - chars
             if (room <= 0) break
             out += EdPara(line.take(minOf(room, 4_000)))
             chars += line.length
-            if (out.size >= MAX_PARAS) break
+            if (++count >= MAX_PARAS) break
         }
         return out
     }
 
     /** Why the text that came back isn't enough to read, or null when it is. */
     fun shut(paras: List<EdPara>): String? =
-        if (paras.filterNot { it.t.startsWith("#") }.sumOf { it.t.length } < MIN_CHARS) WHY_SHUT else null
+        if (paras.filterNot { it.t.startsWith("#") || it.aside }.sumOf { it.t.length } < MIN_CHARS) WHY_SHUT else null
 
     /** The page's own lead picture (its Open Graph or Twitter card image), as an https link. */
     fun leadPicture(html: String, baseUrl: String): String? {

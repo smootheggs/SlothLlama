@@ -116,4 +116,57 @@ class ExpressReadingUnitTests {
         assertFalse(StoryPictures.safe("a~1.png"))
         assertFalse(StoryPictures.safe("a/b~1.jpg"))
     }
+
+    // --- 1.51.1: the page's own lines around an article, kept and folded ---
+
+    private fun bbc() = EdStory(
+        title = "Rates held", url = "https://www.bbc.co.uk/news/2", outlet = "BBC",
+        paras = listOf(
+            EdPara("By A. Writer", aside = true),
+            EdPara(text),
+            EdPara("Image source, Getty Images", aside = true),
+            EdPara("The bank said inflation was falling faster than expected."),
+            EdPara("Mortgage rates fall again", aside = true),
+            EdPara("Published 2 days ago", aside = true)
+        )
+    )
+
+    @Test
+    fun `the paper keeps which lines were the page's own`() {
+        val json = Json { ignoreUnknownKeys = true; encodeDefaults = true }
+        val e = EditionOut(id = "e", name = "Sloth Express", made = 0, top = listOf(bbc()))
+        val read = Editions.parse(json.encodeToString(EditionOut.serializer(), e))
+        assertEquals(listOf(true, false, true, false, true, true), read.top.single().paras.map { it.aside })
+        // A paper from before 1.51.1 has none.
+        assertEquals(false, json.decodeFromString(EdPara.serializer(), """{"t":"Words"}""").aside)
+    }
+
+    @Test
+    fun `the reader gets them marked, a chat and reading time without them`() {
+        val s = bbc()
+        val all = Editions.cleanText(s)
+        assertTrue(all.startsWith(Editions.ASIDE_MARK + "By A. Writer\n\n$text"))
+        assertTrue(all.contains(Editions.ASIDE_MARK + "Published 2 days ago"))
+        val article = "$text\n\nThe bank said inflation was falling faster than expected."
+        assertEquals(article, Editions.cleanText(s, asides = false))
+        assertEquals(article, Editions.withoutAsides(all))
+        // A text with no marks (a note, a book) is left exactly as it is.
+        assertEquals("a\n\n\n\nb", Editions.withoutAsides("a\n\n\n\nb"))
+    }
+
+    @Test
+    fun `a page can't fold its own article by writing the mark`() {
+        val s = EdStory(title = "x", url = "https://example.org/x", paras = listOf(EdPara(Editions.ASIDE_TOKEN + " The whole article.")))
+        assertEquals("The whole article.", Editions.cleanText(s))
+        assertEquals("The whole article.", Editions.withoutAsides(Editions.cleanText(s)))
+    }
+
+    @Test
+    fun `the page's lines never crowd out the article`() {
+        val paras = List(100) { listOf(EdPara("Related story $it", aside = true), EdPara("Paragraph $it of the article.")) }.flatten()
+        val kept = Editions.cleanParas(paras)
+        assertEquals(100, kept.count { !it.aside })
+        assertEquals(Editions.MAX_ASIDES, kept.count { it.aside })
+        assertEquals("Paragraph 99 of the article.", kept.last { !it.aside }.t)
+    }
 }

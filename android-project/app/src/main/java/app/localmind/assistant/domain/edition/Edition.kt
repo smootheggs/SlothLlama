@@ -49,7 +49,12 @@ data class EditionPlan(
 )
 
 @Serializable
-data class EdPara(val t: String, val en: String = "")
+data class EdPara(
+    val t: String,
+    val en: String = "",
+    /** A line the page put around the article (a link to another story, a date, a caption): kept, folded in the reader. */
+    val aside: Boolean = false
+)
 
 @Serializable
 data class EdStory(
@@ -205,7 +210,7 @@ object Editions {
         fun s(x: EdStory) = x.copy(
             title = x.title.take(240), summary = x.summary.take(400), outlet = x.outlet.take(60), meta = x.meta.take(80),
             also = x.also.take(8).map { it.take(60) },
-            paras = x.paras.take(20).map { EdPara(it.t.take(1_200), it.en.take(1_200)) },
+            paras = x.paras.take(20).map { EdPara(it.t.take(1_200), it.en.take(1_200), it.aside) },
             url = x.url.takeIf { it.startsWith("https://") }.orEmpty().take(2_000),
             pic = "", pageOnly = ""
         )
@@ -258,12 +263,27 @@ object Editions {
     /** A lead picture as sent: a 720-pixel JPEG is well under this in base64. */
     const val MAX_PIC_CHARS = 600_000
 
+    /** The page's own lines around the article (1.51.1): an allowance of their own, so they never crowd it out. */
+    const val MAX_ASIDES = 60
+    const val MAX_ASIDE_CHARS = 6_000
+
     fun cleanParas(paras: List<EdPara>): List<EdPara> {
         var left = MAX_CLEAN_CHARS
-        return paras.take(MAX_CLEAN_PARAS).mapNotNull { p ->
-            if (left <= 0) return@mapNotNull null
+        var count = 0
+        var asideLeft = MAX_ASIDE_CHARS
+        var asides = 0
+        return paras.mapNotNull { p ->
+            if (p.aside) {
+                if (asides >= MAX_ASIDES || asideLeft <= 0) return@mapNotNull null
+                val t = p.t.take(minOf(1_200, asideLeft))
+                asideLeft -= t.length
+                asides++
+                return@mapNotNull EdPara(t, aside = true)
+            }
+            if (left <= 0 || count >= MAX_CLEAN_PARAS) return@mapNotNull null
             val t = p.t.take(minOf(4_000, left))
             left -= t.length
+            count++
             EdPara(t)
         }.filter { it.t.isNotBlank() }
     }
@@ -271,8 +291,30 @@ object Editions {
     /** Whether a news story came with its own text to read here. */
     fun hasClean(s: EdStory): Boolean = s.paras.isNotEmpty() && s.pageOnly.isBlank()
 
-    /** The clean story as Markdown for the reader: its paragraphs, headings and lists as the Lobster kept them. */
-    fun cleanText(s: EdStory): String = s.paras.joinToString("\n\n") { it.t.trim() }
+    /**
+     * The clean story as Markdown for the reader: its paragraphs, headings and lists as the Lobster kept them.
+     * The page's own lines around the article (links, dates, captions) come marked with [ASIDE_MARK], so the
+     * reader folds them away without losing them; [asides] false leaves them out, for chats and reading time.
+     */
+    fun cleanText(s: EdStory, asides: Boolean = true): String = s.paras
+        .filter { asides || !it.aside }
+        .map { p ->
+            // The mark is ours alone: a page can't fold its own article text by writing it.
+            val t = p.t.replace(ASIDE_TOKEN, "").trim()
+            if (p.aside) ASIDE_MARK + t.replace(Regex("\\s*\\n\\s*"), " ") else t
+        }
+        .filter { it.isNotBlank() && it != ASIDE_MARK }
+        .joinToString("\n\n")
+
+    /** Starts a line the page put around the article, in a clean text. */
+    const val ASIDE_TOKEN = "%%aside%%"
+    const val ASIDE_MARK = "$ASIDE_TOKEN "
+
+    /** A text without the page's lines around the article: what goes to a chat, the library or a reading time. */
+    fun withoutAsides(text: String): String =
+        if (ASIDE_TOKEN !in text) text
+        else text.lineSequence().filterNot { it.trimStart().startsWith(ASIDE_TOKEN) }.joinToString("\n")
+            .replace(Regex("\n{3,}"), "\n\n").trim()
 
     /** Whether a tap on this story reads it clean: whenever the text is here, unless its outlet is set to the page. */
     fun tapsClean(setup: EditionSetup, s: EdStory): Boolean =

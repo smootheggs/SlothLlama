@@ -1,5 +1,7 @@
 package app.localmind.assistant.ui.reader
 
+import app.localmind.assistant.domain.edition.Editions
+
 /**
  * The reader's view of a text: headings, paragraphs, bullets, numbered items, quotes and code,
  * each with its links pulled out. Markdown from the Lobster (briefs, fetched pages, research) and
@@ -17,6 +19,11 @@ sealed interface ReaderBlock {
     data class Numbered(val number: String, override val body: Inline) : ReaderBlock
     data class Quote(override val body: Inline) : ReaderBlock
     data class Code(override val body: Inline) : ReaderBlock
+    /**
+     * Lines the page put around an article (links to other stories, dates, captions), folded in the
+     * reader. Its own text is empty, so reading aloud and finding in the page pass over it.
+     */
+    data class Aside(val lines: List<Inline>, override val body: Inline = Inline("")) : ReaderBlock
 }
 
 /** A block's text, its links, and the stretches shown in bold (start until end). */
@@ -76,6 +83,16 @@ fun readerBlocks(markdown: String): List<ReaderBlock> {
         val t = line.trim()
         if (t.isEmpty()) {
             flushParagraph(); flushQuote()
+            continue
+        }
+        if (t.startsWith(Editions.ASIDE_TOKEN)) {
+            flushParagraph(); flushQuote()
+            val said = t.removePrefix(Editions.ASIDE_TOKEN).trim()
+            if (said.isEmpty()) continue
+            // Neighbouring lines fold together, however the text spaced them.
+            val last = out.lastOrNull()
+            if (last is ReaderBlock.Aside) out[out.lastIndex] = last.copy(lines = last.lines + parseInline(said))
+            else out += ReaderBlock.Aside(listOf(parseInline(said)))
             continue
         }
         val quoted = QUOTE.matchEntire(t)

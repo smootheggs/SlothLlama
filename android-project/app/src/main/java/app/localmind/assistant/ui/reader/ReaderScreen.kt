@@ -1,5 +1,6 @@
 package app.localmind.assistant.ui.reader
 
+import app.localmind.assistant.domain.edition.Editions
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.Dispatchers
 import androidx.compose.ui.platform.LocalDensity
@@ -19,6 +20,7 @@ import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -127,16 +129,6 @@ fun ReaderScreen(
     val message by viewModel.message.collectAsStateWithLifecycle()
     val white by viewModel.whitePage.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
-    // A white page: the reader takes the light colours; the status bar's icons turn dark to match.
-    val outer = LocalSlothColors.current
-    val view = LocalView.current
-    DisposableEffect(white, outer.isDark) {
-        val window = view.context.findActivity()?.window
-        val bars = window?.let { WindowInsetsControllerCompat(it, view) }
-        val before = bars?.isAppearanceLightStatusBars
-        bars?.isAppearanceLightStatusBars = white || !outer.isDark
-        onDispose { if (before != null) bars?.isAppearanceLightStatusBars = before }
-    }
     // Opened from the shelf (not from the Lobster page or the library): Back returns to the shelf.
     var viaShelf by rememberSaveable { mutableStateOf(false) }
 
@@ -147,8 +139,7 @@ fun ReaderScreen(
         }
     }
 
-    CompositionLocalProvider(LocalSlothColors provides if (white) LightColors else outer) {
-    Box(Modifier.fillMaxSize().background(P.Canvas)) {
+    WhitePage(white, statusBar = true) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val wide = maxWidth >= WIDE
             val current = doc
@@ -221,6 +212,28 @@ fun ReaderScreen(
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
     }
+}
+
+/**
+ * A reading page on white when that's chosen, on the app's own colours otherwise. With [statusBar]
+ * the page has the screen's top edge, so the status bar's icons turn dark to stay readable; a page
+ * beside the Express leaves the status bar to the paper.
+ */
+@Composable
+internal fun WhitePage(white: Boolean, statusBar: Boolean, content: @Composable BoxScope.() -> Unit) {
+    val outer = LocalSlothColors.current
+    if (statusBar) {
+        val view = LocalView.current
+        DisposableEffect(white, outer.isDark) {
+            val window = view.context.findActivity()?.window
+            val bars = window?.let { WindowInsetsControllerCompat(it, view) }
+            val before = bars?.isAppearanceLightStatusBars
+            bars?.isAppearanceLightStatusBars = white || !outer.isDark
+            onDispose { if (before != null) bars?.isAppearanceLightStatusBars = before }
+        }
+    }
+    CompositionLocalProvider(LocalSlothColors provides if (white) LightColors else outer) {
+        Box(Modifier.fillMaxSize().background(P.Canvas), content = content)
     }
 }
 
@@ -369,7 +382,28 @@ internal fun Reading(
     onCatchToNotes: (String) -> Unit,
     onCatchDismiss: (String) -> Unit,
     onPlace: (app.localmind.assistant.domain.atlas.PlaceHit) -> Unit,
-    onOpenPage: ((String) -> Unit)? = null
+    onOpenPage: ((String) -> Unit)? = null,
+    /** Whether this page has the screen's top edge (so the status bar follows a white page). */
+    topOfScreen: Boolean = false
+) {
+    // The page's own colours, wherever it's shown: on the Reader screen and in the Express alike.
+    val white by viewModel.whitePage.collectAsStateWithLifecycle()
+    WhitePage(white, statusBar = topOfScreen) {
+        ReadingPage(viewModel, doc, onBack, onCatchToLibrary, onCatchToNotes, onCatchDismiss, onPlace, onOpenPage)
+    }
+}
+
+@OptIn(FlowPreview::class)
+@Composable
+private fun ReadingPage(
+    viewModel: ReaderViewModel,
+    doc: ReaderDoc,
+    onBack: () -> Unit,
+    onCatchToLibrary: (String) -> Unit,
+    onCatchToNotes: (String) -> Unit,
+    onCatchDismiss: (String) -> Unit,
+    onPlace: (app.localmind.assistant.domain.atlas.PlaceHit) -> Unit,
+    onOpenPage: ((String) -> Unit)?
 ) {
     val context = LocalContext.current
     val scale by viewModel.scale.collectAsStateWithLifecycle()
@@ -514,7 +548,7 @@ internal fun Reading(
                 item(key = "title") {
                     Column {
                         Text(doc.title, color = P.Text, fontSize = (24 * scale).sp, lineHeight = (31 * scale).sp, fontWeight = FontWeight.SemiBold)
-                        Text("${doc.meta} · about ${readingMinutes(doc.text)} min", color = P.Faint, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+                        Text("${doc.meta} · about ${readingMinutes(Editions.withoutAsides(doc.text))} min", color = P.Faint, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
                         if (express) {
                             ExpressActions(doc, onShelf, onOpenPage, onSave = viewModel::keepClean)
                             doc.picture?.let { StoryPicture(viewModel, it) }
@@ -731,6 +765,47 @@ private fun BlockView(
                 .horizontalScroll(rememberScrollState()).padding(12.dp)
                 .pointerInput(block) { detectTapGestures(onLongPress = { onHold() }) }
         )
+        is ReaderBlock.Aside -> AsideView(block, scale, picked, onLink, onPick)
+    }
+}
+
+/**
+ * The page's own lines around the article, folded to one faint row: nothing of the page is thrown
+ * away, so a line the Lobster took for a link list or a date is one tap from coming back.
+ */
+@Composable
+private fun AsideView(
+    block: ReaderBlock.Aside,
+    scale: Float,
+    picked: Set<String>,
+    onLink: (String) -> Unit,
+    onPick: (String) -> Unit
+) {
+    var unfolded by remember(block) { mutableStateOf(false) }
+    val accent = P.Accent
+    val n = block.lines.size
+    Column(Modifier.fillMaxWidth()) {
+        Text(
+            (if (unfolded) "Fold the page's lines" else "$n ${if (n == 1) "line" else "lines"} from the page · links, dates, captions") + (if (unfolded) " ˄" else " ˅"),
+            color = P.Faint, fontSize = (13 * scale).sp,
+            modifier = Modifier.clip(RoundedCornerShape(6.dp))
+                .clickable(onClickLabel = if (unfolded) "Fold" else "Show") { unfolded = !unfolded }
+                .padding(vertical = 6.dp)
+        )
+        if (unfolded) {
+            Row(Modifier.fillMaxWidth().padding(top = 2.dp)) {
+                Box(Modifier.width(2.dp).height((18 * scale).dp).background(P.Border))
+                Column(Modifier.weight(1f).padding(start = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    block.lines.forEach { line ->
+                        Row(verticalAlignment = Alignment.Top) {
+                            val text = remember(line, accent) { styled(line, "", accent, accent) }
+                            Tappable(text, line.links, P.Muted, (14 * scale).sp, (20 * scale).sp, null, null, Modifier.weight(1f), onLink) {}
+                            line.links.firstOrNull()?.let { l -> PickMark(l.url in picked) { onPick(l.url) } }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
 

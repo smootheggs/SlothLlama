@@ -99,7 +99,7 @@ internal fun StoryMenu(
     onDismiss: () -> Unit
 ) {
     val clean = Editions.hasClean(story)
-    val minutes = if (clean) readingMinutes(Editions.cleanText(story)) else 0
+    val minutes = if (clean) readingMinutes(Editions.cleanText(story, asides = false)) else 0
     fun go(f: (EdStory) -> Unit): () -> Unit = { onDismiss(); f(story) }
 
     Column(Modifier.fillMaxWidth().padding(bottom = 8.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {

@@ -223,7 +223,7 @@ class EditionViewModel @Inject constructor(
     fun askAbout(story: EdStory) {
         val text = buildString {
             append(story.title).append("\n\n")
-            if (Editions.hasClean(story)) append(Editions.cleanText(story)) else append(story.summary)
+            if (Editions.hasClean(story)) append(Editions.cleanText(story, asides = false)) else append(story.summary)
             if (story.outlet.isNotBlank()) append("\n\n(").append(story.outlet).append(")")
             if (story.url.isNotBlank()) append("\n").append(story.url)
         }.trim()
