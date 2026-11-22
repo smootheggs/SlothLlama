@@ -5,6 +5,7 @@ import app.localmind.assistant.domain.persona.SpeechLanguage
 import app.localmind.assistant.ui.speech.VoiceChoice
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -59,5 +60,17 @@ class VoiceChoiceUnitTests {
         assertNull(trader.speech)
         assertTrue(trader.systemInstruction.contains("never work out prices"))
         assertTrue(trader.systemInstruction.contains("Wrong if"))
+    }
+
+    @Test
+    fun `the trader carries the rule card forms, so a card from plain chat reads too`() {
+        val trader = BuiltInPersonas.TRADER.systemInstruction
+        assertTrue(trader.contains(app.localmind.assistant.domain.desk.RuleCard.FORMS))
+        assertTrue(trader.contains("never options"))
+        // Its own example card reads, with no problems.
+        val example = trader.substringAfter("Example:\n")
+        val read = app.localmind.assistant.domain.desk.RuleCard.parse(example, setOf("GLD"))
+        assertNotNull(read.rule)
+        assertTrue(read.problems.toString(), read.problems.isEmpty())
     }
 }

@@ -426,11 +426,12 @@ object RuleCard {
         Write the rule as a card with these lines, and nothing else in them:
         Rule: a short name
         When: a condition      (And: for each further condition; Else when: starts another branch)
-        Then: hold TICKER 100%  (or: hold A 50%, B -50%; or: cash; or: hold the best 1 of A, B, C by 120-day return)
+        Then: hold TICKER 100%  (or: short TICKER 100%; or: hold A 50%, B -50%; or: cash; or: hold the best 1 of A, B, C by 120-day return)
         Held: until an exit    (only if the position should stay on until an Exit line says so)
         Otherwise: cash        (or weights, as in Then)
         Exit: after 60 days | stop 8% | trailing stop 10% | stop 3 ATR | trailing stop 3 ATR | target 20% | A/B 60-day stretch back within 0.5
         Check: daily | weekly | monthly
+        Size: equal | equal risk over 60 days | steady risk 10% over 60 days | risk 1% per trade (only with a stop Exit)
         Compare with: TICKER
         A condition is: SIGNAL above|below|at least|at most|crosses above|crosses below VALUE, optionally "for 3 days" or "(to enter)".
         A SIGNAL is one of: TICKER (its close) · TICKER 200-day average · TICKER 50-day exponential average · TICKER 120-day return ·

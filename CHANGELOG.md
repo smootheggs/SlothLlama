@@ -4,6 +4,20 @@ Every release of SlothLlama and the SlothLobster, newest first, in the words of 
 Each GitHub release carries its entry from here; this file keeps them all (GitHub keeps only the
 newest five releases of each app).
 
+## SlothLlama 1.50.1 — 2026-11-22
+
+**The Trader knows the rule card by heart**
+
+- The rule card's forms now live in the Trader's persona, so a card asked for in plain chat
+  reads on the Desk too, not only one asked for from an idea. A draft asked for from the Desk
+  no longer sends the forms a second time.
+- The forms now show the Size line (equal, equal risk, steady risk, risk per trade with a stop)
+  and "short TICKER 100%", which the Desk always read but the Trader was never shown.
+- The Trader says plainly that SlothDesk tests holding, shorting and rotating prices (delta
+  one), not options, and offers the nearest delta-one rule when an idea needs options.
+- A test checks that every exit, sizing and action the forms offer reads on the Desk, so the
+  forms and the reader can't drift apart.
+
 ## SlothLlama 1.50.0 · SlothLobster 1.13.0 — 2026-11-22
 
 **SlothDesk reads any market: crypto, FX, FRED series, and daily highs and lows for ATR**

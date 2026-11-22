@@ -222,4 +222,22 @@ class PathUnitTests {
         assertTrue(RuleEngine.today(r.copy(branches = listOf(Branch("x", listOf(Condition.Compare(Signal.Series("NOPE"), Op.ABOVE, Against.Value(0.0))),
             Action.Hold(mapOf("GLD" to 1.0))))), data).isEmpty())
     }
+
+    @Test
+    fun `every exit, sizing and action the card forms offer reads`() {
+        val forms = RuleCard.FORMS.lines()
+        fun options(label: String) = forms.first { it.startsWith("$label: ") }.removePrefix("$label: ")
+            .substringBefore("  (").split(" | ").map { it.substringBefore(" (").trim() }
+        val base = "Rule: x\nWhen: GLD above its 200-day average\nThen: hold GLD 100%\nHeld: until an exit\nOtherwise: cash\nExit: stop 3 ATR\n"
+        for (e in options("Exit")) {
+            val read = RuleCard.parse(base + "Exit: $e", prices)
+            assertTrue("Exit: $e ${read.problems}", read.rule != null && read.problems.isEmpty())
+        }
+        for (z in options("Size")) {
+            val read = RuleCard.parse(base + "Size: $z", prices)
+            assertTrue("Size: $z ${read.problems}", read.rule != null && read.problems.isEmpty())
+        }
+        val short = RuleCard.parse(base.replace("hold GLD 100%", "short GLD 100%"), prices).rule!!
+        assertEquals(Action.Hold(mapOf("GLD" to -1.0)), short.branches[0].action)
+    }
 }

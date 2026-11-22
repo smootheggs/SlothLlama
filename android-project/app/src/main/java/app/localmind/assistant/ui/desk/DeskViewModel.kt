@@ -543,9 +543,9 @@ class DeskViewModel @Inject constructor(
         }
         askInbox.post(
             LaunchRequest.Shared(
+                // The card's forms are in the Trader's persona (1.50.1), so they aren't sent twice.
                 prompt = "Draft a first rule to test this idea, as simply as the idea allows. " +
-                    "Say in one line how the rule tests the idea, then write the card. Use only the forms below; don't work out any numbers.\n\n" +
-                    RuleCard.FORMS,
+                    "Say in one line how the rule tests the idea, then write the card. Use only the rule card forms you were given; don't work out any numbers.",
                 document = attachments.textDocument("Idea: ${idea.thesis.take(60)}", idea.asText() + "\n\n" + have),
                 personaId = BuiltInPersonas.TRADER.id
             )
