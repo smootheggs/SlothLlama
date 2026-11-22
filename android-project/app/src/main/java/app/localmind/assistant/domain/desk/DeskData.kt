@@ -71,19 +71,38 @@ class DeskData(
     val gvz: Line,
     val gapAccrual: Line,
     val gapPublished: Line,
-    val japan: Line
+    val japan: Line,
+    /** Every other series by id, as it happened (for carry), and as it could be known at each close (for signals). */
+    val raw: Map<String, Line> = emptyMap(),
+    val known: Map<String, Line> = emptyMap()
 ) {
     val lastDate: LocalDate get() = prices.values.maxOf { it.last }
 
+    private val none = Line(emptyList(), DoubleArray(0))
+
+    /** A series as you could have known it at each close (rates lagged to when they were published). */
+    fun knownLine(id: String): Line = known[id] ?: none
+
+    /** A series for daily carry: one by id, or "gap:A:B" for A minus B. */
+    fun accrual(id: String): Line {
+        if (id.startsWith("gap:")) {
+            val p = id.split(":")
+            if (p.size == 3) return gapOf(raw[p[1]] ?: none, raw[p[2]] ?: none)
+        }
+        return raw[id] ?: none
+    }
+
     companion object {
-        fun assemble(prices: Map<String, Bars>, us: Line, japan: Line, gvz: Line): DeskData =
+        fun assemble(prices: Map<String, Bars>, us: Line, japan: Line, gvz: Line, more: Map<String, Pair<Line, Line>> = emptyMap()): DeskData =
             DeskData(
                 prices = prices,
                 rf = us,
                 gvz = gvz,
                 gapAccrual = gapOf(us, japan),
                 gapPublished = gapOf(publishedDaily(us), publishedMonthly(japan)),
-                japan = japan
+                japan = japan,
+                raw = more.mapValues { it.value.first } + mapOf("DTB3" to us, "JP3M" to japan, "GVZ" to gvz),
+                known = more.mapValues { it.value.second } + mapOf("DTB3" to publishedDaily(us), "JP3M" to publishedMonthly(japan), "GVZ" to gvz)
             )
 
         /** Daily H.15 rates appear the next business day. */

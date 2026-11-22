@@ -4,6 +4,31 @@ Every release of SlothLlama and the SlothLobster, newest first, in the words of 
 Each GitHub release carries its entry from here; this file keeps them all (GitHub keeps only the
 newest five releases of each app).
 
+## SlothLlama 1.47.0 — 2026-11-22
+
+**SlothDesk's strategies become rules: the engine behind "Idea → Test → Paper → Review"**
+
+The first stage of the new SlothDesk. Nothing on screen changes yet; underneath, a strategy is no
+longer code but a rule made of blocks, the same ones the rule editor will offer (stage 2):
+
+- Signals: price, simple and exponential averages, momentum (with a skip), the high and low of
+  the days before, how far off its high, how stretched (one asset, or a ratio of two), RSI,
+  realised volatility, and any series: a level, its change, or one series minus another, each as
+  it could be known at the close (rates when they were published).
+- Conditions: above, below, at least, at most, crossing; N days in a row; any of, not; the
+  calendar; a signal's own percentile; and conditions only for entering (a filter, a crossing).
+- Actions: hold weights (long or short, a pair), rotate into the strongest of a list, scale with
+  a signal. Sizing: as written, equal money, equal risk, a steady risk, risk per trade; a cap on
+  the total. Exits: back within a band, after N days, a stop or trailing stop, a target. A
+  drawdown brake. Checked daily, weekly or monthly, with a no-trade band for small resizes.
+- Markets: FX and crypto costs, carry accrued daily, and crypto's seven-day year.
+
+The four strategies on the shelf are now rules from these blocks. They decide exactly what the
+hand-written ones did: the same weights on every day of every setting in their checks, the same
+reasons, and still the Colab engine's numbers. A rule can't look ahead (each is run on history
+cut short and must agree with itself), and anything outside the limits (branches, conditions,
+ranges, tickers, size) is refused, not run.
+
 ## SlothLlama 1.46.0 — 2026-11-21
 
 **Your places on the Atlas, with their names and stories**

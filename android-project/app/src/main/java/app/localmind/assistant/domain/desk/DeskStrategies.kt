@@ -93,38 +93,61 @@ object DeskStrategies {
     /** The strategy's result at a setting, its buy-and-hold benchmark, and the entries it made. */
     class Run(val result: SimResult, val bench: SimResult, val entries: Int, val targets: Targets?)
 
-    fun run(key: String, data: DeskData, p: Params, costs: Costs = Costs(), costMult: Double = 1.0): Run {
+    /**
+     * The shelf's strategies as rules (1.47): the same blocks anyone's rules are built from, so
+     * these four are presets to copy rather than code. [p] is the template's settings.
+     */
+    fun rule(key: String, p: Params): Rule {
         val t = template(key)
         return when (key) {
             "gold_trend" -> {
-                val tg = DeskEngine.goldTrend(data.prices, data.gvz, p)
-                Run(DeskEngine.simulate(data.prices, tg, data.rf, t.label, costs, costMult = costMult),
-                    DeskEngine.simulate(data.prices, DeskEngine.buyAndHold(tg.dates, t.benchmark), data.rf, "Buy and hold", costs),
-                    DeskEngine.countEntries(tg), tg)
+                val a = p.text("asset", "GLD")
+                val trend = Condition.Compare(Signal.Price(a), Op.ABOVE, Against.Of(Signal.Average(a, p.int("sma_days"))), tag = "trend")
+                val calm = Condition.Compare(Signal.Series("GVZ"), Op.AT_MOST,
+                    Against.Percentile(p["vol_quantile"], p.int("vol_window"), p.int("vol_window") / 2), enterOnly = true, tag = "calm")
+                Rule(name = t.label, benchmark = a,
+                    branches = listOf(Branch("trend", if (p.flag("vol_filter")) listOf(trend, calm) else listOf(trend), Action.Hold(mapOf(a to 1.0)))))
             }
             "gold_silver_ratio" -> {
-                val tg = DeskEngine.goldSilverRatio(data.prices, p)
-                Run(DeskEngine.simulate(data.prices, tg, data.rf, t.label, costs, costMult = costMult),
-                    DeskEngine.simulate(data.prices, DeskEngine.buyAndHold(tg.dates, t.benchmark), data.rf, "Buy and hold GLD", costs),
-                    DeskEngine.countEntries(tg), tg)
+                val g = p.text("asset", "GLD")
+                val s = p.text("asset2", "SLV")
+                val z = Signal.Stretch(g, p.int("lookback"), s)
+                val half = p["gross"] / 2.0
+                Rule(name = t.label, benchmark = g,
+                    branches = listOf(
+                        Branch("rich", listOf(Condition.Compare(z, Op.ABOVE, Against.Value(p["z_enter"]))), Action.Hold(mapOf(g to -half, s to half)), until = true),
+                        Branch("cheap", listOf(Condition.Compare(z, Op.BELOW, Against.Value(-p["z_enter"]))), Action.Hold(mapOf(g to half, s to -half)), until = true)
+                    ),
+                    exits = listOf(Exit.Within(z, p["z_exit"]), Exit.After(p.int("max_days"))))
             }
             "usdjpy_carry" -> {
-                val tg = DeskEngine.usdJpyCarry(data.prices, data.gapPublished, p)
-                val carry = mapOf(t.benchmark to data.gapAccrual)
-                Run(DeskEngine.simulate(data.prices, tg, data.rf, t.label, costs, costMult = costMult, carry = carry),
-                    DeskEngine.simulate(data.prices, DeskEngine.buyAndHold(tg.dates, t.benchmark), data.rf, "Always long USD/JPY",
-                        costs, carry = carry),
-                    DeskEngine.countEntries(tg), tg)
+                val a = p.text("asset", "USDJPY")
+                Rule(name = t.label, benchmark = a,
+                    branches = listOf(Branch("carry", listOf(
+                        Condition.Compare(Signal.Price(a), Op.ABOVE, Against.Of(Signal.Average(a, p.int("sma_days"))), tag = "trend"),
+                        Condition.Compare(Signal.Gap("DTB3", "JP3M"), Op.ABOVE, Against.Value(p["min_rate_gap"]), tag = "gap")
+                    ), Action.Hold(mapOf(a to 1.0)))),
+                    carry = mapOf(a to "gap:DTB3:JP3M"),
+                    markets = mapOf(a to Market.FX))
             }
             "gld_covered_call" -> {
-                val r = DeskEngine.coveredCall(data.prices, data.gvz, data.rf, p, t.label, costs, costMult = costMult)
-                val bars = data.prices.getValue(t.benchmark)
-                Run(r, DeskEngine.simulate(data.prices, DeskEngine.buyAndHold(bars.dates, t.benchmark), data.rf, "Buy and hold", costs),
-                    r.episodes.size, null)
+                val a = p.text("asset", "GLD")
+                Rule(name = t.label, benchmark = a,
+                    branches = listOf(Branch("hold", emptyList(), Action.Hold(mapOf(a to 1.0)))),
+                    overlay = Overlay.CoveredCall(a, "GVZ", p["delta"], p.int("dte"), p["skew_vol_pts"], p["spread_pct"],
+                        p["stress_spread_pct"], p["fee_per_contract"], p["strike_step"]))
             }
             else -> error("Unknown strategy $key")
         }
     }
+
+    private val benchNames = mapOf(
+        "gold_trend" to "Buy and hold", "gold_silver_ratio" to "Buy and hold GLD",
+        "usdjpy_carry" to "Always long USD/JPY", "gld_covered_call" to "Buy and hold"
+    )
+
+    fun run(key: String, data: DeskData, p: Params, costs: Costs = Costs(), costMult: Double = 1.0): Run =
+        RuleEngine.run(rule(key, p), data, costs, costMult, benchNames.getValue(key))
 
     /** Whether [data] has what [key] needs (and which series are missing). */
     fun missing(key: String, data: DeskData?): List<String> {

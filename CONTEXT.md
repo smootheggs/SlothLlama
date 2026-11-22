@@ -114,7 +114,13 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
 
 - **SlothDesk**: paper trading, never real money. **Strategies** (rule-based, run on daily
   prices), **tickets** (the paper trades they produce, to mark how they went), **Ideas** (your own
-  trade ideas, to review later) and **Calculators**. Prices come from the Lobster.
+  trade ideas, to review later) and **Calculators**. Prices come from the Lobster. A strategy is a
+  **rule** (1.47): **branches** ("when … then"), each **condition** a **signal** compared with a
+  value, another signal or its own **percentile**; an **action** (hold, rotate, scale); **sizing**;
+  **exits** (back within, after N days, stop, trailing stop, target); a **brake**; an options
+  **overlay**. A branch is held **while** its conditions hold, or **until** an exit; a condition
+  only **to enter** (a filter, a crossing) doesn't keep it. Rules are data within set limits,
+  never code; the four on the **shelf** are rules too.
 - **Projects**: your own projects, one record each. **Phase** (Initiating, Planning, Executing,
   Monitoring, Closing), **brief**, **milestones** ("late" once the due day has passed), **risks**
   (score = likelihood × impact, 1 to 9: low, medium, high), **stakeholders** (the power/interest

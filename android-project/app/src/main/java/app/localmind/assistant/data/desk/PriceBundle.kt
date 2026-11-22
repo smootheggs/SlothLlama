@@ -121,7 +121,16 @@ data class PriceBundle(
             } ?: Line(emptyList(), DoubleArray(0))
             val us = line("DTB3")
             if (prices.isEmpty() || us.size == 0) return null
-            return DeskData.assemble(prices, us, line("JP3M"), line("GVZ"))
+            // Every other series, as it happened and as it was known: rates when published, indices at the close.
+            val more = b.series.filter { (k, s) -> s.kind != "bars" && k !in setOf("DTB3", "JP3M", "GVZ") }.mapValues { (k, s) ->
+                val l = line(k)
+                l to when {
+                    s.kind != "rate" -> l
+                    s.freq == "monthly" -> DeskData.publishedMonthly(l)
+                    else -> DeskData.publishedDaily(l)
+                }
+            }
+            return DeskData.assemble(prices, us, line("JP3M"), line("GVZ"), more)
         }
     }
 }
