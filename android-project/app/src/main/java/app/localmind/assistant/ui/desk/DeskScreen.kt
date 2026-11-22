@@ -210,8 +210,10 @@ fun DeskScreen(
                     BoxWithConstraints(Modifier.fillMaxSize()) { PriceCallsPane(priceCalls, maxWidth >= WIDE, onAskPrices = { viewModel.updateNow() }) }
                 }
                 DeskTab.STRATEGIES -> BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                    val dailyMissing = remember(ui.state) { viewModel.dailyMissing() }
                     DeskFront(ui, viewModel, trading, wide = maxWidth >= WIDE, prices = {
-                        PricesLine(ui, lobsterReady, onUpdate = viewModel::updateNow, onImport = pick, onOpenLobster = onOpenLobster)
+                        PricesLine(ui, lobsterReady, onUpdate = viewModel::updateNow, onImport = pick, onOpenLobster = onOpenLobster,
+                            dailyMissing = dailyMissing, onUpdateDaily = viewModel::updateDaily)
                     })
                 }
                 else -> BoxWithConstraints(Modifier.fillMaxSize()) { TradingPane(trading, tab, maxWidth >= WIDE, snackbar) }
@@ -231,7 +233,10 @@ internal fun PricesLine(
     lobsterReady: Boolean,
     onUpdate: () -> Unit,
     onImport: () -> Unit,
-    onOpenLobster: () -> Unit
+    onOpenLobster: () -> Unit,
+    /** What your rules read that the daily order doesn't fetch yet (1.50). */
+    dailyMissing: List<String> = emptyList(),
+    onUpdateDaily: () -> Unit = {}
 ) {
     if (!ui.ready) {
         Text("Opening…", color = P.Muted, fontSize = 14.sp, modifier = Modifier.padding(top = 12.dp))
@@ -275,6 +280,22 @@ internal fun PricesLine(
     }
     s.pricesNotes.take(3).forEach {
         Text("· $it", color = P.Faint, fontSize = 12.sp, modifier = Modifier.padding(start = 20.dp, top = 2.dp))
+    }
+    // What your rules read and the prices don't have yet (1.50): the Lobster fetches any of it.
+    val needs = ui.waiting.values.flatten().distinct()
+    if (needs.isNotEmpty()) {
+        Row(Modifier.fillMaxWidth().padding(start = 20.dp, top = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("Your rules need ${needs.take(6).joinToString(", ")}" + if (needs.size > 6) " and ${needs.size - 6} more" else "",
+                color = P.Warning, fontSize = 13.sp, modifier = Modifier.weight(1f))
+            if (lobsterReady) Action("Fetch them", onClick = onUpdate) else Action("Import a file", onClick = onImport)
+        }
+    }
+    if (lobsterReady && dailyMissing.isNotEmpty()) {
+        Row(Modifier.fillMaxWidth().padding(start = 20.dp, top = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text("The daily order doesn't fetch ${dailyMissing.take(4).joinToString(", ") { it.substringAfter(':') }} yet",
+                color = P.Muted, fontSize = 13.sp, modifier = Modifier.weight(1f))
+            Action("Add to it", onClick = onUpdateDaily)
+        }
     }
 }
 

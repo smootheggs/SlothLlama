@@ -159,7 +159,11 @@ class Engine(private val lobster: Lobster) {
                 repeatId = repeatId
             )
             store.update { s ->
-                val repeats = if (rule == null || repeatId == null) s.repeats else s.repeats + Repeat(
+                // (1.13) One daily prices order from the tablet: a newer one replaces the last,
+                // so SlothDesk can add what its rules need without two runs a day.
+                val kept = if (rule != null && OrderKind.of(order.kind) == OrderKind.PRICES)
+                    s.repeats.filterNot { it.kind == order.kind && it.from == From.TABLET } else s.repeats
+                val repeats = if (rule == null || repeatId == null) kept else kept + Repeat(
                     id = repeatId, kind = order.kind, text = text, deep = job.deep, from = From.TABLET,
                     everyDays = rule.everyDays, weekday = rule.weekday, hour = rule.hour, minute = rule.minute,
                     createdAt = now, lastRunDay = Repeats.dayKey(Calendar.getInstance())
@@ -456,10 +460,11 @@ class Engine(private val lobster: Lobster) {
 
     /** SlothDesk's daily prices: public data services only, the Tiingo key sent in a header. */
     private suspend fun prices(job: Job): Outcome {
-        val (names, since) = Prices.request(job.text)
-        if (names.isEmpty()) throw WebException("The order doesn't name any prices to fetch")
+        val (asks, since) = Prices.asks(job.text)
+        if (asks.isEmpty()) throw WebException("The order doesn't name any prices to fetch")
+        val names = asks.map { it.name }
         setSources(job.id, names.map { SourceState(it, "", "prices", "reading") })
-        val g = Prices.gather(names, since, lobster.tiingoKey(), BuildConfig.VERSION_NAME) { name, what ->
+        val g = Prices.gatherAsks(asks, since, lobster.tiingoKey(), BuildConfig.VERSION_NAME) { name, what ->
             store.log("prices", name, what)
         }
         setSources(job.id, names.map { SourceState(it, "", "prices", if (it in g.bundle.series) "done" else "failed") })

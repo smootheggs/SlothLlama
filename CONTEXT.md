@@ -136,7 +136,11 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
   the size, didn't trust it); a new tested version starts its 60 again. **Sunday's review**
   looks back on the week (Monday to Sunday): the tickets, each rule's week against holding, each
   idea against the week, price calls; then your **call** per rule (keep, change, take off paper)
-  and **one line** for next week. A story's menu has **New idea from this story**.
+  and **one line** for next week. A story's menu has **New idea from this story**. **Prices**
+  (1.50): the Desk's order asks the Lobster for the shelf's series and whatever your rules read:
+  any ticker, **crypto** (every day), **FX** pairs and any **FRED** series; bars carry **highs and
+  lows**, for the **ATR** (a day's range as a share of the price) and **ATR stops** (risk per trade
+  sizes against them). "Your rules need …" fetches what's missing; the daily order can be updated.
 - **Projects**: your own projects, one record each. **Phase** (Initiating, Planning, Executing,
   Monitoring, Closing), **brief**, **milestones** ("late" once the due day has passed), **risks**
   (score = likelihood × impact, 1 to 9: low, medium, high), **stakeholders** (the power/interest

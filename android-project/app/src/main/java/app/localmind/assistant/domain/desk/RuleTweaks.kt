@@ -27,7 +27,7 @@ object RuleTweaks {
         fun daysOf(s: Signal): Int? = when (s) {
             is Signal.Average -> s.days; is Signal.Momentum -> s.days; is Signal.High -> s.days
             is Signal.Low -> s.days; is Signal.OffHigh -> s.days; is Signal.Stretch -> s.days
-            is Signal.Rsi -> s.days; is Signal.Volatility -> s.days; is Signal.Change -> s.days
+            is Signal.Rsi -> s.days; is Signal.Volatility -> s.days; is Signal.Change -> s.days; is Signal.Atr -> s.days
             else -> null
         }
         fun signalKnob(s: Signal) {
@@ -55,7 +55,8 @@ object RuleTweaks {
             when (e) {
                 is Exit.Within -> { signalKnob(e.signal); out += Knob("back within", e.band, false) { rule, v -> setExit(rule, ei, e.copy(band = v)) } }
                 is Exit.After -> out += Knob("the time stop", e.days.toDouble(), true) { rule, v -> setExit(rule, ei, e.copy(days = v.roundToInt())) }
-                is Exit.Stop -> out += Knob("the stop", e.pct, false) { rule, v -> setExit(rule, ei, e.copy(pct = v)) }
+                is Exit.Stop -> if (e.byAtr) out += Knob("the stop in ATRs", e.atr, false) { rule, v -> setExit(rule, ei, e.copy(atr = v)) }
+                    else out += Knob("the stop", e.pct, false) { rule, v -> setExit(rule, ei, e.copy(pct = v)) }
                 is Exit.Target -> out += Knob("the profit target", e.pct, false) { rule, v -> setExit(rule, ei, e.copy(pct = v)) }
             }
         }
@@ -100,6 +101,7 @@ object RuleTweaks {
         is Signal.Average -> s.copy(days = d); is Signal.Momentum -> s.copy(days = d); is Signal.High -> s.copy(days = d)
         is Signal.Low -> s.copy(days = d); is Signal.OffHigh -> s.copy(days = d); is Signal.Stretch -> s.copy(days = d)
         is Signal.Rsi -> s.copy(days = d); is Signal.Volatility -> s.copy(days = d); is Signal.Change -> s.copy(days = d)
+        is Signal.Atr -> s.copy(days = d)
         else -> s
     }
 

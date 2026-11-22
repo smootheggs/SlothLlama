@@ -4,6 +4,27 @@ Every release of SlothLlama and the SlothLobster, newest first, in the words of 
 Each GitHub release carries its entry from here; this file keeps them all (GitHub keeps only the
 newest five releases of each app).
 
+## SlothLlama 1.50.0 · SlothLobster 1.13.0 — 2026-11-22
+
+**SlothDesk reads any market: crypto, FX, FRED series, and daily highs and lows for ATR**
+
+The fourth stage of the new SlothDesk:
+
+- The Desk's prices order now asks for whatever your rules read, each from its source: any
+  ticker (Tiingo), crypto (Tiingo, every day of the week), any FX pair (Tiingo) and any FRED
+  series (no key), with the shelf's series first. "Your rules need …" on the Desk fetches what's
+  missing in one tap, and "Add to it" brings the daily order up to date (the Lobster keeps only
+  the newest daily prices order).
+- Bars carry daily highs and lows where the source has them. SlothDesk keeps them only when they
+  fit each day's open and close (a rounding hair is widened; a series with more than 1% of days
+  wrong loses its highs and lows, and says so).
+- New block: ATR, Wilder's average true range as a share of the price ("GLD's 14-day ATR").
+- Stops can be set in ATRs: a plain one at the entry's ATR, a trailing one on today's. Risk per
+  trade sizes against them, the classic way to hold the same risk on calm and wild markets.
+- FRED series read as a "series", from when each value was published (daily, weekly or monthly).
+- A rule card and the editor know the new blocks; a rule that needs highs and lows the prices
+  don't have says so.
+
 ## SlothLlama 1.49.0 — 2026-11-22
 
 **SlothDesk: one path for every idea, Idea → Test → Paper → Review, with Sunday's review**

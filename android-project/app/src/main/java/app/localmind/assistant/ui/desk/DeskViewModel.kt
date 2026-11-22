@@ -20,6 +20,7 @@ import app.localmind.assistant.data.desk.WeekReview
 import app.localmind.assistant.data.forecasts.ForecastBook
 import app.localmind.assistant.data.trading.IdeaBook
 import app.localmind.assistant.domain.desk.DeskPath
+import app.localmind.assistant.domain.desk.PricesOrder
 import app.localmind.assistant.domain.desk.RuleCard
 import app.localmind.assistant.domain.desk.RuleWords
 import app.localmind.assistant.domain.forecasts.Call
@@ -676,19 +677,41 @@ class DeskViewModel @Inject constructor(
 
     // --- prices ---
 
-    /** Asks the Lobster for prices once. */
+    /** The order for what the shelf and your rules read (1.50): tested versions and the ones being edited. */
+    fun orderText(): String = PricesOrder.text(allRules())
+
+    private fun allRules(): List<Rule> = store.state.value.rules.flatMap { r ->
+        listOfNotNull(RuleFiles.parse(r.text).getOrNull(), r.tries.lastOrNull()?.let { RuleFiles.parse(it).getOrNull() })
+    }
+
+    /** What your rules read that the Lobster isn't fetching each day yet (empty: nothing). */
+    fun dailyMissing(): List<String> {
+        val s = store.state.value
+        if (!s.dailyOrderSent) return emptyList()
+        val asked = s.dailyText.substringAfter(":").substringBefore(" from ").split(' ').filter { it.isNotBlank() }.toSet()
+        return PricesOrder.names(allRules()).filter { it !in asked }
+    }
+
+    /** Asks the Lobster for prices once: the shelf's and everything your rules read. */
     fun updateNow() = act {
-        mailbox.send(OrderKind.PRICES, ORDER_TEXT, deliver = "desk")
+        mailbox.send(OrderKind.PRICES, orderText(), deliver = "desk")
         store.update { it.copy(lastOrderAt = System.currentTimeMillis()) }
         "Asked the Lobster for prices 🦞 They arrive in a few minutes, if it's awake."
     }
 
-    /** Asks the Lobster for prices every day at [time] ("18:30"); sent once. */
+    /**
+     * Asks the Lobster for prices every day at [time] ("18:30"). Sent again with the same time
+     * when your rules need more: the Lobster keeps only the newest daily prices order.
+     */
     fun daily(time: String) = act {
-        mailbox.send(OrderKind.PRICES, "$ORDER_TEXT every day at $time", deliver = "desk")
-        store.update { it.copy(dailyOrderSent = true, lastOrderAt = System.currentTimeMillis()) }
+        val text = orderText()
+        mailbox.send(OrderKind.PRICES, "$text every day at $time", deliver = "desk")
+        store.update { it.copy(dailyOrderSent = true, dailyText = text, dailyTime = time, lastOrderAt = System.currentTimeMillis()) }
         "The Lobster will fetch prices every day at $time. To stop, switch the repeat off in the Lobster."
     }
+
+    /** The daily order again, with what your rules now need added. */
+    fun updateDaily() = daily(store.state.value.dailyTime.ifBlank { "18:30" })
 
     /** A prices file from Colab (export_prices) or anywhere else that writes the format. */
     fun importFile(uri: Uri) = act {
@@ -994,7 +1017,8 @@ class DeskViewModel @Inject constructor(
             "usdjpy_carry" to "Holding dollars against yen pays while the trend is up and the rate gap is wide",
             "gld_covered_call" to "Selling calls on gold earns more than it gives up"
         )
-        const val ORDER_TEXT = "Prices for SlothDesk: GLD SLV USDJPY DTB3 JP3M GVZ DEXJPUS from 2008-01-01"
+        /** The shelf's order, as before 1.50 (your rules' series are added to it: [PricesOrder]). */
+        val ORDER_TEXT = PricesOrder.text(emptyList())
         private const val MAX_JOURNAL = 3_000
         private const val MAX_FILE_BYTES = 30 * 1024 * 1024
     }

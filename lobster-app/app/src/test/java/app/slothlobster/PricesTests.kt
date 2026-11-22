@@ -30,12 +30,30 @@ class PricesTests {
     }
 
     @Test
-    fun `at most twelve series and no ordinary words`() {
-        val many = (1..20).joinToString(" ") { "T$it" }
+    fun `at most twenty-four series and no ordinary words`() {
+        val many = (1..30).joinToString(" ") { "T$it" }
         val (names, since) = Prices.request("Prices for SlothDesk: $many")
-        assertEquals(12, names.size)
+        assertEquals(24, names.size)
         assertTrue(names.none { it == "PRICES" || it == "SLOTHDESK" })
         assertEquals(LocalDate.of(2008, 1, 1), since)
+    }
+
+    @Test
+    fun `typed names say where to fetch them, in order`() {
+        val (asks, since) = Prices.asks("Prices for SlothDesk: GLD SLV USDJPY DTB3 crypto:BTCUSD SPY fx:EURUSD fred:DFII10 fred:T10YIE from 2015-01-01")
+        assertEquals(listOf("GLD", "SLV", "USDJPY", "DTB3", "BTCUSD", "SPY", "EURUSD", "DFII10", "T10YIE"), asks.map { it.name })
+        assertEquals(Prices.Source.CRYPTO, asks[4].source)
+        assertEquals(Prices.Source.NAMED, asks[5].source)
+        assertEquals(Prices.Source.FX, asks[6].source)
+        assertEquals(Prices.Source.FRED, asks[7].source)
+        assertEquals(LocalDate.of(2015, 1, 1), since)
+    }
+
+    @Test
+    fun `odd typed names are left out, and a name asked twice is fetched once`() {
+        val (asks, _) = Prices.asks("Prices for SlothDesk: crypto:BTC fx:../etc fred:dfii10 GLD crypto:ETHUSD ETHUSD")
+        assertEquals(listOf("DFII10", "GLD", "ETHUSD"), asks.map { it.name })
+        assertEquals(Prices.Source.CRYPTO, asks[2].source)
     }
 }
 

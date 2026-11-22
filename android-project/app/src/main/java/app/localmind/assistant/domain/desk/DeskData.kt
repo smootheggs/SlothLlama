@@ -3,19 +3,32 @@ package app.localmind.assistant.domain.desk
 import java.time.LocalDate
 
 /** Daily opens and closes (adjusted for splits and dividends), oldest first. */
-class Bars(val dates: List<LocalDate>, val opens: DoubleArray, val closes: DoubleArray) {
+class Bars(
+    val dates: List<LocalDate>,
+    val opens: DoubleArray,
+    val closes: DoubleArray,
+    /** Daily highs and lows (1.50), when the source has them; null for open-and-close data. */
+    val highs: DoubleArray? = null,
+    val lows: DoubleArray? = null
+) {
     init {
         require(dates.size == opens.size && dates.size == closes.size) { "Bars: lengths differ" }
+        require((highs == null) == (lows == null)) { "Bars: highs without lows" }
+        require(highs == null || (highs.size == dates.size && lows!!.size == dates.size)) { "Bars: highs and lows don't line up" }
     }
     val size: Int get() = dates.size
     val last: LocalDate get() = dates.last()
+    val hasRange: Boolean get() = highs != null
 
     /** Only the dates in [keep] (which must all be present), in order. */
     fun on(keep: List<LocalDate>): Bars {
         val at = HashMap<LocalDate, Int>(dates.size * 2)
         dates.forEachIndexed { i, d -> at[d] = i }
         val ix = keep.map { at[it] ?: error("Bars: missing $it") }
-        return Bars(keep, DoubleArray(ix.size) { opens[ix[it]] }, DoubleArray(ix.size) { closes[ix[it]] })
+        val h = highs
+        val l = lows
+        return Bars(keep, DoubleArray(ix.size) { opens[ix[it]] }, DoubleArray(ix.size) { closes[ix[it]] },
+            h?.let { DoubleArray(ix.size) { k -> h[ix[k]] } }, l?.let { DoubleArray(ix.size) { k -> l[ix[k]] } })
     }
 }
 
@@ -107,6 +120,9 @@ class DeskData(
 
         /** Daily H.15 rates appear the next business day. */
         fun publishedDaily(s: Line): Line = s.shifted(DeskMath::nextBusinessDay)
+
+        /** Weekly series are dated by their week but published about a week later. */
+        fun publishedWeekly(s: Line): Line = s.shifted { d -> DeskMath.nextBusinessDay(d.plusDays(6)) }
 
         /** Monthly averages are dated the 1st but known only 15 days after the month ends. */
         fun publishedMonthly(s: Line, daysAfter: Long = 15): Line =

@@ -557,7 +557,18 @@ private fun ExitParts(e: Exit, ui: DeskUi, onChange: (Exit) -> Unit) {
                 "a stop" to { onChange(e.copy(trailing = false)) },
                 "a trailing stop" to { onChange(e.copy(trailing = true)) }
             ))
-            NumberChip("How far", e.pct, NumSpec(0.005, 0.9, percent = true)) { onChange(e.copy(pct = it)) }
+            if (e.byAtr) {
+                NumberChip("How many ATRs", e.atr, NumSpec(0.5, 20.0), label = "${RuleWords.num(e.atr)} ATRs") { onChange(e.copy(atr = it)) }
+                NumberChip("ATR days", e.atrDays.toDouble(), NumSpec(2.0, 250.0, whole = true, suffix = " days"), label = "over ${e.atrDays} days") {
+                    onChange(e.copy(atrDays = it.toInt()))
+                }
+            } else {
+                NumberChip("How far", e.pct, NumSpec(0.005, 0.9, percent = true)) { onChange(e.copy(pct = it)) }
+            }
+            MenuChip(if (e.byAtr) "in ATRs" else "in %", listOf(
+                "in %" to { onChange(Exit.Stop(pct = 0.05, trailing = e.trailing)) },
+                "in ATRs (needs highs and lows)" to { onChange(Exit.Stop(trailing = e.trailing, atr = 3.0, atrDays = 14)) }
+            ), muted = true, description = "Measure the stop in % or in ATRs")
             Words(if (e.trailing) "below the best close" else "below the entry")
         }
         is Exit.Target -> {

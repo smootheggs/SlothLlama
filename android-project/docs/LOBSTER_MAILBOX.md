@@ -91,6 +91,13 @@ as its text and `fileName` `slothdesk-prices.json`, whose content is:
 
 - `bars`: adjusted daily open and close; `rate`: decimal (3.22% is 0.0322), dated as the source
   dates it (SlothDesk applies the publication lag); `vol`: a volatility index as a decimal.
+- From SlothLlama 1.50 and SlothLobster 1.13: `bars` may carry `"high"` and `"low"` lists (kept
+  only when they fit each day's open and close); a `"series"` kind holds any other series (FRED's,
+  divided by 100 like a rate, with `freq` daily, weekly or monthly; SlothDesk uses each value from
+  when it was published). The order can type a name: `crypto:BTCUSD` (Tiingo crypto, every day of
+  the week), `fx:EURUSD` (Tiingo FX, weekdays) or `fred:DFII10` (any FRED series); plain names are
+  as before. An order names at most 24 series. A newer repeating Prices order from the tablet
+  replaces the last, so SlothDesk can add what its rules need to the daily one.
 - The Colab notebook writes the same file (`export_prices`) and reads it (`load_bundle`), so the
   tablet and Colab can run on identical data.
 - SlothDesk checks every row (dates, positive prices, rates and vols in range, frozen feeds,

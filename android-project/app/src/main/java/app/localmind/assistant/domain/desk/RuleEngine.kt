@@ -93,6 +93,57 @@ object RuleEngine {
         return out.toList()
     }
 
+    /** Words added to an asset that needs daily highs and lows its prices don't have. */
+    const val HIGHS_LOWS = "(highs and lows)"
+
+    /** The assets whose highs and lows the rule reads: for an ATR, or an ATR stop (all it holds). */
+    fun rangeAssets(r: Rule): List<String> {
+        val out = LinkedHashSet<String>()
+        fun sig(s: Signal) { if (s is Signal.Atr) out += s.asset }
+        fun cond(c: Condition) {
+            when (c) {
+                is Condition.Compare -> { sig(c.left); (c.right as? Against.Of)?.let { sig(it.signal) } }
+                is Condition.AnyOf -> c.of.forEach(::cond)
+                is Condition.Not -> cond(c.of)
+                is Condition.Calendar -> Unit
+            }
+        }
+        r.branches.forEach { b ->
+            b.conditions.forEach(::cond)
+            when (val a = b.action) {
+                is Action.Scale -> sig(a.signal)
+                is Action.Rotate -> if (a.score is Signal.Atr) out += a.assets
+                is Action.Hold -> Unit
+            }
+        }
+        r.exits.forEach { if (it is Exit.Within) sig(it.signal) }
+        if (r.exits.any { it is Exit.Stop && it.byAtr }) out += traded(r)
+        out.remove("*")
+        return out.toList()
+    }
+
+    /**
+     * Wilder's average true range as a share of the close: true range = the largest of high −
+     * low, |high − previous close| and |low − previous close|; the first ATR is the mean of the
+     * first [days] true ranges, then each is (previous × (days − 1) + today's) / days.
+     */
+    fun atrShare(highs: DoubleArray, lows: DoubleArray, closes: DoubleArray, days: Int): DoubleArray {
+        val n = closes.size
+        val out = DoubleArray(n) { Double.NaN }
+        if (n <= days) return out
+        val tr = DoubleArray(n) { i ->
+            if (i == 0) Double.NaN
+            else maxOf(highs[i] - lows[i], abs(highs[i] - closes[i - 1]), abs(lows[i] - closes[i - 1]))
+        }
+        var atr = (1..days).sumOf { tr[it] } / days
+        out[days] = atr / closes[days]
+        for (i in days + 1 until n) {
+            atr = (atr * (days - 1) + tr[i]) / days
+            out[i] = atr / closes[i]
+        }
+        return out
+    }
+
     /** What the rule can hold, in a fixed order. */
     fun traded(r: Rule): List<String> {
         val out = LinkedHashSet<String>()
@@ -110,6 +161,14 @@ object RuleEngine {
     /** The data a rule needs that [data] doesn't have. */
     fun missing(r: Rule, data: DeskData?): List<String> {
         val prices = priceAssets(r) + listOfNotNull((r.overlay as? Overlay.CoveredCall)?.asset)
+        val series = seriesOf(r)
+        if (data == null) return prices.distinct() + series
+        val ranged = rangeAssets(r).filter { a -> data.prices[a]?.let { !it.hasRange } ?: false }.map { "$it $HIGHS_LOWS" }
+        return prices.distinct().filter { (data.prices[it]?.size ?: 0) < 300 } + series.filter { data.knownLine(it).size == 0 } + ranged
+    }
+
+    /** The other series a rule reads: rates, indices, a carry's rates, an overlay's volatility. */
+    fun seriesOf(r: Rule): List<String> {
         val series = LinkedHashSet<String>()
         fun sig(s: Signal) {
             when (s) {
@@ -131,8 +190,7 @@ object RuleEngine {
         r.exits.forEach { if (it is Exit.Within) sig(it.signal) }
         r.carry.values.forEach { id -> if (id.startsWith("gap:")) id.split(":").drop(1).forEach { series += it } else series += id }
         (r.overlay as? Overlay.CoveredCall)?.let { series += it.vol }
-        if (data == null) return prices.distinct() + series
-        return prices.distinct().filter { (data.prices[it]?.size ?: 0) < 300 } + series.filter { data.knownLine(it).size == 0 }
+        return series.toList()
     }
 
     private fun forAsset(s: Signal, a: String): Signal = when (s) {
@@ -146,6 +204,7 @@ object RuleEngine {
         is Signal.Ratio -> s.copy(asset = if (s.asset == "*") a else s.asset, asset2 = if (s.asset2 == "*") a else s.asset2)
         is Signal.Rsi -> if (s.asset == "*") s.copy(asset = a) else s
         is Signal.Volatility -> if (s.asset == "*") s.copy(asset = a) else s
+        is Signal.Atr -> if (s.asset == "*") s.copy(asset = a) else s
         is Signal.Series, is Signal.Change, is Signal.Gap -> s
     }
 
@@ -211,6 +270,12 @@ object RuleEngine {
             }
             is Signal.Rsi -> rsi(closes(s.asset), s.days)
             is Signal.Volatility -> DeskMath.rollingStd(DeskMath.pctChange(closes(s.asset)), s.days).map { it * sqrt(ppy) }.toDoubleArray()
+            is Signal.Atr -> {
+                val b = bars(s.asset)
+                val h = b.highs
+                val l = b.lows
+                if (h == null || l == null) nan() else atrShare(h, l, b.closes, s.days)
+            }
             is Signal.Series -> data.knownLine(s.id).asOf(dates)
             is Signal.Change -> {
                 val v = data.knownLine(s.id).asOf(dates)
@@ -328,6 +393,7 @@ object RuleEngine {
         is Signal.Ratio -> "${s.asset}/${s.asset2}"
         is Signal.Rsi -> "${s.asset}'s RSI(${s.days})"
         is Signal.Volatility -> "${s.asset}'s ${s.days}-day volatility"
+        is Signal.Atr -> "${s.asset}'s ${s.days}-day ATR"
         is Signal.Series -> s.id
         is Signal.Change -> "${s.id}'s ${s.days}-day change"
         is Signal.Gap -> "${s.id} − ${s.id2}"
@@ -360,6 +426,7 @@ object RuleEngine {
                 l is Signal.Momentum -> "momentum"
                 l is Signal.Stretch || l is Signal.Ratio -> "stretch"
                 l is Signal.Rsi -> "rsi"
+                l is Signal.Atr -> "range"
                 l is Signal.OffHigh -> "drawdown"
                 c.right is Against.Percentile -> "filter"
                 l is Signal.Gap -> "gap"
@@ -453,6 +520,18 @@ object RuleEngine {
             Check.MONTHLY -> i == 0 || dates[i].monthValue != dates[i - 1].monthValue || dates[i].year != dates[i - 1].year
         }
 
+        /** The ATR (a share of the close) of the largest holding in [w] on day [i], for an ATR stop. */
+        fun atrOf(w: Map<String, Double>, i: Int, days: Int): Double {
+            val a = w.maxByOrNull { abs(it.value) }?.key ?: return Double.NaN
+            return ctx.values(Signal.Atr(a, days))[i]
+        }
+
+        /** How far below the entry (or the best close) the stop sits on day [i]: a share; NaN when not yet known. */
+        fun stopDistance(e: Exit.Stop, w: Map<String, Double>, i: Int): Double =
+            if (!e.byAtr) e.pct else e.atr * atrOf(w, i, e.atrDays)
+
+        var stopAtEntry = Double.NaN
+
         /** The position's return since its fill (the open after the entry's close). */
         fun positionReturn(i: Int): Double {
             if (i <= entryAt) return 0.0
@@ -498,8 +577,8 @@ object RuleEngine {
                 }
                 is Sizing.RiskPerTrade -> {
                     val gross = nz.values.sumOf { abs(it) }
-                    val want = s.risk / (stop?.pct ?: 1.0)
-                    if (gross == 0.0) emptyMap() else nz.mapValues { (_, x) -> x * want / gross }
+                    val d = stop?.let { stopDistance(it, nz, i) } ?: 1.0
+                    if (gross == 0.0 || !(d > 0)) emptyMap() else nz.mapValues { (_, x) -> x * (s.risk / d) / gross }
                 }
             }
             val g = out.values.sumOf { abs(it) }
@@ -529,7 +608,9 @@ object RuleEngine {
                             is Exit.After -> if (held >= e.days) "exit_time: time stop after ${e.days} days" else null
                             is Exit.Stop -> {
                                 val from = if (e.trailing) (1 + pr) / (1 + best) - 1 else pr
-                                if (from <= -e.pct) "exit_stop: down %.1f%% from the ${if (e.trailing) "best close" else "entry"}".format(-from * 100) else null
+                                // A plain ATR stop is set at the entry; a trailing one follows today's ATR.
+                                val d = if (e.byAtr && !e.trailing) stopAtEntry else stopDistance(e, entryW, i)
+                                if (d > 0 && from <= -d) "exit_stop: down %.1f%% from the ${if (e.trailing) "best close" else "entry"}".format(-from * 100) else null
                             }
                             is Exit.Target -> if (pr >= e.pct) "exit_target: up %.1f%%".format(pr * 100) else null
                         }
@@ -573,6 +654,7 @@ object RuleEngine {
                 entryAt = i
                 entryW = want
                 best = 0.0
+                stopAtEntry = stop?.takeIf { it.byAtr }?.let { stopDistance(it, want, i) } ?: Double.NaN
             }
             // Small resizes inside the band aren't traded.
             if (!changed && r.band > 0 && assets.all { abs((want[it] ?: 0.0) - (last[it] ?: 0.0)) <= r.band }) want = last

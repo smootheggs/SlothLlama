@@ -294,7 +294,7 @@ internal fun SeriesDialog(title: String, value: String, options: List<String>, o
 private enum class Kind(val label: String) {
     PRICE("Its close"), AVERAGE("An average"), MOMENTUM("Its return over a while"), HIGH("The high of the days before"),
     LOW("The low of the days before"), OFF_HIGH("How far off its high"), STRETCH("How stretched (z-score)"),
-    RATIO("The ratio of two"), RSI("RSI"), VOLATILITY("Volatility"), SERIES("A series: a rate or an index"),
+    RATIO("The ratio of two"), RSI("RSI"), VOLATILITY("Volatility"), ATR("ATR: a day's range"), SERIES("A series: a rate or an index"),
     CHANGE("A series' change"), GAP("One series minus another");
 
     val readsAsset: Boolean get() = this != SERIES && this != CHANGE && this != GAP
@@ -305,18 +305,18 @@ private fun kindOf(s: Signal): Kind = when (s) {
     is Signal.Price -> Kind.PRICE; is Signal.Average -> Kind.AVERAGE; is Signal.Momentum -> Kind.MOMENTUM
     is Signal.High -> Kind.HIGH; is Signal.Low -> Kind.LOW; is Signal.OffHigh -> Kind.OFF_HIGH
     is Signal.Stretch -> Kind.STRETCH; is Signal.Ratio -> Kind.RATIO; is Signal.Rsi -> Kind.RSI
-    is Signal.Volatility -> Kind.VOLATILITY; is Signal.Series -> Kind.SERIES; is Signal.Change -> Kind.CHANGE
+    is Signal.Volatility -> Kind.VOLATILITY; is Signal.Atr -> Kind.ATR; is Signal.Series -> Kind.SERIES; is Signal.Change -> Kind.CHANGE
     is Signal.Gap -> Kind.GAP
 }
 
 private fun defaultDays(k: Kind): Int = when (k) {
     Kind.AVERAGE -> 200; Kind.MOMENTUM -> 120; Kind.HIGH, Kind.LOW -> 50; Kind.OFF_HIGH -> 252
-    Kind.STRETCH -> 60; Kind.RSI -> 14; Kind.VOLATILITY -> 20; Kind.CHANGE -> 20; else -> 0
+    Kind.STRETCH -> 60; Kind.RSI -> 14; Kind.VOLATILITY -> 20; Kind.ATR -> 14; Kind.CHANGE -> 20; else -> 0
 }
 
 private fun daysOf(s: Signal): Int? = when (s) {
     is Signal.Average -> s.days; is Signal.Momentum -> s.days; is Signal.High -> s.days; is Signal.Low -> s.days
-    is Signal.OffHigh -> s.days; is Signal.Stretch -> s.days; is Signal.Rsi -> s.days; is Signal.Volatility -> s.days
+    is Signal.OffHigh -> s.days; is Signal.Stretch -> s.days; is Signal.Rsi -> s.days; is Signal.Volatility -> s.days; is Signal.Atr -> s.days
     is Signal.Change -> s.days; else -> null
 }
 
@@ -358,6 +358,7 @@ internal fun SignalDialog(
             Kind.RATIO -> if (asset2.isBlank()) null else Signal.Ratio(a, asset2)
             Kind.RSI -> d?.let { Signal.Rsi(a, it) }
             Kind.VOLATILITY -> d?.let { Signal.Volatility(a, it) }
+            Kind.ATR -> d?.let { Signal.Atr(a, it) }
             Kind.SERIES -> Signal.Series(id)
             Kind.CHANGE -> d?.let { Signal.Change(id, it) }
             Kind.GAP -> if (id2.isBlank()) null else Signal.Gap(id, id2)

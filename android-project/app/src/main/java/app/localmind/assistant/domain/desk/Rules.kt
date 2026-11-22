@@ -136,6 +136,15 @@ sealed class Signal {
         override val assets get() = listOf(asset)
     }
 
+    /**
+     * Wilder's average true range over [days], as a share of the close (0.012 is 1.2% a day):
+     * how far it moves in a day, gaps included. Needs daily highs and lows (1.50).
+     */
+    @Serializable @SerialName("atr")
+    data class Atr(val asset: String, val days: Int = 14) : Signal() {
+        override val assets get() = listOf(asset)
+    }
+
     /** Any other series (a rate, a volatility index, a macro series) as known at the close. */
     @Serializable @SerialName("series")
     data class Series(val id: String) : Signal() {
@@ -257,9 +266,15 @@ sealed class Exit {
     @Serializable @SerialName("after")
     data class After(val days: Int) : Exit()
 
-    /** Out after losing [pct] (0.05 is 5%) from the entry, or, [trailing], from the best close since. */
+    /**
+     * Out after losing [pct] (0.05 is 5%) from the entry, or, [trailing], from the best close
+     * since. Or (1.50), with [atr] set, [atr] times the average true range over [atrDays] of the
+     * largest holding: measured at the entry for a plain stop, each day for a trailing one.
+     */
     @Serializable @SerialName("stop")
-    data class Stop(val pct: Double, val trailing: Boolean = false) : Exit()
+    data class Stop(val pct: Double = 0.0, val trailing: Boolean = false, val atr: Double = 0.0, val atrDays: Int = 14) : Exit() {
+        val byAtr: Boolean get() = atr > 0
+    }
 
     /** Out after gaining [pct]. */
     @Serializable @SerialName("target")
@@ -346,6 +361,7 @@ object RuleCheck {
                 is Signal.Stretch -> need(s.days in 5..MAX_DAYS, "A stretch needs 5 to $MAX_DAYS days")
                 is Signal.Rsi -> need(s.days in 2..250, "RSI takes 2 to 250 days")
                 is Signal.Volatility -> need(s.days in 5..MAX_DAYS, "Volatility needs 5 to $MAX_DAYS days")
+                is Signal.Atr -> need(s.days in 2..250, "An ATR needs 2 to 250 days")
                 is Signal.Series -> need(SERIES.matches(s.id), "Unknown series")
                 is Signal.Change -> { need(SERIES.matches(s.id), "Unknown series"); days(s.days, "A change") }
                 is Signal.Gap -> need(SERIES.matches(s.id) && SERIES.matches(s.id2), "Unknown series")
@@ -419,7 +435,10 @@ object RuleCheck {
         for (e in r.exits) when (e) {
             is Exit.Within -> { signal(e.signal); need(e.band > 0 && e.band <= 10, "\"Back within\" is out of range") }
             is Exit.After -> days(e.days, "A time stop")
-            is Exit.Stop -> need(e.pct in 0.005..0.9, "A stop must be 0.5% to 90%")
+            is Exit.Stop -> if (e.byAtr) {
+                need(e.atr in 0.5..20.0 && e.pct == 0.0, "An ATR stop must be 0.5 to 20 ATRs")
+                need(e.atrDays in 2..250, "An ATR stop needs 2 to 250 days")
+            } else need(e.pct in 0.005..0.9, "A stop must be 0.5% to 90%")
             is Exit.Target -> need(e.pct in 0.005..10.0, "A profit target must be 0.5% to 1000%")
         }
         when (val s = r.sizing) {

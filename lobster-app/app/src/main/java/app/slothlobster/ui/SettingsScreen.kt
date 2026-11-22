@@ -266,7 +266,7 @@ fun SettingsScreen(
                     ListRow(
                         "Tiingo key",
                         if (dataKeySaved) "Saved, sealed by this phone's Keystore. Used only for SlothDesk's daily prices"
-                        else "Free from tiingo.com (sign up, then Account → API). Needed for ETF prices such as GLD and SLV",
+                        else "Free from tiingo.com (sign up, then Account → API). Needed for ETF, stock, crypto and FX prices",
                         onClick = { dataKeyOpen = true },
                         divider = false
                     ) { Text(if (dataKeySaved) "Change" else "Add", color = Sea.Coral, fontSize = 14.sp, fontWeight = FontWeight.Medium) }

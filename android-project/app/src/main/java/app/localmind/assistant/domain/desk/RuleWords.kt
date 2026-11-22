@@ -15,7 +15,7 @@ object RuleWords {
     enum class Unit { PLAIN, PERCENT }
 
     fun unit(s: Signal): Unit = when (s) {
-        is Signal.Momentum, is Signal.OffHigh, is Signal.Volatility, is Signal.Series, is Signal.Change, is Signal.Gap -> Unit.PERCENT
+        is Signal.Momentum, is Signal.OffHigh, is Signal.Volatility, is Signal.Atr, is Signal.Series, is Signal.Change, is Signal.Gap -> Unit.PERCENT
         else -> Unit.PLAIN
     }
 
@@ -46,6 +46,7 @@ object RuleWords {
         is Signal.Volatility -> "${whose(s.asset)} ${s.days}-day volatility"
         is Signal.Series -> seriesName(s.id).replaceFirstChar { it.uppercase() }
         is Signal.Change -> "the ${s.days}-day change in ${seriesName(s.id)}"
+        is Signal.Atr -> "${whose(s.asset)} ${s.days}-day ATR (a day's range, as a share of its price)"
         is Signal.Gap -> "${seriesName(s.id)} minus ${seriesName(s.id2)}"
     }
 
@@ -126,7 +127,8 @@ object RuleWords {
     fun exit(e: Exit): String = when (e) {
         is Exit.Within -> "${signal(e.signal)} is back within ${value(e.band, unit(e.signal))} of zero"
         is Exit.After -> "after ${e.days} days"
-        is Exit.Stop -> "${if (e.trailing) "a trailing stop" else "a stop"} ${num(e.pct * 100)}% " +
+        is Exit.Stop -> "${if (e.trailing) "a trailing stop" else "a stop"} " +
+            (if (e.byAtr) "${num(e.atr)} ATRs (${e.atrDays}-day) " else "${num(e.pct * 100)}% ") +
             if (e.trailing) "below the best close" else "below the entry"
         is Exit.Target -> "a profit of ${num(e.pct * 100)}%"
     }

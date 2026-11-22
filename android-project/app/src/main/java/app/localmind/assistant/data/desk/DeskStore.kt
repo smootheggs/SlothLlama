@@ -97,6 +97,9 @@ data class DeskState(
     val journal: List<JournalEntry> = emptyList(),
     /** A repeating Prices order has been sent to the Lobster. */
     val dailyOrderSent: Boolean = false,
+    /** What that order asked for, and when (1.50), so a rule needing more can update it. */
+    val dailyText: String = "",
+    val dailyTime: String = "",
     val lastOrderAt: Long = 0,
     /** Where the prices came from (the Lobster, a file) and when they arrived. */
     val pricesFrom: String = "",

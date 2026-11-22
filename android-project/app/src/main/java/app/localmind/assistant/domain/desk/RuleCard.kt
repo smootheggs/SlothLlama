@@ -107,6 +107,7 @@ object RuleCard {
         is Signal.Volatility -> "${s.asset} ${s.days}-day volatility"
         is Signal.Series -> s.id
         is Signal.Change -> "${s.id} ${s.days}-day change"
+        is Signal.Atr -> "${s.asset} ${s.days}-day ATR"
         is Signal.Gap -> "${s.id} minus ${s.id2}"
     }
 
@@ -135,7 +136,8 @@ object RuleCard {
     private fun exit(e: Exit): String = when (e) {
         is Exit.Within -> "${signal(e.signal)} back within ${value(e.band, e.signal)}"
         is Exit.After -> "after ${e.days} days"
-        is Exit.Stop -> (if (e.trailing) "trailing stop " else "stop ") + num(e.pct * 100) + "%"
+        is Exit.Stop -> (if (e.trailing) "trailing stop " else "stop ") +
+            if (e.byAtr) "${num(e.atr)} ATR" + (if (e.atrDays != 14) " over ${e.atrDays} days" else "") else num(e.pct * 100) + "%"
         is Exit.Target -> "target ${num(e.pct * 100)}%"
     }
 
@@ -265,6 +267,7 @@ object RuleCard {
                 l is Signal.Momentum -> "momentum"
                 l is Signal.Stretch || l is Signal.Ratio -> "stretch"
                 l is Signal.Rsi -> "rsi"
+                l is Signal.Atr -> "range"
                 l is Signal.OffHigh -> "drawdown"
                 c.right is Against.Percentile -> "filter"
                 l is Signal.Gap -> "gap"
@@ -350,6 +353,7 @@ object RuleCard {
         m("$ASSET (\\d{1,4})-day rsi")?.let { g -> return Signal.Rsi(up(g[1]), d(g[2]) ?: return null) }
         m("$ASSET rsi (\\d{1,4})")?.let { g -> return Signal.Rsi(up(g[1]), d(g[2]) ?: return null) }
         m("$ASSET (\\d{1,4})-day volatility")?.let { g -> return Signal.Volatility(up(g[1]), d(g[2]) ?: return null) }
+        m("$ASSET (\\d{1,4})-day atr")?.let { g -> return Signal.Atr(up(g[1]), d(g[2]) ?: return null) }
         m("$ID (\\d{1,4})-day change")?.let { g -> return Signal.Change(g[1], d(g[2]) ?: return null) }
         m(ID)?.let { g ->
             val x = g[1]
@@ -392,6 +396,9 @@ object RuleCard {
     private fun readExit(text: String, isSeries: (String) -> Boolean): Exit? {
         val t = text.trim().trimEnd('.').lowercase(Locale.ROOT)
         Regex("^after (\\d{1,4}) days$").matchEntire(t)?.let { return Exit.After(it.groupValues[1].toInt()) }
+        Regex("^(?:a )?(trailing )?stop (?:of )?(\\d+(?:\\.\\d+)?) ?(?:x )?atrs?(?: over (\\d{1,3}) days)?$").matchEntire(t)?.let {
+            return Exit.Stop(trailing = it.groupValues[1].isNotBlank(), atr = it.groupValues[2].toDouble(), atrDays = it.groupValues[3].toIntOrNull() ?: 14)
+        }
         Regex("^(?:a )?trailing stop (?:of )?(\\d+(?:\\.\\d+)?)%.*$").matchEntire(t)?.let { return Exit.Stop(it.groupValues[1].toDouble() / 100, trailing = true) }
         Regex("^(?:a )?stop (?:of )?(\\d+(?:\\.\\d+)?)%.*$").matchEntire(t)?.let { return Exit.Stop(it.groupValues[1].toDouble() / 100) }
         Regex("^(?:a )?(?:profit )?target (?:of )?(\\d+(?:\\.\\d+)?)%$").matchEntire(t)?.let { return Exit.Target(it.groupValues[1].toDouble() / 100) }
@@ -422,12 +429,13 @@ object RuleCard {
         Then: hold TICKER 100%  (or: hold A 50%, B -50%; or: cash; or: hold the best 1 of A, B, C by 120-day return)
         Held: until an exit    (only if the position should stay on until an Exit line says so)
         Otherwise: cash        (or weights, as in Then)
-        Exit: after 60 days | stop 8% | trailing stop 10% | target 20% | A/B 60-day stretch back within 0.5
+        Exit: after 60 days | stop 8% | trailing stop 10% | stop 3 ATR | trailing stop 3 ATR | target 20% | A/B 60-day stretch back within 0.5
         Check: daily | weekly | monthly
         Compare with: TICKER
         A condition is: SIGNAL above|below|at least|at most|crosses above|crosses below VALUE, optionally "for 3 days" or "(to enter)".
         A SIGNAL is one of: TICKER (its close) · TICKER 200-day average · TICKER 50-day exponential average · TICKER 120-day return ·
         TICKER 50-day high · TICKER 50-day low · TICKER off its 252-day high · TICKER 20-day volatility · TICKER 14-day RSI ·
+        TICKER 14-day ATR (a day's range as a share of price) ·
         A/B (the ratio) · A/B 60-day stretch · SERIES (a rate or index) · SERIES 63-day change · SERIES minus SERIES.
         A VALUE is a number (0.5, or 5% for returns, rates and volatility), another SIGNAL ("its 200-day average"),
         or "its 80th percentile over 252 days".

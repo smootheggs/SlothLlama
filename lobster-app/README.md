@@ -64,6 +64,13 @@ New in 1.5:
 - **Better topic briefs**: filler such as "updates", "top news" or "etc." is left out of the
   news search, and only the last two days' stories come back.
 
+New in 1.13:
+
+- **Prices for SlothDesk, any market**: a Prices order can now ask for crypto (`crypto:BTCUSD`,
+  from Tiingo, every day of the week), any FX pair (`fx:EURUSD`), and any FRED series
+  (`fred:DFII10`, no key); every bar comes with its daily high and low where the source has them.
+  A new daily Prices order from the tablet replaces the old one.
+
 New in 1.4:
 
 - **Prices for SlothDesk**: SlothLlama's SlothDesk page sends a Prices order (once, or every day
