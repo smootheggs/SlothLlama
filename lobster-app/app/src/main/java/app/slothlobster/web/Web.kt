@@ -6,6 +6,7 @@ import okhttp3.Dns
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Interceptor
 import okhttp3.OkHttpClient
+import okhttp3.Protocol
 import okhttp3.Request
 import okio.Buffer
 import java.io.IOException
@@ -70,6 +71,12 @@ object Web {
     }
 
     /**
+     * (1.13.1) The same client over HTTP/1.1 only, for a second try when a site's front door
+     * resets an app's HTTP/2 stream (FRED's did: "stream was reset: INTERNAL_ERROR").
+     */
+    private val http1: OkHttpClient by lazy { client.newBuilder().protocols(listOf(Protocol.HTTP_1_1)).build() }
+
+    /**
      * Gets a page or file. [asBrowser] sends an ordinary browser's name, for sites that turn
      * away unknown apps; APIs (Wikipedia) get the Lobster's own name, as they ask.
      */
@@ -87,7 +94,16 @@ object Web {
             .header("Accept-Language", "en,*;q=0.5")
             .apply { headers.forEach { (k, v) -> header(k, v) } }
             .build()
-        client.newCall(request).execute().use { response ->
+        try {
+            fetch(client, request, maxBytes)
+        } catch (e: IOException) {
+            if (e.message?.startsWith("stream was reset") != true) throw e
+            fetch(http1, request, maxBytes)
+        }
+    }
+
+    private fun fetch(c: OkHttpClient, request: Request, maxBytes: Long): Fetched =
+        c.newCall(request).execute().use { response ->
             val finalUrl = response.request.url.toString()
             if (!finalUrl.startsWith("https://")) throw WebException("The site sent the Lobster to an unencrypted page")
             if (!response.isSuccessful) throw WebException("The site answered ${response.code}")
@@ -102,7 +118,6 @@ object Web {
             }
             Fetched(finalUrl, response.header("Content-Type").orEmpty(), buffer.readByteArray())
         }
-    }
 
     /**
      * The link as an https:// address, or null if it isn't one the Lobster will open. Plain

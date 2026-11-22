@@ -64,6 +64,14 @@ New in 1.5:
 - **Better topic briefs**: filler such as "updates", "top news" or "etc." is left out of the
   news search, and only the last two days' stories come back.
 
+New in 1.13.1:
+
+- **FX and FRED that actually arrive**: FX pairs come from the Fed's daily noon rates on FRED
+  (USDJPY, EURUSD, GBPUSD, AUDUSD, USDCHF, USDCAD, USDCNY: history to the 1970s or 1999, no key)
+  when the order reaches back before 2020, where Tiingo's FX history starts; Tiingo serves the rest
+  and stands in if FRED fails. FRED is asked under the Lobster's own name, and a request whose
+  stream a site resets is tried once more over HTTP/1.1.
+
 New in 1.13:
 
 - **Prices for SlothDesk, any market**: a Prices order can now ask for crypto (`crypto:BTCUSD`,

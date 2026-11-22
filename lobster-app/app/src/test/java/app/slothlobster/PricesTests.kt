@@ -55,6 +55,22 @@ class PricesTests {
         assertEquals(listOf("DFII10", "GLD", "ETHUSD"), asks.map { it.name })
         assertEquals(Prices.Source.CRYPTO, asks[2].source)
     }
+
+    @Test
+    fun `fx history comes from FRED before 2020 and from Tiingo after`() {
+        val old = LocalDate.of(2008, 1, 1)
+        val recent = LocalDate.of(2023, 6, 1)
+        // A major pair asked from 2008: the Fed's noon rate first, Tiingo from 2020 if FRED fails.
+        assertEquals(Prices.FxPlan("DEXUSEU", Prices.TIINGO_FX_FROM), Prices.fxPlan("EURUSD", old, hasKey = true))
+        assertEquals(Prices.FxPlan("DEXJPUS", Prices.TIINGO_FX_FROM), Prices.fxPlan("USDJPY", old, hasKey = true))
+        // From a date Tiingo serves: Tiingo, with its highs and lows.
+        assertEquals(Prices.FxPlan(null, recent), Prices.fxPlan("EURUSD", recent, hasKey = true))
+        // A pair FRED doesn't carry: Tiingo, never asked for days before it starts.
+        assertEquals(Prices.FxPlan(null, Prices.TIINGO_FX_FROM), Prices.fxPlan("NZDJPY", old, hasKey = true))
+        // No key: FRED where it can, nothing otherwise.
+        assertEquals(Prices.FxPlan("DEXUSUK", null), Prices.fxPlan("GBPUSD", recent, hasKey = false))
+        assertEquals(Prices.FxPlan(null, null), Prices.fxPlan("NZDJPY", recent, hasKey = false))
+    }
 }
 
 /** 1.5: briefs search on key words, not filler. */

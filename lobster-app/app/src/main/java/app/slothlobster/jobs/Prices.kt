@@ -22,7 +22,7 @@ import java.time.format.DateTimeFormatter
  *   crypto:BTCUSD (1.13)             Tiingo crypto, daily bars every day of the week (needs the key)
  *   fx:EURUSD (1.13)                 Tiingo FX daily bars, weekdays (needs the key)
  *   fred:DFII10 (1.13)               any FRED series, as a "series" divided by 100 (no key)
- *   USDJPY                           Tiingo FX daily bars; without a key, FRED's DEXJPUS noon rate
+ *   USDJPY                           FRED's DEXJPUS noon rate for history before 2020; Tiingo FX after (1.13.1)
  *   DEXJPUS                          FRED's USD/JPY noon rate on its own (no key): a second source
  *   DTB3                             FRED, 3-month T-bill, daily (no key)
  *   JP3M                             FRED IR3TIB01JPM156N, Japan 3-month rate, monthly (no key)
@@ -72,6 +72,31 @@ object Prices {
     /** Where a name is fetched from. */
     enum class Source { NAMED, CRYPTO, FX, FRED }
 
+    /** (1.13.1) Tiingo's FX history starts in January 2020: asking for earlier days answers 400. */
+    val TIINGO_FX_FROM: LocalDate = LocalDate.of(2020, 1, 2)
+
+    /**
+     * (1.13.1) The Fed's H.10 noon rates on FRED, already quoted the market's way round: daily
+     * history back to the 1970s or 1999, no key, but no highs and lows.
+     */
+    val H10 = mapOf(
+        "USDJPY" to "DEXJPUS", "EURUSD" to "DEXUSEU", "GBPUSD" to "DEXUSUK", "AUDUSD" to "DEXUSAL",
+        "USDCHF" to "DEXSZUS", "USDCAD" to "DEXCAUS", "USDCNY" to "DEXCHUS"
+    )
+
+    /** (1.13.1) Where a pair's daily prices come from: FRED first, Tiingo from the date it can serve (null: not at all). */
+    data class FxPlan(val fred: String?, val tiingoFrom: LocalDate?)
+
+    /**
+     * FRED's H.10 rate first when it reaches back further than Tiingo can, or there's no key;
+     * Tiingo (from 2020 at the earliest) for the rest, and as the fallback if FRED fails.
+     */
+    fun fxPlan(pair: String, since: LocalDate, hasKey: Boolean): FxPlan {
+        val h10 = H10[pair]
+        val fredFirst = h10 != null && (since < TIINGO_FX_FROM || !hasKey)
+        return FxPlan(if (fredFirst) h10 else null, if (hasKey) maxOf(since, TIINGO_FX_FROM) else null)
+    }
+
     /** One series an order asks for: its name in the file, and where it comes from. */
     data class Ask(val name: String, val source: Source)
 
@@ -119,13 +144,13 @@ object Prices {
             try {
                 val s = when (ask.source) {
                     Source.CRYPTO -> tiingoCrypto(name.lowercase(), since, key())
-                    Source.FX -> tiingoFx(name.lowercase(), since, key())
+                    Source.FX -> fx(name, since, tiingoKey)
                     Source.FRED -> fredSeries(name, since)
                     Source.NAMED -> when (name) {
                         "DTB3" -> fredRate("DTB3", "daily", since)
                         "JP3M" -> fredRate("IR3TIB01JPM156N", "monthly", since)
                         "GVZ" -> cboe("GVZ", since)
-                        "USDJPY" -> if (tiingoKey != null) tiingoFx("usdjpy", since, tiingoKey) else fredFx("DEXJPUS", since)
+                        "USDJPY" -> fx("USDJPY", since, tiingoKey)
                         // (1.10) FRED's noon rate on its own: SlothLlama's second source for USD/JPY price calls.
                         "DEXJPUS" -> fredFx("DEXJPUS", since)
                         else -> tiingoDaily(name, since, key())
@@ -174,6 +199,20 @@ object Prices {
             b.add(date, num(r, "adjOpen") ?: continue, num(r, "adjHigh"), num(r, "adjLow"), num(r, "adjClose") ?: continue)
         }
         return b.series("tiingo", adjusted = true)
+    }
+
+    /** (1.13.1) An FX pair by [fxPlan]: FRED's noon rate, else (or if FRED fails) Tiingo from 2020. */
+    private suspend fun fx(pair: String, since: LocalDate, key: String?): PriceSeries {
+        val plan = fxPlan(pair, since, key != null)
+        if (plan.fred != null) {
+            try {
+                return fredFx(plan.fred, since)
+            } catch (e: Exception) {
+                if (plan.tiingoFrom == null) throw e
+            }
+        }
+        val from = plan.tiingoFrom ?: throw WebException("needs a Tiingo key (SlothLobster settings, Market data)")
+        return tiingoFx(pair.lowercase(), from, key!!).let { if (from > since) it.copy(source = it.source + " (Tiingo's FX starts in 2020)") else it }
     }
 
     private suspend fun tiingoFx(pair: String, since: LocalDate, key: String): PriceSeries {
@@ -233,7 +272,8 @@ object Prices {
 
     /** FRED's public CSV ("." marks a day without a value). Percent → decimal. */
     private suspend fun fredCsv(id: String, since: LocalDate): List<Pair<String, Double>> {
-        val page = Web.get("https://fred.stlouisfed.org/graph/fredgraph.csv?id=${enc(id)}&cosd=$since")
+        // (1.13.1) The Lobster's own name, not a browser's: a bot filter may reset an app that claims to be Chrome.
+        val page = Web.get("https://fred.stlouisfed.org/graph/fredgraph.csv?id=${enc(id)}&cosd=$since", asBrowser = false)
         return page.text.lineSequence().drop(1).mapNotNull { line ->
             val parts = line.split(',')
             if (parts.size < 2) return@mapNotNull null

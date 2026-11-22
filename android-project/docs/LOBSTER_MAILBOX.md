@@ -95,7 +95,8 @@ as its text and `fileName` `slothdesk-prices.json`, whose content is:
   only when they fit each day's open and close); a `"series"` kind holds any other series (FRED's,
   divided by 100 like a rate, with `freq` daily, weekly or monthly; SlothDesk uses each value from
   when it was published). The order can type a name: `crypto:BTCUSD` (Tiingo crypto, every day of
-  the week), `fx:EURUSD` (Tiingo FX, weekdays) or `fred:DFII10` (any FRED series); plain names are
+  the week), `fx:EURUSD` (weekdays: the Fed's noon rate on FRED for the majors before 2020, Tiingo FX
+  from 2020, when its history starts) or `fred:DFII10` (any FRED series); plain names are
   as before. An order names at most 24 series. A newer repeating Prices order from the tablet
   replaces the last, so SlothDesk can add what its rules need to the daily one.
 - The Colab notebook writes the same file (`export_prices`) and reads it (`load_bundle`), so the

@@ -4,6 +4,19 @@ Every release of SlothLlama and the SlothLobster, newest first, in the words of 
 Each GitHub release carries its entry from here; this file keeps them all (GitHub keeps only the
 newest five releases of each app).
 
+## SlothLobster 1.13.1 — 2026-11-22
+
+**FX pairs and FRED series arrive**
+
+- USDJPY and any `fx:` pair asked from before 2020 failed with "The site answered 400": Tiingo's
+  FX history starts in January 2020. The majors (USDJPY, EURUSD, GBPUSD, AUDUSD, USDCHF, USDCAD,
+  USDCNY) now come from the Fed's daily noon rates on FRED, with history to the 1970s or 1999 and
+  no key, but without highs and lows. Tiingo serves later starts and other pairs, from 2020 at the
+  earliest, and stands in if FRED fails.
+- DTB3, JP3M, DEXJPUS and other FRED series failed with "stream was reset: INTERNAL_ERROR". FRED
+  is now asked under the Lobster's own name instead of a browser's, and any request whose stream a
+  site resets is tried once more over HTTP/1.1.
+
 ## SlothLlama 1.50.2 — 2026-11-22
 
 **A new rule fetches its own prices**
