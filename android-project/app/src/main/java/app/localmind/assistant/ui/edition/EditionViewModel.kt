@@ -434,7 +434,7 @@ class EditionViewModel @Inject constructor(
         askInbox.post(
             LaunchRequest.Shared(
                 prompt = Editions.deskPrompt(s.edition),
-                document = attachments.textDocument("Desk card · ${s.edition.name} edition", Editions.deskCard(s.edition, tiles.value) + briefingLines()),
+                document = attachments.textDocument("Desk card · ${Editions.label(s.edition.name)}", Editions.deskCard(s.edition, tiles.value) + briefingLines()),
                 personaId = persona.id
             )
         )

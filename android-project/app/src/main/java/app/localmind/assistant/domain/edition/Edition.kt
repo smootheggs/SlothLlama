@@ -170,6 +170,20 @@ data class KeyWord(
 )
 
 object Editions {
+
+    /**
+     * An edition's name as people read it (1.50.3): "Morning edition"; a paper made on demand
+     * (the Lobster names it "Edition") is the "Extra edition"; a name that already ends in
+     * "edition" isn't given the word twice.
+     */
+    fun label(name: String): String {
+        val n = name.trim()
+        return when {
+            n.isEmpty() || n.equals("edition", ignoreCase = true) -> "Extra edition"
+            n.endsWith(" edition", ignoreCase = true) -> n
+            else -> "$n edition"
+        }
+    }
     const val PLAN_FORMAT = "slothexpress-plan"
     const val FORMAT = "slothexpress-edition"
     const val FILE_NAME = "sloth-express.json"
@@ -382,7 +396,7 @@ object Editions {
     /** The masthead's line: "MORNING EDITION · FRIDAY 20 NOVEMBER 2026 · 24 STORIES · 9 MIN". */
     fun masthead(e: EditionOut, zone: ZoneId, listenMinutes: Int): String {
         val day = Instant.ofEpochMilli(e.made).atZone(zone).format(DateTimeFormatter.ofPattern("EEEE d MMMM yyyy", Locale.ENGLISH))
-        val parts = listOf("${e.name} edition", day, "${stories(e).size} stories") + if (listenMinutes > 0) listOf("$listenMinutes min") else emptyList()
+        val parts = listOf(label(e.name), day, "${stories(e).size} stories") + if (listenMinutes > 0) listOf("$listenMinutes min") else emptyList()
         return parts.joinToString(" · ").uppercase(Locale.ENGLISH)
     }
 
@@ -423,7 +437,7 @@ object Editions {
 
     /** The card a desk persona is given: today's prices (worked out on the tablet) and the headlines. */
     fun deskCard(e: EditionOut, tiles: List<MarketTile>): String = buildString {
-        append("The ").append(e.name.lowercase(Locale.ENGLISH)).append(" edition's markets and headlines.\n\n")
+        append("The ").append(label(e.name).lowercase(Locale.ENGLISH)).append("'s markets and headlines.\n\n")
         if (tiles.isNotEmpty()) {
             append("Prices (SlothDesk's latest data, worked out on the tablet):\n")
             tiles.forEach { append("- ").append(it.name).append(": ").append(it.value).append(' ').append(it.change).append(" (").append(it.asOf).append(")\n") }

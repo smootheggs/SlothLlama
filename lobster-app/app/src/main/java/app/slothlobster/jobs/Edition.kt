@@ -106,6 +106,16 @@ data class EditionOut(
 )
 
 object Editions {
+
+    /** (1.13.2) An edition's title: "Morning edition"; one made on demand is the "Extra edition". Same rule as SlothLlama's. */
+    fun label(name: String): String {
+        val n = name.trim()
+        return when {
+            n.isEmpty() || n.equals("edition", ignoreCase = true) -> "Extra edition"
+            n.endsWith(" edition", ignoreCase = true) -> n
+            else -> "$n edition"
+        }
+    }
     const val PLAN_FORMAT = "slothexpress-plan"
     const val FORMAT = "slothexpress-edition"
     const val FILE_NAME = "sloth-express.json"

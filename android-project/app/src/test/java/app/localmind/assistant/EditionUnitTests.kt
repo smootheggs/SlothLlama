@@ -17,6 +17,17 @@ import org.junit.Test
 class EditionUnitTests {
 
     @Test
+    fun `an edition is named once, and one made on demand is the extra edition`() {
+        assertEquals("Morning edition", Editions.label("Morning"))
+        assertEquals("Extra edition", Editions.label("Edition"))
+        assertEquals("Extra edition", Editions.label(" "))
+        assertEquals("Weekend edition", Editions.label("Weekend edition"))
+        val e = EditionOut(id = "x", name = "Edition", made = 0)
+        assertTrue(Editions.masthead(e, java.time.ZoneOffset.UTC, 0).startsWith("EXTRA EDITION · "))
+        assertTrue(Editions.deskCard(e, emptyList()).startsWith("The extra edition's markets"))
+    }
+
+    @Test
     fun `the default plan fits one order, without the corners switched off`() {
         val text = Editions.planOrder(EditionSetup(), now = true, at = 5)
         assertNotNull(text)

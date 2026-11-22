@@ -960,7 +960,7 @@ class Engine(private val lobster: Lobster) {
         )
         val stories = Editions.stories(edition)
         store.update { it.copy(sentHeadlines = it.sentHeadlines + stories.map { s -> key(s.url, s.title) }) }
-        val title = "$name edition · ${today()}"
+        val title = "${Editions.label(name)} · ${today()}"
         return LobsterCatch(
             id = edition.id,
             orderId = orderId,

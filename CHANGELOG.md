@@ -4,6 +4,15 @@ Every release of SlothLlama and the SlothLobster, newest first, in the words of 
 Each GitHub release carries its entry from here; this file keeps them all (GitHub keeps only the
 newest five releases of each app).
 
+## SlothLlama 1.50.3 · SlothLobster 1.13.2 — 2026-11-22
+
+**No more "Edition edition"**
+
+- A paper made on demand (Send now) is the "Extra edition", in the Sloth Express's header,
+  masthead and past papers, and in the Lobster's log and notification. Before, the Lobster named
+  it "Edition" and both apps added "edition" again. An edition named "… edition" by you is never
+  given the word twice.
+
 ## SlothLobster 1.13.1 — 2026-11-22
 
 **FX pairs and FRED series arrive**

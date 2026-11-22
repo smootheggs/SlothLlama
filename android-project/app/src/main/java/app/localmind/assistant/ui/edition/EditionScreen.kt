@@ -264,7 +264,7 @@ fun EditionScreen(
                         SlothTopBar(
                             // The paper keeps its name here; Home calls it News (1.44).
                             title = "The Sloth Express",
-                            subtitle = e?.let { "${it.edition.name} edition · " + received(it, older) } ?: "From the Lobster",
+                            subtitle = e?.let { Editions.label(it.edition.name) + " · " + received(it, older) } ?: "From the Lobster",
                             onBack = if (older) viewModel::showLatest else onBack,
                             actions = {
                                 if (e != null) {
@@ -622,7 +622,7 @@ private fun Archive(entries: List<EditionEntry>, shownId: String?, onOpen: (Edit
             ) {
                 Column(Modifier.weight(1f)) {
                     Text(
-                        "${en.name} edition · " + Instant.ofEpochMilli(en.made).atZone(ZoneId.systemDefault()).format(day),
+                        Editions.label(en.name) + " · " + Instant.ofEpochMilli(en.made).atZone(ZoneId.systemDefault()).format(day),
                         color = if (en.id == shownId) P.Accent else P.Text, fontSize = 15.sp, fontWeight = FontWeight.Medium
                     )
                     Text("${en.read} of ${en.stories} read", color = P.Faint, fontSize = 12.sp)

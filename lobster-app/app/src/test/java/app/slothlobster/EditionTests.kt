@@ -19,6 +19,13 @@ import java.util.Calendar
 class EditionTests {
 
     @Test
+    fun `an edition's title names it once, and one made on demand is the extra edition`() {
+        assertEquals("Morning edition", Editions.label("Morning"))
+        assertEquals("Extra edition", Editions.label("Edition"))
+        assertEquals("Weekend Edition", Editions.label("Weekend Edition"))
+    }
+
+    @Test
     fun `a plan is kept within bounds and only readable sources stay`() {
         val text = """{"format":"slothexpress-plan","v":1,"times":[{"name":"Morning","h":31,"m":-5}],"top":40,
             "sections":[{"name":"World","sources":["https://example.org/feed.xml","http://example.org/other","ftp://x","search:  gold OR silver ","TOP"],"count":99},
