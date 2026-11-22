@@ -1,6 +1,7 @@
 package app.localmind.assistant.ui.desk
 
 import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Canvas
@@ -74,6 +75,7 @@ import app.localmind.assistant.domain.desk.Chart
 import app.localmind.assistant.domain.desk.DeskStrategies
 import app.localmind.assistant.domain.desk.Gate
 import app.localmind.assistant.domain.desk.Metrics
+import app.localmind.assistant.domain.desk.RuleWords
 import app.localmind.assistant.domain.desk.StrategyReport
 import app.localmind.assistant.ui.common.SlothTopBar
 import app.localmind.assistant.ui.home.WIDE
@@ -102,6 +104,8 @@ fun DeskScreen(
 ) {
     val ui by viewModel.ui.collectAsStateWithLifecycle()
     val message by viewModel.message.collectAsStateWithLifecycle()
+    val editing by viewModel.editing.collectAsStateWithLifecycle()
+    val reportKey by viewModel.report.collectAsStateWithLifecycle()
     val lobster by viewModel.lobster.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -131,6 +135,28 @@ fun DeskScreen(
     // The strategy shown in full; the others are rows beneath it.
     var featured by rememberSaveable { mutableStateOf<String?>(null) }
     val shown = ui.reports.firstOrNull { it.key == featured } ?: ui.reports.firstOrNull()
+
+    // The report and the rule editor open over the Desk (1.48); Back closes them in turn.
+    val opened = reportKey?.let { k -> ui.reports.firstOrNull { it.key == k } }
+    val editRule = editing?.let { id -> ui.rules.firstOrNull { it.id == id } }
+    if (reportKey != null || editRule != null) {
+        Box(Modifier.fillMaxSize().background(P.Canvas)) {
+            if (reportKey != null) {
+                BackHandler { viewModel.closeReport() }
+                if (opened != null) ReportScreen(opened, ui, viewModel, onBack = viewModel::closeReport)
+                else Column(Modifier.fillMaxSize()) {
+                    SlothTopBar(title = "The six questions", onBack = viewModel::closeReport)
+                    Text(ui.working ?: "This rule isn't on the Desk right now: it may be waiting for prices.",
+                        color = P.Muted, fontSize = 14.sp, modifier = Modifier.padding(24.dp))
+                }
+            } else if (editRule != null) {
+                BackHandler { viewModel.closeRule() }
+                RuleEditor(editRule, ui, viewModel, onBack = viewModel::closeRule)
+            }
+            SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
+        }
+        return
+    }
 
     Box(Modifier.fillMaxSize().background(P.Canvas)) {
         Column(Modifier.fillMaxSize()) {
@@ -205,12 +231,13 @@ fun DeskScreen(
                                 }
                                 HorizontalDivider(color = P.Border)
                             }
-                            ui.waiting.forEach { (key, missing) ->
-                                Text("${DeskStrategies.template(key).label}: waiting for ${missing.joinToString(", ")}",
+                            ui.waiting.forEach { (name, missing) ->
+                                Text("$name: waiting for ${missing.joinToString(", ")}",
                                     color = P.Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 10.dp))
                             }
-                            if (wide) Journal(ui)
                         }
+                        if (ui.ready) YourRules(ui, viewModel)
+                        if (ui.hasData && wide) Journal(ui)
                         Footer()
                     }
                 }
@@ -340,7 +367,7 @@ private fun Tickets(
         Row(Modifier.padding(top = 14.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Strategy", color = P.Faint, fontSize = 12.sp, modifier = Modifier.weight(1f))
             Text("At the next open", color = P.Faint, fontSize = 12.sp, modifier = Modifier.weight(1.3f))
-            Text("Gates", color = P.Faint, fontSize = 12.sp, modifier = Modifier.width(GATES_W))
+            Text("Tests", color = P.Faint, fontSize = 12.sp, modifier = Modifier.width(GATES_W))
             Text("Done", color = P.Faint, fontSize = 12.sp, modifier = Modifier.width(DONE_W), textAlign = TextAlign.Center)
         }
         ui.reports.forEach { r ->
@@ -361,7 +388,7 @@ private fun Tickets(
                         fontSize = 14.sp, fontWeight = if (r.ticket.trade && !researchOnly) FontWeight.Medium else FontWeight.Normal,
                         style = Numbers, maxLines = 2, overflow = TextOverflow.Ellipsis
                     )
-                    if (researchOnly) Text("Research only · ${r.gatesPassed} of ${r.gates.size} gates", color = P.Faint, fontSize = 11.sp)
+                    if (researchOnly) Text("Research only · ${r.gatesPassed} of ${r.gates.size} questions", color = P.Faint, fontSize = 11.sp)
                     r.guardrail?.let { Text("⚠ $it", color = P.Warning, fontSize = 12.sp, lineHeight = 16.sp) }
                 }
                 Box(Modifier.width(GATES_W)) { GateDots(r.gates) }
@@ -422,7 +449,7 @@ private fun Journal(ui: DeskUi) {
             Text("Slips: " + slips.entries.sortedByDescending { it.value }.joinToString(" · ") { "${it.key} ${it.value}" },
                 color = P.Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
         }
-        Text("Gate 6 wants 60 journalled days with the rules followed on 80% of marked days.",
+        Text("On paper means 60 journalled days, following at least 8 tickets in 10.",
             color = P.Faint, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
     }
 }
@@ -434,7 +461,7 @@ private fun Journal(ui: DeskUi) {
 @Composable
 private fun FeaturedStrategy(r: StrategyReport, vm: DeskViewModel) {
     var expanded by rememberSaveable(r.key) { mutableStateOf(false) }
-    val t = DeskStrategies.template(r.key)
+    val t = if (r.mine) null else DeskStrategies.templates.firstOrNull { it.key == r.key }
     Card(Modifier.padding(top = 16.dp), padding = 20.dp) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(r.label, color = P.Text, fontSize = 19.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f).semantics { heading() })
@@ -458,15 +485,21 @@ private fun FeaturedStrategy(r: StrategyReport, vm: DeskViewModel) {
                 color = P.Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 10.dp)
             )
         }
+        Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+            Text(r.verdict.first, color = if (r.verdict.first == "Research only") P.Muted else P.Accent, fontSize = 14.sp,
+                fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
+            Action("The six questions") { vm.openReport(r.key) }
+        }
         if (!expanded) {
-            Row(Modifier.padding(top = 6.dp)) {
-                Action("Details, settings and gates", muted = true) { expanded = true }
+            Row(Modifier.padding(top = 2.dp)) {
+                Action(if (t != null) "Details and settings" else "Details", muted = true) { expanded = true }
                 Spacer(Modifier.weight(1f))
-                Action("Ask about this") { vm.askAbout(r) }
+                if (r.mine) Action("Edit the rule") { vm.openRule(r.key.removePrefix(DeskViewModel.MINE)) }
+                else Action("Make my copy") { vm.copyShelf(r.key) }
             }
             return@Card
         }
-        Text(t.blurb, color = P.Muted, fontSize = 13.sp, lineHeight = 19.sp, modifier = Modifier.padding(top = 8.dp))
+        Text(t?.blurb ?: RuleWords.rule(r.rule), color = P.Muted, fontSize = 13.sp, lineHeight = 19.sp, modifier = Modifier.padding(top = 8.dp))
 
         SubLabel("HELD-OUT YEARS, FROM ${r.splitDate}")
         MetricRow("Strategy", r.heldOut, P.Text)
@@ -493,20 +526,24 @@ private fun FeaturedStrategy(r: StrategyReport, vm: DeskViewModel) {
                 "below zero in ${DeskText.num(b.sharpeBelowZeroPct, 0)}%", color = P.Muted, fontSize = 12.sp)
         }
 
-        SubLabel("GATES")
+        SubLabel("THE SIX QUESTIONS")
         r.gates.forEach { g -> GateRow(g) }
 
-        SubLabel("SETTINGS" + if (r.isDefault) " · DEFAULT" else " · CHANGED")
-        t.knobs.forEach { k ->
-            val v = r.params[k.key]
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(k.label, color = P.Text, fontSize = 14.sp, modifier = Modifier.weight(1f))
-                Action("−", muted = true) { vm.set(r.key, k.key, v - k.step) }
-                Text(DeskText.num(v, if (k.step < 0.01) 4 else if (k.step < 1) 2 else 0) + k.unit, color = P.Text, fontSize = 14.sp)
-                Action("+", muted = true) { vm.set(r.key, k.key, v + k.step) }
+        val params = r.params
+        if (t != null && params != null) {
+            SubLabel("SETTINGS" + if (r.isDefault) " · DEFAULT" else " · CHANGED")
+            t.knobs.forEach { k ->
+                val v = params[k.key]
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(k.label, color = P.Text, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                    Action("−", muted = true) { vm.set(r.key, k.key, v - k.step) }
+                    Text(DeskText.num(v, if (k.step < 0.01) 4 else if (k.step < 1) 2 else 0) + k.unit, color = P.Text, fontSize = 14.sp)
+                    Action("+", muted = true) { vm.set(r.key, k.key, v + k.step) }
+                }
             }
+            Text("Each new setting counts as a trial: the more you try, the higher the luck bar. " +
+                "To change more than these two, make your own copy.", color = P.Faint, fontSize = 12.sp)
         }
-        Text("Each new setting counts as a trial: the more you try, the higher the luck bar.", color = P.Faint, fontSize = 12.sp)
 
         if (r.exitReasons.isNotEmpty()) {
             SubLabel("WHY POSITIONS CLOSED (IN-SAMPLE)")
@@ -525,7 +562,9 @@ private fun FeaturedStrategy(r: StrategyReport, vm: DeskViewModel) {
         FlowRow(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Action("Check nearby settings") { vm.checkNearby(r.key) }
             Action("Ask about this") { vm.askAbout(r) }
-            if (!r.isDefault) Action("Back to default", muted = true) { vm.reset(r.key) }
+            if (r.mine) Action("Edit the rule") { vm.openRule(r.key.removePrefix(DeskViewModel.MINE)) }
+            else Action("Make my copy") { vm.copyShelf(r.key) }
+            if (!r.isDefault && !r.mine) Action("Back to default", muted = true) { vm.reset(r.key) }
             Action("Hide", muted = true) { vm.hide(r.key) }
             Action("Less", muted = true) { expanded = false }
         }
@@ -534,7 +573,7 @@ private fun FeaturedStrategy(r: StrategyReport, vm: DeskViewModel) {
 
 /** A figure with its label above, in fixed-width digits. */
 @Composable
-private fun Figure(label: String, value: String, modifier: Modifier) {
+internal fun Figure(label: String, value: String, modifier: Modifier) {
     Column(modifier) {
         Text(label, color = P.Faint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(value, color = P.Text, fontSize = 22.sp, style = Numbers, modifier = Modifier.padding(top = 2.dp))
@@ -562,7 +601,7 @@ private fun StrategyRow(r: StrategyReport, onOpen: () -> Unit) {
 }
 
 @Composable
-private fun MetricRow(label: String, m: Metrics?, color: Color) {
+internal fun MetricRow(label: String, m: Metrics?, color: Color) {
     Row(Modifier.fillMaxWidth().padding(vertical = 1.dp)) {
         Text(label, color = color, fontSize = 13.sp, modifier = Modifier.weight(1.1f))
         Text(DeskText.pct(m?.cagr), color = color, fontSize = 13.sp, modifier = Modifier.weight(1f))
@@ -572,7 +611,7 @@ private fun MetricRow(label: String, m: Metrics?, color: Color) {
 }
 
 @Composable
-private fun GateRow(g: Gate) {
+internal fun GateRow(g: Gate) {
     Row(Modifier.padding(vertical = 3.dp)) {
         Text(when (g.passed) { true -> "✓"; false -> "✗"; null -> "○" },
             color = when (g.passed) { true -> P.Success; false -> P.Danger; null -> P.Faint },
@@ -584,9 +623,68 @@ private fun GateRow(g: Gate) {
     }
 }
 
+// --- your rules ---
+
+/** Your rules, with a way to start one: new, or a copy from the shelf. */
+@Composable
+private fun YourRules(ui: DeskUi, vm: DeskViewModel) {
+    var shelf by remember { mutableStateOf(false) }
+    Label("YOUR RULES")
+    Card {
+        if (ui.rules.isEmpty()) {
+            Text("Write a strategy as a rule from blocks: when these hold, then hold this. Start from scratch, or copy one " +
+                "from the shelf and change it. Each version you test is one more try, and the luck question counts them.",
+                color = P.Muted, fontSize = 13.sp, lineHeight = 19.sp)
+        }
+        ui.rules.forEachIndexed { i, m ->
+            if (i > 0) HorizontalDivider(color = P.Border)
+            val rep = ui.reports.firstOrNull { it.key == m.key }
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 52.dp)
+                    .clickable(role = Role.Button, onClickLabel = "Open ${m.name}") { vm.openRule(m.id) }
+                    .padding(vertical = 8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(m.name, color = P.Text, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                    Text(
+                        listOfNotNull(
+                            if (m.from.startsWith("shelf:")) "from the shelf" else "your rule",
+                            if (m.tries == 1) "1 try" else "${m.tries} tries",
+                            when {
+                                m.problem != null -> "can't be read"
+                                !m.tested -> "not tested yet"
+                                m.changed -> "changed since the test"
+                                else -> null
+                            }
+                        ).joinToString(" · "),
+                        color = if (m.problem != null) P.Warning else P.Faint, fontSize = 12.sp
+                    )
+                }
+                if (rep != null) {
+                    GateDots(rep.gates)
+                    Spacer(Modifier.width(6.dp))
+                }
+                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = P.Faint, modifier = Modifier.size(18.dp))
+            }
+        }
+        Row(Modifier.padding(top = 6.dp)) {
+            Action("New rule") { vm.newRule() }
+            Box {
+                Action("Copy from the shelf", muted = true) { shelf = true }
+                DropdownMenu(expanded = shelf, onDismissRequest = { shelf = false }, modifier = Modifier.background(P.Elevated)) {
+                    DeskStrategies.templates.forEach { t ->
+                        DropdownMenuItem(text = { Text(t.label, color = P.Text) }, onClick = { shelf = false; vm.copyShelf(t.key) })
+                    }
+                }
+            }
+        }
+    }
+}
+
 /** Six small marks: filled for passed, ringed for not passed, faint for not checked. */
 @Composable
-private fun GateDots(gates: List<Gate>) {
+internal fun GateDots(gates: List<Gate>) {
     Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
         gates.forEach { g ->
             val c = when (g.passed) { true -> P.Success; false -> P.Danger; null -> P.Border }
@@ -600,7 +698,7 @@ private fun GateDots(gates: List<Gate>) {
 }
 
 @Composable
-private fun EquityChart(c: Chart, height: androidx.compose.ui.unit.Dp = 130.dp) {
+internal fun EquityChart(c: Chart, height: androidx.compose.ui.unit.Dp = 130.dp) {
     val accent = P.Accent
     val grey = P.Faint
     val grid = P.Border
@@ -647,7 +745,7 @@ private fun Footer() {
 // --- small pieces ---
 
 @Composable
-private fun Card(modifier: Modifier = Modifier, padding: androidx.compose.ui.unit.Dp = 16.dp, content: @Composable () -> Unit) {
+internal fun Card(modifier: Modifier = Modifier, padding: androidx.compose.ui.unit.Dp = 16.dp, content: @Composable () -> Unit) {
     val shape = RoundedCornerShape(18.dp)
     Column(
         modifier.fillMaxWidth().clip(shape).background(P.Card).border(1.dp, P.Border, shape).padding(padding)
@@ -655,7 +753,7 @@ private fun Card(modifier: Modifier = Modifier, padding: androidx.compose.ui.uni
 }
 
 @Composable
-private fun Label(text: String) {
+internal fun Label(text: String) {
     Text(
         text, color = P.Faint, fontSize = 12.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Medium,
         modifier = Modifier.padding(top = 28.dp, bottom = 10.dp).semantics { heading() }
@@ -663,10 +761,10 @@ private fun Label(text: String) {
 }
 
 /** Fixed-width digits, so figures line up. */
-private val Numbers = TextStyle(fontFeatureSettings = "tnum")
+internal val Numbers = TextStyle(fontFeatureSettings = "tnum")
 
 @Composable
-private fun OutlineButton(label: String, onClick: () -> Unit) {
+internal fun OutlineButton(label: String, onClick: () -> Unit) {
     Text(
         label, color = P.Text, fontSize = 13.sp,
         modifier = Modifier
@@ -679,12 +777,12 @@ private fun OutlineButton(label: String, onClick: () -> Unit) {
 }
 
 @Composable
-private fun SubLabel(text: String) {
+internal fun SubLabel(text: String) {
     Text(text, color = P.Faint, fontSize = 10.sp, letterSpacing = 1.1.sp, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
 }
 
 @Composable
-private fun Action(label: String, muted: Boolean = false, onClick: () -> Unit) {
+internal fun Action(label: String, muted: Boolean = false, onClick: () -> Unit) {
     Text(
         label,
         color = if (muted) P.Muted else P.Accent,
@@ -695,7 +793,7 @@ private fun Action(label: String, muted: Boolean = false, onClick: () -> Unit) {
 }
 
 @Composable
-private fun Button(label: String, onClick: () -> Unit) {
+internal fun Button(label: String, onClick: () -> Unit) {
     Text(
         label,
         color = P.OnAccent,

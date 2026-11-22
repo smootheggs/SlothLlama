@@ -1,6 +1,7 @@
 package app.localmind.assistant.ui.desk
 
 import app.localmind.assistant.domain.desk.Metrics
+import app.localmind.assistant.domain.desk.RuleWords
 import app.localmind.assistant.domain.desk.StrategyReport
 import java.time.LocalDate
 import java.util.Locale
@@ -26,8 +27,11 @@ object DeskText {
     fun report(r: StrategyReport, lastDate: LocalDate?): String = buildString {
         appendLine("SlothDesk report: ${r.label}")
         appendLine("Data to ${lastDate ?: "?"}. Simulated with costs; trades fill at the next day's open. Paper trading only.")
-        appendLine("Settings: " + r.params.values.entries.joinToString(", ") { "${it.key} ${num(it.value, 3)}" } +
-            if (r.isDefault) " (the default rule sheet)" else " (changed from the default)")
+        r.params?.let { p ->
+            appendLine("Settings: " + p.values.entries.joinToString(", ") { "${it.key} ${num(it.value, 3)}" } +
+                if (r.isDefault) " (the default rule sheet)" else " (changed from the default)")
+        }
+        appendLine(RuleWords.rule(r.rule))
         appendLine()
         appendLine("Tonight's ticket (from the close of ${r.ticket.dataDate}): ${r.ticket.nextOpen}. Now: ${r.ticket.positionNow}.")
         r.guardrail?.let { appendLine("Guardrail: $it") }
@@ -52,9 +56,10 @@ object DeskText {
                 "(5th to 95th percentile), worst drop ${plainPct(abs(it.maxDrawdown.third))} to ${plainPct(abs(it.maxDrawdown.first))}.")
         }
         appendLine()
-        appendLine("Gates (${r.gatesPassed} of ${r.gates.size} passed):")
+        val (headline, line) = r.verdict
+        appendLine("The six questions (${r.gatesPassed} of ${r.gates.size} answered yes): $headline. $line")
         r.gates.forEach { g ->
-            appendLine("  ${when (g.passed) { true -> "passed"; false -> "not passed"; null -> "not checked" }}: ${g.name}: ${g.detail}")
+            appendLine("  ${g.name} ${g.detail} (${g.more})")
         }
         if (r.exitReasons.isNotEmpty()) {
             appendLine()

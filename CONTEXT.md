@@ -120,7 +120,13 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
   **exits** (back within, after N days, stop, trailing stop, target); a **brake**; an options
   **overlay**. A branch is held **while** its conditions hold, or **until** an exit; a condition
   only **to enter** (a filter, a crossing) doesn't keep it. Rules are data within set limits,
-  never code; the four on the **shelf** are rules too.
+  never code; the four on the **shelf** are rules too. **Your rules** (1.48) are written in the
+  **rule editor** as sentences of chips, or **copied** from the shelf; the **trading assumptions**
+  (costs, check days, sizing, markets, carry) sit apart from the rule. Each version you **test**
+  is a **try** (a copy brings the shelf's tries with it). A test's **report** answers **the six
+  questions**: did it beat simply holding, did it hold up on years it never saw, could luck
+  explain it, does it survive doubled costs, do nearby settings agree, have you followed it on
+  paper. A rule on crypto alone counts a 365-day year.
 - **Projects**: your own projects, one record each. **Phase** (Initiating, Planning, Executing,
   Monitoring, Closing), **brief**, **milestones** ("late" once the due day has passed), **risks**
   (score = likelihood × impact, 1 to 9: low, medium, high), **stakeholders** (the power/interest

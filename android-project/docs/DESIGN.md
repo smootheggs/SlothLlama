@@ -14,7 +14,7 @@ The rules the Home, Personas, Lobster, SlothDesk and SlothBooks pages follow. Ke
 
 - One filled button per card. Everything else is a quiet text action, ⋯, or a long press that
   also has a menu line (long presses aren't discoverable on their own).
-- Status as marks, not sentences: gate dots, practice dots, a coloured status dot, ✓ / ✕ rings.
+- Status as marks, not sentences: the six questions as dots, practice dots, a coloured status dot, ✓ / ✕ rings.
   Say it in words for TalkBack (`contentDescription`), not on screen.
 - Two columns from about 600 dp wide (grids), and two panes from 840 dp (`WIDE`).
 - Sections are at least 32 dp apart (Home's pages: 20–48 dp, spread to the screen); a section
@@ -66,7 +66,7 @@ spread over the height, 20–48 dp apart, and the page scrolls only if they can'
 | Moss (`Accent`) | SlothLlama: the one main action, live numbers, "done" |
 | Coral (`Lobster`) | Anything the Lobster brought or is doing; its Send button |
 | Amber (`Warning`) | Prices, and stale data |
-| Green / red (`Success` / `Danger`) | Gates passed / failed, followed / not |
+| Green / red (`Success` / `Danger`) | Questions answered yes / no, followed / not |
 
 Colour means "needs you". Something healthy (a saved backup, marked tickets) is grey with at most
 a small green dot; a page where everything is fine should be mostly grey. Icons stay neutral

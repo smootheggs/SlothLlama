@@ -90,8 +90,11 @@ object DeskStrategies {
 
     fun template(key: String): StrategyTemplate = templates.first { it.key == key }
 
-    /** The strategy's result at a setting, its buy-and-hold benchmark, and the entries it made. */
-    class Run(val result: SimResult, val bench: SimResult, val entries: Int, val targets: Targets?)
+    /**
+     * The strategy's result at a setting, its buy-and-hold benchmark, the entries it made, and
+     * the periods in its year (365 for crypto alone, 252 otherwise) for annualising its stats.
+     */
+    class Run(val result: SimResult, val bench: SimResult, val entries: Int, val targets: Targets?, val periodsPerYear: Double = 252.0)
 
     /**
      * The shelf's strategies as rules (1.47): the same blocks anyone's rules are built from, so
@@ -167,21 +170,23 @@ object DeskStrategies {
 
     data class Ticket(val dataDate: LocalDate, val positionNow: String, val nextOpen: String, val trade: Boolean)
 
-    fun ticket(key: String, run: Run, p: Params): Ticket {
-        if (key == "gld_covered_call") {
+    /** Tonight's ticket from a run of [r]: the position now and what to do at the next open. */
+    fun ticket(r: Rule, run: Run): Ticket {
+        val o = r.overlay
+        if (o is Overlay.CoveredCall) {
             val s = run.result.callState ?: error("No call state")
             return if (s.sellNextOpen) {
                 val next = DeskMath.nextBusinessDay(s.lastDate)
-                var exp = next.plusDays(p.int("dte").toLong())
+                var exp = next.plusDays(o.dte.toLong())
                 while (exp.dayOfWeek == DayOfWeek.SATURDAY || exp.dayOfWeek == DayOfWeek.SUNDAY) exp = exp.minusDays(1)
                 val t = ChronoUnit.DAYS.between(next, exp) / 365.0
-                val k = DeskEngine.strikeForDelta(s.lastClose, t, s.lastRate, s.lastVol, p["delta"], p["strike_step"])
+                val k = DeskEngine.strikeForDelta(s.lastClose, t, s.lastRate, s.lastVol, o.delta, o.strikeStep)
                 val prem = DeskEngine.bsCall(s.lastClose, k, t, s.lastRate, s.lastVol)
-                Ticket(s.lastDate, "Long GLD, no call open",
-                    "Sell ${(s.shares / 100).toInt()} call(s), one per 100 GLD shares: strike about ${"%.0f".format(k)}, " +
+                Ticket(s.lastDate, "Long ${o.asset}, no call open",
+                    "Sell ${(s.shares / 100).toInt()} call(s), one per 100 ${o.asset} shares: strike about ${"%.0f".format(k)}, " +
                         "expiry $exp (modelled premium about $${"%.2f".format(prem)} a share; re-strike at the open)", true)
             } else {
-                Ticket(s.lastDate, "Long GLD, short ${s.contracts} call(s) at ${"%.0f".format(s.openStrike ?: 0.0)} " +
+                Ticket(s.lastDate, "Long ${o.asset}, short ${s.contracts} call(s) at ${"%.0f".format(s.openStrike ?: 0.0)} " +
                     "expiring ${s.openExpiry}", "Hold (no trade)", false)
             }
         }

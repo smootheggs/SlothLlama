@@ -64,7 +64,7 @@ object RuleEngine {
             cryptoAssets = crypto, cryptoSlippageBp = market.cryptoSlippageBp, periodsPerYear = plan.periodsPerYear)
         val bench = DeskEngine.simulate(data.prices, DeskEngine.buyAndHold(tg.dates, r.benchmark), data.rf, benchName, costs,
             carry = carry, fxAssets = fx, cryptoAssets = crypto, cryptoSlippageBp = market.cryptoSlippageBp, periodsPerYear = plan.periodsPerYear)
-        return DeskStrategies.Run(res, bench, plan.entries, tg)
+        return DeskStrategies.Run(res, bench, plan.entries, tg, plan.periodsPerYear)
     }
 
     /** Every asset whose prices the rule reads: traded, compared, or the benchmark. */

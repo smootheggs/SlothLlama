@@ -3,6 +3,10 @@ package app.localmind.assistant
 import app.localmind.assistant.domain.desk.Bars
 import app.localmind.assistant.domain.desk.DeskEngine
 import app.localmind.assistant.domain.desk.DeskMath
+import app.localmind.assistant.domain.desk.DeskStats
+import app.localmind.assistant.domain.desk.Gate
+import app.localmind.assistant.domain.desk.Metrics
+import app.localmind.assistant.domain.desk.Robust
 import app.localmind.assistant.domain.desk.Line
 import app.localmind.assistant.domain.desk.Params
 import app.localmind.assistant.domain.desk.Targets
@@ -117,5 +121,41 @@ object LegacyDesk {
             }
         }
         return Targets(dates, listOf(a), listOf(w), why)
+    }
+
+    /** The six gates as they were before 1.48, for checking the six questions pass exactly when they did. */
+    fun gates(
+        entries: Int,
+        full: Metrics?,
+        heldOut: Metrics?,
+        volMatchedHeldOut: Metrics?,
+        costsDoubledHeldOut: Metrics?,
+        inSample: Robust?,
+        nearby: String?,
+        paper: DeskStats.Paper?,
+        rules: DeskStats.GateRules = DeskStats.GateRules()
+    ): List<Gate> {
+        val years = full?.years ?: 0.0
+        val hs = heldOut?.sharpe
+        val vs = volMatchedHeldOut?.sharpe
+        val xs = costsDoubledHeldOut?.sharpe
+        val dsr = inSample?.dsr
+        return listOf(
+            Gate("Enough trades", entries >= rules.minEntries && years >= rules.minYears,
+                "$entries entries over ${"%.1f".format(years)} years (needs ${rules.minEntries} over ${rules.minYears.toInt()})"),
+            Gate("Holds up on the held-out years",
+                hs != null && !hs.isNaN() && hs > 0 && (vs == null || vs.isNaN() || hs >= vs),
+                "held-out Sharpe ${DeskStats.fmt(hs)} against ${DeskStats.fmt(vs)} for buy-and-hold at the same risk"),
+            Gate("Survives doubled costs", xs != null && !xs.isNaN() && xs > 0,
+                "held-out Sharpe ${DeskStats.fmt(xs)} with every cost doubled"),
+            Gate("Not explained by trying many settings", dsr != null && !dsr.isNaN() && dsr >= rules.dsrMin,
+                "deflated Sharpe ${DeskStats.fmt(dsr, 2)} after ${inSample?.trials ?: 1} setting(s) (needs ${DeskStats.fmt(rules.dsrMin, 2)})"),
+            Gate("Nearby settings agree", nearby?.startsWith("broad"), nearby ?: "not checked: tap Check nearby settings"),
+            Gate("Paper-traded by the rules",
+                paper?.let { it.days >= rules.paperDays && it.followedShare >= rules.paperFollowed },
+                if (paper == null) "no paper journal yet"
+                else "${paper.days} days journalled, rules followed ${(paper.followedShare * 100).toInt()}% of tagged days " +
+                    "(needs ${rules.paperDays} days and ${(rules.paperFollowed * 100).toInt()}%)")
+        )
     }
 }

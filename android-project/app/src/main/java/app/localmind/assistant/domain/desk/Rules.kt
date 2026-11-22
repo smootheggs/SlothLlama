@@ -315,6 +315,20 @@ object RuleCheck {
     private val TICKER = Regex("^[A-Z0-9_.^-]{1,16}$")
     private val SERIES = Regex("^[A-Za-z0-9_.^:-]{1,32}$")
 
+    /** What's wrong with a signal on its own (in a rotation's score, "*" is each asset). */
+    fun signalProblems(s: Signal, rotation: Boolean = false): List<String> {
+        val probe = if (rotation) {
+            Rule(name = "probe", benchmark = "AA", branches = listOf(Branch("probe", emptyList(), Action.Rotate(listOf("AA", "BB"), s, 1))))
+        } else {
+            Rule(name = "probe", benchmark = "AA", branches = listOf(Branch("probe",
+                listOf(Condition.Compare(s, Op.ABOVE, Against.Value(0.0))), Action.Hold(mapOf("AA" to 1.0)))))
+        }
+        return problems(probe)
+    }
+
+    fun isTicker(a: String): Boolean = TICKER.matches(a)
+    fun isSeries(id: String): Boolean = SERIES.matches(id)
+
     fun problems(r: Rule): List<String> {
         val out = ArrayList<String>()
         fun need(ok: Boolean, why: String) { if (!ok) out += why }

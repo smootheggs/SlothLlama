@@ -2,6 +2,7 @@ package app.localmind.assistant.data.desk
 
 import android.content.Context
 import dagger.hilt.android.qualifiers.ApplicationContext
+import app.localmind.assistant.domain.desk.RuleFiles
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -34,6 +35,37 @@ data class JournalEntry(
 @Serializable
 data class NearbyVerdict(val paramsHash: String, val verdict: String, val at: Long)
 
+/**
+ * One of your rules (1.48). [text] is the rule as you're editing it (a [RuleFiles] text, read
+ * back through its checks every time); [tries] are the versions you tested, oldest first, kept
+ * for going back. Every tested version also counts in the trial log, which never forgets.
+ * [from] is where it started: "shelf:gold_trend", or blank for a new rule.
+ */
+@Serializable
+data class SavedRule(
+    val id: String,
+    val text: String,
+    val from: String = "",
+    val tries: List<String> = emptyList(),
+    val created: Long = 0,
+    val updated: Long = 0
+) {
+    val tested: Boolean get() = tries.isNotEmpty()
+
+    companion object {
+        const val MAX_RULES = 30
+        const val MAX_TRIES_KEPT = 20
+        private val ID = Regex("^[a-f0-9]{10}$")
+
+        /** Only what this version would have written itself: a sound id, rules that pass their checks, within the caps. */
+        fun sound(r: SavedRule): SavedRule? {
+            if (!ID.matches(r.id) || r.from.length > 40) return null
+            if (RuleFiles.parse(r.text).isFailure) return null
+            return r.copy(tries = r.tries.filter { RuleFiles.parse(it).isSuccess }.takeLast(MAX_TRIES_KEPT))
+        }
+    }
+}
+
 @Serializable
 data class DeskState(
     /** Your settings per strategy, where they differ from the default rule sheet. */
@@ -51,12 +83,14 @@ data class DeskState(
     val pricesFrom: String = "",
     val pricesAt: Long = 0,
     /** What the last check of the prices noticed. */
-    val pricesNotes: List<String> = emptyList()
+    val pricesNotes: List<String> = emptyList(),
+    /** Your rules (1.48). */
+    val rules: List<SavedRule> = emptyList()
 )
 
 /**
  * SlothDesk's files on the tablet: the prices (desk/prices.json) and the Desk's state
- * (desk/state.json: your settings, the trial log, the paper journal). Private app storage,
+ * (desk/state.json: your settings and rules, the trial log, the paper journal). Private app storage,
  * written whole each time through a temporary file so a crash can't leave half a file.
  * Nothing here is sent anywhere.
  */
@@ -117,14 +151,17 @@ class DeskStore @Inject constructor(@ApplicationContext context: Context) {
 
     /**
      * Adds a backup's Desk to this one: its journal days, trials and nearby checks join yours
-     * (yours win where both have the same day); its settings apply only where you have none.
+     * (yours win where both have the same day); its settings apply only where you have none; its
+     * rules join yours when they pass their checks (yours win where both have the same rule).
      */
     suspend fun mergeBackup(text: String) {
         load()
         val b = json.decodeFromString(DeskState.serializer(), text)
         update { s ->
             val have = s.journal.map { it.strategy to it.dataDate }.toSet()
+            val mine = s.rules.map { it.id }.toSet()
             s.copy(
+                rules = (s.rules + b.rules.filter { it.id !in mine }.mapNotNull { SavedRule.sound(it) }).take(SavedRule.MAX_RULES),
                 params = b.params + s.params,
                 trials = (b.trials.keys + s.trials.keys).associateWith { k -> b.trials[k].orEmpty() + s.trials[k].orEmpty() },
                 nearby = b.nearby + s.nearby,

@@ -4,6 +4,40 @@ Every release of SlothLlama and the SlothLobster, newest first, in the words of 
 Each GitHub release carries its entry from here; this file keeps them all (GitHub keeps only the
 newest five releases of each app).
 
+## SlothLlama 1.48.0 — 2026-11-22
+
+**SlothDesk: write your own rules, and every test answers six plain questions**
+
+The second stage of the new SlothDesk:
+
+- The rule editor. A rule reads as sentences: "When GLD closes above its 200-day average, then
+  hold GLD 100%; otherwise cash." Tap any part to change it: the signal and its days, above or
+  below or crossing, a number, another signal or its own percentile; add conditions (all or any
+  of them, true N days in a row, or checked only before entering), the calendar, more branches,
+  exits, a drawdown brake. Actions hold weights, rotate into the best of a list, or size with a
+  signal.
+- The trading assumptions sit apart from the rule: costs, the next-open fills, how often it's
+  checked, sizing and the total allowed, the no-trade band, what it's compared with, each
+  asset's market and carry.
+- Start from scratch, or copy one of the four on the shelf and change it. A copy brings the
+  settings already tried on the shelf, so the luck question doesn't start over.
+- Each version you test is one more try, counted for good; undo goes back to the last test or
+  the one before. Edits are saved as you go, once they're within the limits.
+- The report asks what the six gates did, in plain words: did it beat simply holding, did it
+  hold up on years it never saw, could luck explain it (too few trades always could), does it
+  survive doubled costs, do nearby settings agree, have you followed it on paper. Each answer
+  opens to the numbers behind it, and a rule passes all six exactly when it passed the six
+  gates. Paper days still coming in read "under way", not failed.
+- "Do nearby settings agree?" now works for any rule, varying its first two numbers.
+- A rule on crypto alone is measured over crypto's 365-day year; everything else over 252
+  trading days.
+- Your rules join the Desk once tested, with tonight's tickets and the paper journal, and come
+  with you in a backup (checked against the limits when they're read back).
+
+On the big tablet the editor shows your rules and the shelf on the left and the assumptions on
+the right; with the phone held sideways, the rule and the assumptions sit side by side; upright,
+it's one column with the assumptions folded away.
+
 ## SlothLlama 1.47.0 — 2026-11-22
 
 **SlothDesk's strategies become rules: the engine behind "Idea → Test → Paper → Review"**
