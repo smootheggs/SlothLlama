@@ -333,7 +333,14 @@ class DeskViewModel @Inject constructor(
             // Your rules, as last tested (an edit counts once it's tested).
             for (saved in s.rules) {
                 val key = MINE + saved.id
-                if (!saved.tested || key in s.hidden) continue
+                if (key in s.hidden) continue
+                if (!saved.tested) {
+                    // Not tested yet: still say what it waits for, so the Desk offers to fetch it (1.50.2).
+                    RuleFiles.parse(saved.text).getOrNull()?.let { r ->
+                        RuleEngine.missing(r, d).takeIf { it.isNotEmpty() }?.let { waiting[r.name] = it }
+                    }
+                    continue
+                }
                 val rule = RuleFiles.parse(saved.tries.last()).getOrNull() ?: continue
                 val missing = RuleEngine.missing(rule, d)
                 if (missing.isNotEmpty()) { waiting[rule.name] = missing; continue }
@@ -694,8 +701,7 @@ class DeskViewModel @Inject constructor(
 
     /** Asks the Lobster for prices once: the shelf's and everything your rules read. */
     fun updateNow() = act {
-        mailbox.send(OrderKind.PRICES, orderText(), deliver = "desk")
-        store.update { it.copy(lastOrderAt = System.currentTimeMillis()) }
+        askOnce()
         "Asked the Lobster for prices 🦞 They arrive in a few minutes, if it's awake."
     }
 
@@ -704,10 +710,30 @@ class DeskViewModel @Inject constructor(
      * when your rules need more: the Lobster keeps only the newest daily prices order.
      */
     fun daily(time: String) = act {
+        askDaily(time)
+        "The Lobster will fetch prices every day at $time. To stop, switch the repeat off in the Lobster."
+    }
+
+    /**
+     * What a rule in the editor needs, fetched now and, when there's a daily order, added to it
+     * so it stays up to date (1.50.2).
+     */
+    fun fetchNeeded() = act {
+        askOnce()
+        val s = store.state.value
+        if (s.dailyOrderSent) askDaily(s.dailyTime.ifBlank { "18:30" })
+        "Asked the Lobster for them 🦞 Test the rule once they arrive, in a few minutes if it's awake."
+    }
+
+    private suspend fun askOnce() {
+        mailbox.send(OrderKind.PRICES, orderText(), deliver = "desk")
+        store.update { it.copy(lastOrderAt = System.currentTimeMillis()) }
+    }
+
+    private suspend fun askDaily(time: String) {
         val text = orderText()
         mailbox.send(OrderKind.PRICES, "$text every day at $time", deliver = "desk")
         store.update { it.copy(dailyOrderSent = true, dailyText = text, dailyTime = time, lastOrderAt = System.currentTimeMillis()) }
-        "The Lobster will fetch prices every day at $time. To stop, switch the repeat off in the Lobster."
     }
 
     /** The daily order again, with what your rules now need added. */

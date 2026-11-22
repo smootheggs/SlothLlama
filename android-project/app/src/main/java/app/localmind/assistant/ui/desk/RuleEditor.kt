@@ -79,7 +79,7 @@ import app.localmind.assistant.ui.theme.SlothPalette as P
  * the left and the assumptions on the right; upright, it's one column.
  */
 @Composable
-fun RuleEditor(my: MyRule, ui: DeskUi, vm: DeskViewModel, onBack: () -> Unit) {
+fun RuleEditor(my: MyRule, ui: DeskUi, vm: DeskViewModel, lobsterReady: Boolean = false, onBack: () -> Unit) {
     // The editor's own copy is what's edited (saved as you go); it takes the saved rule again
     // only after a change from outside, an undo or a rename.
     var draft by remember(my.id) { mutableStateOf(my.rule) }
@@ -133,7 +133,7 @@ fun RuleEditor(my: MyRule, ui: DeskUi, vm: DeskViewModel, onBack: () -> Unit) {
                                 RuleBody(rule, change, ui)
                                 Spacer(Modifier.height(24.dp))
                             }
-                            TestBar(my, rule, ui, problems, missing, vm)
+                            TestBar(my, rule, ui, problems, missing, vm, lobsterReady)
                         }
                         VerticalDivider(color = P.Border)
                         Column(Modifier.width(if (rail) 320.dp else 300.dp).fillMaxHeight().verticalScroll(rememberScrollState()).padding(20.dp)) {
@@ -161,7 +161,7 @@ fun RuleEditor(my: MyRule, ui: DeskUi, vm: DeskViewModel, onBack: () -> Unit) {
                                 Spacer(Modifier.height(24.dp))
                             }
                         }
-                        TestBar(my, rule, ui, problems, missing, vm)
+                        TestBar(my, rule, ui, problems, missing, vm, lobsterReady)
                     }
                 }
             }
@@ -717,14 +717,22 @@ private fun Setting(label: String, content: @Composable () -> Unit) {
 // --- testing ---
 
 @Composable
-private fun TestBar(my: MyRule, rule: Rule, ui: DeskUi, problems: List<String>, missing: List<String>, vm: DeskViewModel) {
+private fun TestBar(my: MyRule, rule: Rule, ui: DeskUi, problems: List<String>, missing: List<String>, vm: DeskViewModel, lobsterReady: Boolean) {
     Column(Modifier.fillMaxWidth().background(P.Card).padding(horizontal = 20.dp, vertical = 12.dp)) {
         problems.firstOrNull()?.let {
             Text("⚠ $it" + (if (problems.size > 1) " (and ${problems.size - 1} more)" else "") +
                 ". Changes are saved once the rule is within its limits again.", color = P.Warning, fontSize = 13.sp)
         }
         if (problems.isEmpty() && missing.isNotEmpty()) {
-            Text("Needs prices for ${missing.joinToString(", ")}: import a prices file that has them.", color = P.Warning, fontSize = 13.sp)
+            // Since 1.50 the Lobster fetches any ticker, FX pair, crypto or FRED series (1.50.2).
+            if (lobsterReady) Row(verticalAlignment = Alignment.CenterVertically) {
+                Text("Needs ${missing.joinToString(", ")}: the Lobster can fetch " + (if (missing.size == 1) "it." else "them."),
+                    color = P.Warning, fontSize = 13.sp, modifier = Modifier.weight(1f))
+                Action("Fetch") { vm.fetchNeeded() }
+            } else {
+                Text("Needs prices for ${missing.joinToString(", ")}: set up the Lobster on the Desk, or import a prices file that has them.",
+                    color = P.Warning, fontSize = 13.sp)
+            }
         }
         if (!ui.hasData) Text("No prices yet: get prices on the Desk first.", color = P.Warning, fontSize = 13.sp)
         Row(Modifier.padding(top = 6.dp), verticalAlignment = Alignment.CenterVertically) {

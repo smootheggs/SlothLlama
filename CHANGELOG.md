@@ -4,6 +4,17 @@ Every release of SlothLlama and the SlothLobster, newest first, in the words of 
 Each GitHub release carries its entry from here; this file keeps them all (GitHub keeps only the
 newest five releases of each app).
 
+## SlothLlama 1.50.2 — 2026-11-22
+
+**A new rule fetches its own prices**
+
+- The rule editor offers **Fetch** when a rule needs prices the Desk doesn't have yet (a FRED
+  series such as DFII10, an FX pair, a ticker), instead of asking for a prices file. It asks the
+  Lobster now and adds them to the daily order, if you have one.
+- The Desk's "Your rules need … Fetch them" line now counts rules you haven't tested yet too.
+  Before, a new rule needing a new series could wait forever: it couldn't be tested without the
+  prices, and the Desk only fetched for tested rules.
+
 ## SlothLlama 1.50.1 — 2026-11-22
 
 **The Trader knows the rule card by heart**

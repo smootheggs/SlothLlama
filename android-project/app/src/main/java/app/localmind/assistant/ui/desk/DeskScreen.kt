@@ -141,7 +141,7 @@ fun DeskScreen(
                 }
                 editRule != null -> {
                     BackHandler { viewModel.closeRule() }
-                    RuleEditor(editRule, ui, viewModel, onBack = viewModel::closeRule)
+                    RuleEditor(editRule, ui, viewModel, lobsterReady = lobsterReady, onBack = viewModel::closeRule)
                 }
                 paperKey != null -> {
                     BackHandler { viewModel.closePaper() }
