@@ -1,6 +1,5 @@
 package app.localmind.assistant.ui.desk
 
-import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -19,30 +18,22 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.outlined.MoreHoriz
-import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.VerticalDivider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -59,24 +50,18 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import app.localmind.assistant.data.desk.DeskStore
-import app.localmind.assistant.data.desk.JournalEntry
 import app.localmind.assistant.domain.desk.Chart
-import app.localmind.assistant.domain.desk.DeskStrategies
 import app.localmind.assistant.domain.desk.Gate
 import app.localmind.assistant.domain.desk.Metrics
-import app.localmind.assistant.domain.desk.RuleWords
-import app.localmind.assistant.domain.desk.StrategyReport
 import app.localmind.assistant.ui.common.SlothTopBar
 import app.localmind.assistant.ui.home.WIDE
 import app.localmind.assistant.ui.trading.DeskTab
@@ -90,8 +75,10 @@ import kotlin.math.abs
 import kotlin.math.ln
 
 /**
- * The SlothDesk page: prices, tonight's tickets, the strategies with their evidence, and the
- * paper journal. Paper trading only; nothing here reaches a broker.
+ * The SlothDesk page (1.49): the path every idea takes (Idea → Test → Paper → Review) on its
+ * front, with tonight's tickets and the Sunday review; trade ideas, price calls and the
+ * calculators on their tabs. The report, the rule editor, an idea, its paper days and the
+ * review open over it. Paper trading only; nothing here reaches a broker.
  */
 @Composable
 fun DeskScreen(
@@ -106,16 +93,19 @@ fun DeskScreen(
     val message by viewModel.message.collectAsStateWithLifecycle()
     val editing by viewModel.editing.collectAsStateWithLifecycle()
     val reportKey by viewModel.report.collectAsStateWithLifecycle()
+    val ideaId by viewModel.idea.collectAsStateWithLifecycle()
+    val paperKey by viewModel.paperKey.collectAsStateWithLifecycle()
+    val reviewing by viewModel.reviewing.collectAsStateWithLifecycle()
     val lobster by viewModel.lobster.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
         uri?.let(viewModel::importFile)
     }
-    var marking by remember { mutableStateOf<JournalEntry?>(null) }
     var tab by rememberSaveable { mutableStateOf(DeskTab.STRATEGIES) }
-    // An idea card saved from a Trader chat opens on the Ideas tab, in the editor.
+    // A trade idea's card saved from a Trader chat opens on the Trade ideas tab; an idea for
+    // the path opens its form over the front.
     val draft by trading.draft.collectAsStateWithLifecycle()
-    LaunchedEffect(draft != null) { if (draft != null) tab = DeskTab.IDEAS }
+    LaunchedEffect(draft != null, draft?.kind) { if (draft != null && draft?.kind != "rule") tab = DeskTab.IDEAS }
 
     LaunchedEffect(Unit) {
         while (true) {
@@ -132,26 +122,43 @@ fun DeskScreen(
     val lobsterReady = lobster.enabled && lobster.folderName != null
     val pick = { picker.launch(arrayOf("application/json", "text/plain", "*/*")) }
     var menu by remember { mutableStateOf(false) }
-    // The strategy shown in full; the others are rows beneath it.
-    var featured by rememberSaveable { mutableStateOf<String?>(null) }
-    val shown = ui.reports.firstOrNull { it.key == featured } ?: ui.reports.firstOrNull()
 
-    // The report and the rule editor open over the Desk (1.48); Back closes them in turn.
+    // What opens over the Desk, topmost first; Back closes them in turn.
     val opened = reportKey?.let { k -> ui.reports.firstOrNull { it.key == k } }
     val editRule = editing?.let { id -> ui.rules.firstOrNull { it.id == id } }
-    if (reportKey != null || editRule != null) {
+    val newIdea = draft?.takeIf { it.kind == "rule" }
+    if (reportKey != null || editRule != null || paperKey != null || newIdea != null || ideaId != null || reviewing) {
         Box(Modifier.fillMaxSize().background(P.Canvas)) {
-            if (reportKey != null) {
-                BackHandler { viewModel.closeReport() }
-                if (opened != null) ReportScreen(opened, ui, viewModel, onBack = viewModel::closeReport)
-                else Column(Modifier.fillMaxSize()) {
-                    SlothTopBar(title = "The six questions", onBack = viewModel::closeReport)
-                    Text(ui.working ?: "This rule isn't on the Desk right now: it may be waiting for prices.",
-                        color = P.Muted, fontSize = 14.sp, modifier = Modifier.padding(24.dp))
+            when {
+                reportKey != null -> {
+                    BackHandler { viewModel.closeReport() }
+                    if (opened != null) ReportScreen(opened, ui, viewModel, onBack = viewModel::closeReport)
+                    else Column(Modifier.fillMaxSize()) {
+                        SlothTopBar(title = "The six questions", onBack = viewModel::closeReport)
+                        Text(ui.working ?: "This rule isn't on the Desk right now: it may be waiting for prices.",
+                            color = P.Muted, fontSize = 14.sp, modifier = Modifier.padding(24.dp))
+                    }
                 }
-            } else if (editRule != null) {
-                BackHandler { viewModel.closeRule() }
-                RuleEditor(editRule, ui, viewModel, onBack = viewModel::closeRule)
+                editRule != null -> {
+                    BackHandler { viewModel.closeRule() }
+                    RuleEditor(editRule, ui, viewModel, onBack = viewModel::closeRule)
+                }
+                paperKey != null -> {
+                    BackHandler { viewModel.closePaper() }
+                    PaperScreen(paperKey!!, ui, viewModel, onBack = viewModel::closePaper)
+                }
+                newIdea != null -> {
+                    BackHandler { trading.cancelDraft() }
+                    NewIdeaScreen(newIdea, trading, onBack = trading::cancelDraft)
+                }
+                ideaId != null -> {
+                    BackHandler { viewModel.closeIdea() }
+                    IdeaScreen(ideaId!!, ui, viewModel, onBack = viewModel::closeIdea)
+                }
+                else -> {
+                    BackHandler { viewModel.closeReview() }
+                    ReviewScreen(ui, viewModel, onBack = viewModel::closeReview)
+                }
             }
             SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
         }
@@ -181,7 +188,7 @@ fun DeskScreen(
                             DropdownMenuItem(text = { Text("Import a prices file", color = P.Text) }, onClick = { menu = false; pick() })
                             if (ui.state.hidden.isNotEmpty()) {
                                 DropdownMenuItem(
-                                    text = { Text("Show hidden strategies (${ui.state.hidden.size})", color = P.Text) },
+                                    text = { Text("Show hidden shelf strategies (${ui.state.hidden.size})", color = P.Text) },
                                     onClick = { menu = false; viewModel.showAll() }
                                 )
                             }
@@ -197,89 +204,20 @@ fun DeskScreen(
                 }
             }
             DeskTabs(tab, onTab = { tab = it }, modifier = Modifier.padding(start = 24.dp, end = 24.dp, top = 4.dp))
-            if (tab == DeskTab.CALLS) {
-                val priceCalls: PriceCallsViewModel = hiltViewModel()
-                BoxWithConstraints(Modifier.fillMaxSize()) { PriceCallsPane(priceCalls, maxWidth >= WIDE, onAskPrices = { viewModel.updateNow() }) }
-            } else if (tab != DeskTab.STRATEGIES) {
-                BoxWithConstraints(Modifier.fillMaxSize()) { TradingPane(trading, tab, maxWidth >= WIDE, snackbar) }
-            } else BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
-                val wide = maxWidth >= WIDE
-                val left: @Composable (Modifier) -> Unit = { m ->
-                    Column(m) {
+            when (tab) {
+                DeskTab.CALLS -> {
+                    val priceCalls: PriceCallsViewModel = hiltViewModel()
+                    BoxWithConstraints(Modifier.fillMaxSize()) { PriceCallsPane(priceCalls, maxWidth >= WIDE, onAskPrices = { viewModel.updateNow() }) }
+                }
+                DeskTab.STRATEGIES -> BoxWithConstraints(Modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
+                    DeskFront(ui, viewModel, trading, wide = maxWidth >= WIDE, prices = {
                         PricesLine(ui, lobsterReady, onUpdate = viewModel::updateNow, onImport = pick, onOpenLobster = onOpenLobster)
-                        if (ui.hasData) {
-                            Tickets(
-                                ui,
-                                onMark = { marking = it },
-                                onFollowed = { e -> viewModel.mark(e.strategy, e.dataDate, true) },
-                                onAllFollowed = { entries -> entries.forEach { e -> viewModel.mark(e.strategy, e.dataDate, true) } }
-                            )
-                            if (!wide) Journal(ui)
-                        }
-                    }
+                    })
                 }
-                val right: @Composable (Modifier) -> Unit = { m ->
-                    Column(m) {
-                        if (ui.hasData) {
-                            shown?.let { FeaturedStrategy(it, viewModel) }
-                            val others = ui.reports.filter { it.key != shown?.key }
-                            if (others.isNotEmpty()) {
-                                Label("OTHER STRATEGIES")
-                                others.forEach { r ->
-                                    HorizontalDivider(color = P.Border)
-                                    StrategyRow(r) { featured = r.key }
-                                }
-                                HorizontalDivider(color = P.Border)
-                            }
-                            ui.waiting.forEach { (name, missing) ->
-                                Text("$name: waiting for ${missing.joinToString(", ")}",
-                                    color = P.Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 10.dp))
-                            }
-                        }
-                        if (ui.ready) YourRules(ui, viewModel)
-                        if (ui.hasData && wide) Journal(ui)
-                        Footer()
-                    }
-                }
-                if (wide) {
-                    Row(
-                        Modifier.widthIn(max = 1400.dp).fillMaxSize().padding(horizontal = 24.dp),
-                        horizontalArrangement = Arrangement.spacedBy(32.dp)
-                    ) {
-                        left(Modifier.weight(0.46f).fillMaxSize().verticalScroll(rememberScrollState()))
-                        right(Modifier.weight(0.54f).fillMaxSize().verticalScroll(rememberScrollState()))
-                    }
-                } else {
-                    Column(Modifier.widthIn(max = 760.dp).fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 24.dp)) {
-                        left(Modifier.fillMaxWidth())
-                        right(Modifier.fillMaxWidth())
-                        Spacer(Modifier.height(32.dp))
-                    }
-                }
+                else -> BoxWithConstraints(Modifier.fillMaxSize()) { TradingPane(trading, tab, maxWidth >= WIDE, snackbar) }
             }
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
-    }
-
-    marking?.let { e ->
-        AlertDialog(
-            onDismissRequest = { marking = null },
-            containerColor = P.Elevated,
-            title = { Text("What happened instead?", color = P.Text) },
-            text = {
-                Column {
-                    Text("Tags show which slips cost you, over time.", color = P.Muted, fontSize = 13.sp)
-                    DeskStore.MISTAKES.filter { it != "none" }.forEach { m ->
-                        Text(m.replaceFirstChar { it.uppercase() }, color = P.Accent, fontSize = 16.sp,
-                            modifier = Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp))
-                                .clickable { viewModel.mark(e.strategy, e.dataDate, false, m); marking = null }
-                                .padding(horizontal = 8.dp, vertical = 12.dp))
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = { TextButton(onClick = { marking = null }) { Text("Cancel", color = P.Muted) } }
-        )
     }
 }
 
@@ -288,7 +226,7 @@ fun DeskScreen(
 /** One line about the prices, with Update now; the rest is in ⋯. A first visit gets the full story. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun PricesLine(
+internal fun PricesLine(
     ui: DeskUi,
     lobsterReady: Boolean,
     onUpdate: () -> Unit,
@@ -303,7 +241,7 @@ private fun PricesLine(
         Card(Modifier.padding(top = 12.dp)) {
             Text("No prices yet", color = P.Text, fontSize = 17.sp, fontWeight = FontWeight.Medium)
             Text(
-                "SlothDesk runs four starter strategies on daily prices, here on the tablet, writes tonight's tickets " +
+                "SlothDesk tests your ideas as rules on daily prices, here on the tablet, writes tonight's tickets " +
                     "for paper trading and keeps score. Two ways to get prices:\n\n" +
                     "• The Lobster fetches them (it needs a free Tiingo key: in the SlothLobster, Settings → Market data).\n" +
                     "• Or import a prices file made in Colab (export_prices in the SlothDesk notebook).",
@@ -340,236 +278,6 @@ private fun PricesLine(
     }
 }
 
-// --- tonight's tickets ---
-
-/** Tonight's tickets as a table: what to do at the next open, the gates, and whether you followed it. */
-@Composable
-private fun Tickets(
-    ui: DeskUi,
-    onMark: (JournalEntry) -> Unit,
-    onFollowed: (JournalEntry) -> Unit,
-    onAllFollowed: (List<JournalEntry>) -> Unit
-) {
-    if (ui.reports.isEmpty()) return
-    val entries = ui.reports.associate { r ->
-        r.key to ui.state.journal.firstOrNull { it.strategy == r.key && it.dataDate == r.ticket.dataDate.toString() }
-    }
-    val unmarked = entries.values.filterNotNull().filter { it.followed.isBlank() }
-    Card(Modifier.padding(top = 16.dp), padding = 20.dp) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(
-                "TONIGHT · FROM THE ${ui.lastDate?.let { "%02d-%02d".format(it.monthValue, it.dayOfMonth) } ?: ""} CLOSE",
-                color = P.Faint, fontSize = 12.sp, letterSpacing = 1.4.sp, fontWeight = FontWeight.Medium,
-                modifier = Modifier.weight(1f).semantics { heading() }
-            )
-            if (unmarked.isNotEmpty()) OutlineButton("Mark all followed") { onAllFollowed(unmarked) }
-        }
-        Row(Modifier.padding(top = 14.dp, bottom = 6.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("Strategy", color = P.Faint, fontSize = 12.sp, modifier = Modifier.weight(1f))
-            Text("At the next open", color = P.Faint, fontSize = 12.sp, modifier = Modifier.weight(1.3f))
-            Text("Tests", color = P.Faint, fontSize = 12.sp, modifier = Modifier.width(GATES_W))
-            Text("Done", color = P.Faint, fontSize = 12.sp, modifier = Modifier.width(DONE_W), textAlign = TextAlign.Center)
-        }
-        ui.reports.forEach { r ->
-            HorizontalDivider(color = P.Border)
-            val entry = entries[r.key]
-            val researchOnly = r.gatesPassed < 4
-            Row(Modifier.fillMaxWidth().heightIn(min = 60.dp).padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text(r.label, color = P.Text, fontSize = 15.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.weight(1f).padding(end = 8.dp))
-                Column(Modifier.weight(1.3f).padding(end = 8.dp)) {
-                    Text(
-                        r.ticket.nextOpen,
-                        color = when {
-                            researchOnly -> P.Faint
-                            r.ticket.trade -> P.Accent
-                            else -> P.Text
-                        },
-                        fontSize = 14.sp, fontWeight = if (r.ticket.trade && !researchOnly) FontWeight.Medium else FontWeight.Normal,
-                        style = Numbers, maxLines = 2, overflow = TextOverflow.Ellipsis
-                    )
-                    if (researchOnly) Text("Research only · ${r.gatesPassed} of ${r.gates.size} questions", color = P.Faint, fontSize = 11.sp)
-                    r.guardrail?.let { Text("⚠ $it", color = P.Warning, fontSize = 12.sp, lineHeight = 16.sp) }
-                }
-                Box(Modifier.width(GATES_W)) { GateDots(r.gates) }
-                Box(Modifier.width(DONE_W), contentAlignment = Alignment.Center) {
-                    if (entry != null) DoneMark(entry, onFollowed = { onFollowed(entry) }, onDidnt = { onMark(entry) })
-                }
-            }
-        }
-    }
-}
-
-private val GATES_W = 80.dp
-private val DONE_W = 48.dp
-
-/** ✓ followed, ✕ didn't, an empty ring until you say; a tap asks which. */
-@Composable
-private fun DoneMark(entry: JournalEntry, onFollowed: () -> Unit, onDidnt: () -> Unit) {
-    var asking by remember { mutableStateOf(false) }
-    val (ring, mark, label) = when (entry.followed) {
-        "yes" -> Triple(P.Success, "✓", "Followed")
-        "no" -> Triple(P.Danger, "✕", "Didn't follow: ${entry.mistake}")
-        else -> Triple(P.BorderStrong, "", "Not marked yet")
-    }
-    Box {
-        Box(
-            Modifier
-                .size(36.dp)
-                .clip(CircleShape)
-                .border(1.dp, ring, CircleShape)
-                .clickable(role = Role.Button, onClickLabel = "Mark this ticket") { asking = true }
-                .semantics { contentDescription = label },
-            contentAlignment = Alignment.Center
-        ) {
-            Text(mark, color = ring, fontSize = 15.sp)
-        }
-        DropdownMenu(expanded = asking, onDismissRequest = { asking = false }, modifier = Modifier.background(P.Elevated)) {
-            DropdownMenuItem(text = { Text("Followed the ticket", color = P.Text) }, onClick = { asking = false; onFollowed() })
-            DropdownMenuItem(text = { Text("Didn't follow it…", color = P.Text) }, onClick = { asking = false; onDidnt() })
-        }
-    }
-}
-
-@Composable
-private fun Journal(ui: DeskUi) {
-    val j = ui.state.journal
-    if (j.isEmpty()) return
-    Label("PAPER JOURNAL")
-    Card {
-        ui.reports.forEach { r ->
-            val mine = j.filter { it.strategy == r.key }
-            val tagged = mine.filter { it.followed == "yes" || it.followed == "no" }
-            val share = if (tagged.isEmpty()) null else tagged.count { it.followed == "yes" } * 100 / tagged.size
-            Text("${r.label}: ${mine.size} day(s), ${tagged.size} marked" + (share?.let { ", rules followed $it%" } ?: ""),
-                color = P.Text, fontSize = 13.sp, modifier = Modifier.padding(vertical = 2.dp))
-        }
-        val slips = j.filter { it.followed == "no" }.groupingBy { it.mistake }.eachCount()
-        if (slips.isNotEmpty()) {
-            Text("Slips: " + slips.entries.sortedByDescending { it.value }.joinToString(" · ") { "${it.key} ${it.value}" },
-                color = P.Muted, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
-        }
-        Text("On paper means 60 journalled days, following at least 8 tickets in 10.",
-            color = P.Faint, fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
-    }
-}
-
-// --- strategies ---
-
-/** One strategy in full: its curve, four numbers that matter, and the details on request. */
-@OptIn(ExperimentalLayoutApi::class)
-@Composable
-private fun FeaturedStrategy(r: StrategyReport, vm: DeskViewModel) {
-    var expanded by rememberSaveable(r.key) { mutableStateOf(false) }
-    val t = if (r.mine) null else DeskStrategies.templates.firstOrNull { it.key == r.key }
-    Card(Modifier.padding(top = 16.dp), padding = 20.dp) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text(r.label, color = P.Text, fontSize = 19.sp, fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f).semantics { heading() })
-            GateDots(r.gates)
-            Text("  ${r.gatesPassed}/${r.gates.size}", color = P.Faint, fontSize = 12.sp, style = Numbers)
-        }
-        Spacer(Modifier.height(14.dp))
-        EquityChart(r.chart, height = 170.dp)
-        Text("Growth of 1 on a log scale · strategy (green) and buy-and-hold (grey); the shaded years were held out.",
-            color = P.Faint, fontSize = 11.sp, lineHeight = 15.sp, modifier = Modifier.padding(top = 6.dp))
-        Row(Modifier.fillMaxWidth().padding(top = 16.dp)) {
-            Figure("Held-out Sharpe", DeskText.num(r.heldOut?.sharpe), Modifier.weight(1f))
-            Figure("Same-risk hold", DeskText.num(r.volMatchedHeldOut?.sharpe), Modifier.weight(1f))
-            Figure("Worst drop", r.heldOut?.let { "−" + DeskText.plainPct(abs(it.maxDrawdown)) } ?: "–", Modifier.weight(1f))
-            Figure("Luck check", r.robustInSample?.let { DeskText.num(it.dsr) } ?: "–", Modifier.weight(1f))
-        }
-        r.robustInSample?.let { rb ->
-            Text(
-                rb.minTrackRecordYears?.let { "Needs about ${DeskText.num(it, 1)} years of results to tell from zero" }
-                    ?: "At this Sharpe, no track record would tell it from zero",
-                color = P.Muted, fontSize = 13.sp, modifier = Modifier.padding(top = 10.dp)
-            )
-        }
-        Row(Modifier.padding(top = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text(r.verdict.first, color = if (r.verdict.first == "Research only") P.Muted else P.Accent, fontSize = 14.sp,
-                fontWeight = FontWeight.Medium, modifier = Modifier.weight(1f))
-            Action("The six questions") { vm.openReport(r.key) }
-        }
-        if (!expanded) {
-            Row(Modifier.padding(top = 2.dp)) {
-                Action(if (t != null) "Details and settings" else "Details", muted = true) { expanded = true }
-                Spacer(Modifier.weight(1f))
-                if (r.mine) Action("Edit the rule") { vm.openRule(r.key.removePrefix(DeskViewModel.MINE)) }
-                else Action("Make my copy") { vm.copyShelf(r.key) }
-            }
-            return@Card
-        }
-        Text(t?.blurb ?: RuleWords.rule(r.rule), color = P.Muted, fontSize = 13.sp, lineHeight = 19.sp, modifier = Modifier.padding(top = 8.dp))
-
-        SubLabel("HELD-OUT YEARS, FROM ${r.splitDate}")
-        MetricRow("Strategy", r.heldOut, P.Text)
-        MetricRow("Buy and hold", r.benchHeldOut, P.Muted)
-        MetricRow("Same risk", r.volMatchedHeldOut, P.Muted)
-        MetricRow("Costs ×2", r.costsDoubledHeldOut, P.Muted)
-        SubLabel("WHOLE PERIOD")
-        MetricRow("Strategy", r.full, P.Text)
-        MetricRow("Buy and hold", r.benchFull, P.Muted)
-        Text("${r.entries} entries · ${r.orders} orders · in the market ${DeskText.plainPct(r.exposure, 0)} of days · " +
-            "costs ${DeskText.num(r.costsPaid, 0)} on 100,000", color = P.Faint, fontSize = 12.sp)
-
-        SubLabel("IS IT LUCK?")
-        r.robustInSample?.let { rb ->
-            Text("Deflated Sharpe ${DeskText.num(rb.dsr)} (needs 0.90) after ${rb.trials} setting(s): chance alone could reach " +
-                "an annual Sharpe of ${DeskText.num(rb.luckHurdleAnnual)}" + if (!rb.trialSpreadMeasured) ", spread assumed" else "",
-                color = P.Text, fontSize = 13.sp)
-            Text("Track record to tell it from zero: " +
-                (rb.minTrackRecordYears?.let { "about ${DeskText.num(it, 1)} years" } ?: "never, at this Sharpe"),
-                color = P.Muted, fontSize = 12.sp)
-        }
-        r.bootstrap?.let { b ->
-            Text("Reshuffled history, ${b.sims} runs: Sharpe ${DeskText.num(b.sharpe.first)} to ${DeskText.num(b.sharpe.third)}; " +
-                "below zero in ${DeskText.num(b.sharpeBelowZeroPct, 0)}%", color = P.Muted, fontSize = 12.sp)
-        }
-
-        SubLabel("THE SIX QUESTIONS")
-        r.gates.forEach { g -> GateRow(g) }
-
-        val params = r.params
-        if (t != null && params != null) {
-            SubLabel("SETTINGS" + if (r.isDefault) " · DEFAULT" else " · CHANGED")
-            t.knobs.forEach { k ->
-                val v = params[k.key]
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(k.label, color = P.Text, fontSize = 14.sp, modifier = Modifier.weight(1f))
-                    Action("−", muted = true) { vm.set(r.key, k.key, v - k.step) }
-                    Text(DeskText.num(v, if (k.step < 0.01) 4 else if (k.step < 1) 2 else 0) + k.unit, color = P.Text, fontSize = 14.sp)
-                    Action("+", muted = true) { vm.set(r.key, k.key, v + k.step) }
-                }
-            }
-            Text("Each new setting counts as a trial: the more you try, the higher the luck bar. " +
-                "To change more than these two, make your own copy.", color = P.Faint, fontSize = 12.sp)
-        }
-
-        if (r.exitReasons.isNotEmpty()) {
-            SubLabel("WHY POSITIONS CLOSED (IN-SAMPLE)")
-            r.exitReasons.take(5).forEach { e ->
-                Text("${e.code}: ${e.count} · average ${DeskText.num(e.avgReturnPct)}% · ${DeskText.num(e.wonPct, 0)}% made money",
-                    color = P.Muted, fontSize = 12.sp)
-            }
-        }
-        if (r.recent.isNotEmpty()) {
-            SubLabel("RECENT POSITIONS")
-            r.recent.take(5).forEach { e ->
-                Text("${e.entry} → ${e.exit ?: "open"} · ${DeskText.num(e.returnPct)}% · ${e.exitReason.substringBefore(":")}",
-                    color = P.Muted, fontSize = 12.sp)
-            }
-        }
-        FlowRow(Modifier.padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            Action("Check nearby settings") { vm.checkNearby(r.key) }
-            Action("Ask about this") { vm.askAbout(r) }
-            if (r.mine) Action("Edit the rule") { vm.openRule(r.key.removePrefix(DeskViewModel.MINE)) }
-            else Action("Make my copy") { vm.copyShelf(r.key) }
-            if (!r.isDefault && !r.mine) Action("Back to default", muted = true) { vm.reset(r.key) }
-            Action("Hide", muted = true) { vm.hide(r.key) }
-            Action("Less", muted = true) { expanded = false }
-        }
-    }
-}
 
 /** A figure with its label above, in fixed-width digits. */
 @Composable
@@ -577,26 +285,6 @@ internal fun Figure(label: String, value: String, modifier: Modifier) {
     Column(modifier) {
         Text(label, color = P.Faint, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(value, color = P.Text, fontSize = 22.sp, style = Numbers, modifier = Modifier.padding(top = 2.dp))
-    }
-}
-
-/** Another strategy, in one line; a tap shows it in full. */
-@Composable
-private fun StrategyRow(r: StrategyReport, onOpen: () -> Unit) {
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .heightIn(min = 52.dp)
-            .clickable(role = Role.Button, onClickLabel = "Show ${r.label}", onClick = onOpen)
-            .padding(vertical = 10.dp),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Text(r.label, color = P.Text, fontSize = 15.sp, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text("Sharpe ${DeskText.num(r.heldOut?.sharpe)} held out", color = P.Muted, fontSize = 13.sp, style = Numbers)
-        Spacer(Modifier.width(14.dp))
-        GateDots(r.gates)
-        Spacer(Modifier.width(6.dp))
-        Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = P.Faint, modifier = Modifier.size(18.dp))
     }
 }
 
@@ -623,66 +311,7 @@ internal fun GateRow(g: Gate) {
     }
 }
 
-// --- your rules ---
 
-/** Your rules, with a way to start one: new, or a copy from the shelf. */
-@Composable
-private fun YourRules(ui: DeskUi, vm: DeskViewModel) {
-    var shelf by remember { mutableStateOf(false) }
-    Label("YOUR RULES")
-    Card {
-        if (ui.rules.isEmpty()) {
-            Text("Write a strategy as a rule from blocks: when these hold, then hold this. Start from scratch, or copy one " +
-                "from the shelf and change it. Each version you test is one more try, and the luck question counts them.",
-                color = P.Muted, fontSize = 13.sp, lineHeight = 19.sp)
-        }
-        ui.rules.forEachIndexed { i, m ->
-            if (i > 0) HorizontalDivider(color = P.Border)
-            val rep = ui.reports.firstOrNull { it.key == m.key }
-            Row(
-                Modifier.fillMaxWidth().heightIn(min = 52.dp)
-                    .clickable(role = Role.Button, onClickLabel = "Open ${m.name}") { vm.openRule(m.id) }
-                    .padding(vertical = 8.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(Modifier.weight(1f)) {
-                    Text(m.name, color = P.Text, fontSize = 15.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                    Text(
-                        listOfNotNull(
-                            if (m.from.startsWith("shelf:")) "from the shelf" else "your rule",
-                            if (m.tries == 1) "1 try" else "${m.tries} tries",
-                            when {
-                                m.problem != null -> "can't be read"
-                                !m.tested -> "not tested yet"
-                                m.changed -> "changed since the test"
-                                else -> null
-                            }
-                        ).joinToString(" · "),
-                        color = if (m.problem != null) P.Warning else P.Faint, fontSize = 12.sp
-                    )
-                }
-                if (rep != null) {
-                    GateDots(rep.gates)
-                    Spacer(Modifier.width(6.dp))
-                }
-                Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null, tint = P.Faint, modifier = Modifier.size(18.dp))
-            }
-        }
-        Row(Modifier.padding(top = 6.dp)) {
-            Action("New rule") { vm.newRule() }
-            Box {
-                Action("Copy from the shelf", muted = true) { shelf = true }
-                DropdownMenu(expanded = shelf, onDismissRequest = { shelf = false }, modifier = Modifier.background(P.Elevated)) {
-                    DeskStrategies.templates.forEach { t ->
-                        DropdownMenuItem(text = { Text(t.label, color = P.Text) }, onClick = { shelf = false; vm.copyShelf(t.key) })
-                    }
-                }
-            }
-        }
-    }
-}
-
-/** Six small marks: filled for passed, ringed for not passed, faint for not checked. */
 @Composable
 internal fun GateDots(gates: List<Gate>) {
     Row(horizontalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -733,7 +362,7 @@ internal fun EquityChart(c: Chart, height: androidx.compose.ui.unit.Dp = 130.dp)
 }
 
 @Composable
-private fun Footer() {
+internal fun Footer() {
     Text(
         "Simulated results: daily data, fills at the next open, slippage, commission, borrow and financing costs " +
             "included; options are modelled from the volatility index, not real quotes. Past results don't promise " +

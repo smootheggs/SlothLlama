@@ -103,7 +103,9 @@ fun EditionScreen(
     onBack: () -> Unit,
     onPlace: (app.localmind.assistant.domain.atlas.PlaceHit) -> Unit = {},
     /** Your record (1.45: reached from the places calls are made, not Home). */
-    onRecord: () -> Unit = {}
+    onRecord: () -> Unit = {},
+    /** A new idea on SlothDesk from a story (1.49). */
+    onNewIdea: ((app.localmind.assistant.domain.edition.EdStory) -> Unit)? = null
 ) {
     val shown by viewModel.shown.collectAsStateWithLifecycle()
     val latest by viewModel.latest.collectAsStateWithLifecycle()
@@ -166,7 +168,8 @@ fun EditionScreen(
         ask = viewModel::askAbout,
         setRead = { st, r -> viewModel.setRead(st, r) },
         setTap = { st, clean -> viewModel.setTap(st, clean) },
-        place = { st -> viewModel.places.value[Editions.storyKey(st)]?.let { onPlace(it) } }
+        place = { st -> viewModel.places.value[Editions.storyKey(st)]?.let { onPlace(it) } },
+        newIdea = onNewIdea
     )
 
     // "Read it clean in SlothLlama" from the Lobster's Chrome tab; a story's "Read" on the Atlas,

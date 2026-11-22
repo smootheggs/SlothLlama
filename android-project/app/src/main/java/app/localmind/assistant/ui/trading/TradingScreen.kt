@@ -67,7 +67,7 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /** SlothDesk's three tabs: the strategies, the idea book, the desk's sums. */
-enum class DeskTab(val label: String) { STRATEGIES("Strategies"), IDEAS("Ideas"), CALLS("Price calls"), SUMS("Calculators") }
+enum class DeskTab(val label: String) { STRATEGIES("Desk"), IDEAS("Trade ideas"), CALLS("Price calls"), SUMS("Calculators") }
 
 /** Plain text tabs with a moss underline: navigation, so quieter than any button. */
 @Composable
@@ -132,7 +132,8 @@ fun TradingPane(viewModel: TradingViewModel, tab: DeskTab, wide: Boolean, snackb
         }
     }
 
-    draft?.let { d ->
+    // An idea for the path (1.49) is written on the Desk's front, not here.
+    draft?.takeIf { it.kind != "rule" }?.let { d ->
         DraftSheet(d, onChange = viewModel::editDraft, onSave = viewModel::saveDraft, onDismiss = viewModel::cancelDraft)
     }
     ideas.firstOrNull { it.id == shownId }?.let { idea ->

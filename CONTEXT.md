@@ -126,7 +126,17 @@ Wed"), **Continue** and **New chat**, **Favourites**, then three pillars and a q
   is a **try** (a copy brings the shelf's tries with it). A test's **report** answers **the six
   questions**: did it beat simply holding, did it hold up on years it never saw, could luck
   explain it, does it survive doubled costs, do nearby settings agree, have you followed it on
-  paper. A rule on crypto alone counts a 365-day year.
+  paper. A rule on crypto alone counts a 365-day year. **The path** (1.49): every idea goes
+  **Idea → Test → Paper → Review** on the Desk's front (the **Desk** tab; trade ideas with levels
+  are on **Trade ideas**). An **idea** is in your words (why, what would prove it wrong, how sure,
+  when to review it), kept as written; a **rule** tests it: the **Trader's draft** (a **rule card**
+  the Desk reads and checks), one you write, or a **shelf** copy (a copy becomes an idea). **Paper
+  it** puts a rule on **paper** for 60 days of **tonight's tickets** (only rules on paper get
+  them), each marked **followed** or not with a **slip** (late, skipped it, traded early, changed
+  the size, didn't trust it); a new tested version starts its 60 again. **Sunday's review**
+  looks back on the week (Monday to Sunday): the tickets, each rule's week against holding, each
+  idea against the week, price calls; then your **call** per rule (keep, change, take off paper)
+  and **one line** for next week. A story's menu has **New idea from this story**.
 - **Projects**: your own projects, one record each. **Phase** (Initiating, Planning, Executing,
   Monitoring, Closing), **brief**, **milestones** ("late" once the due day has passed), **risks**
   (score = likelihood × impact, 1 to 9: low, medium, high), **stakeholders** (the power/interest

@@ -35,6 +35,8 @@ import androidx.compose.material.icons.outlined.Refresh
 import androidx.compose.material.icons.outlined.Share
 import androidx.compose.material.icons.outlined.StarOutline
 import app.localmind.assistant.domain.trading.IdeaCard
+import app.localmind.assistant.domain.desk.RuleCard
+import androidx.compose.material.icons.outlined.ShowChart
 import app.localmind.assistant.domain.books.GistCard
 import androidx.compose.material.icons.outlined.LibraryAdd
 import androidx.compose.material.icons.outlined.Newspaper
@@ -143,6 +145,8 @@ fun AssistantMessageBubble(
     val practise = LocalChatActions.current.onPractise
     val saveIdea = LocalChatActions.current.onSaveIdea
     val hasIdea = remember(message.content, saveIdea != null) { saveIdea != null && IdeaCard.has(message.content) }
+    val saveRule = LocalChatActions.current.onSaveRule
+    val hasRule = remember(message.content, saveRule != null) { saveRule != null && RuleCard.has(message.content) }
     val saveGist = LocalChatActions.current.onSaveGist
     val hasGist = remember(message.content, saveGist != null) { saveGist != null && GistCard.has(message.content) }
     val keepOnDesk = LocalChatActions.current.onKeepOnDesk
@@ -206,6 +210,9 @@ fun AssistantMessageBubble(
                 }
                 if (saveIdea != null && hasIdea) {
                     ActionIcon(Icons.Outlined.BookmarkAdd, "Save the idea to SlothDesk") { saveIdea(message.content) }
+                }
+                if (saveRule != null && hasRule) {
+                    ActionIcon(Icons.Outlined.ShowChart, "Take the rule to SlothDesk") { saveRule(message.content) }
                 }
                 if (saveGist != null && hasGist) {
                     ActionIcon(Icons.Outlined.LibraryAdd, "Save the gist to the book's card") { saveGist(message.content) }

@@ -8,9 +8,11 @@ import java.time.LocalDate
 data class IdeaNote(val at: Long, val text: String)
 
 /**
- * A trade idea in the idea book. What you thought (thesis, what would prove it wrong, the
- * levels, how sure you were) is fixed once saved; afterwards you only add notes and, at the
- * end, the review. That keeps hindsight out of the record.
+ * An idea in the idea book: a trade idea (levels and all), or (1.49, [kind] "rule") an idea
+ * about how a market behaves, on SlothDesk's path from idea to a rule, its test, paper and
+ * review. What you thought (thesis, why, what would prove it wrong, how sure you were) is
+ * fixed once saved; afterwards you only add notes, link its rule and, at the end, review it.
+ * That keeps hindsight out of the record.
  */
 @Serializable
 data class Idea(
@@ -44,9 +46,20 @@ data class Idea(
     /** "right reason", "partly", "wrong reason" ("" before review). */
     val reason: String = "",
     val whatHappened: String = "",
-    val lesson: String = ""
+    val lesson: String = "",
+    /** "trade" (with levels) or "rule" (an idea for the path). */
+    val kind: String = "trade",
+    /** Why you think so. */
+    val why: String = "",
+    /** Where it came from, when a story started it ("headline · outlet"). */
+    val from: String = "",
+    /** The rule it's tested with, once there is one (a SlothDesk rule's id). */
+    val ruleId: String = "",
+    /** The Trader's latest draft of a rule for it, as the card it wrote (read and checked on the Desk). */
+    val draftCard: String = ""
 ) {
     val isOpen: Boolean get() = closedAt == 0L
+    val onPath: Boolean get() = kind == "rule"
     val isLong: Boolean get() = direction != "short"
 
     /** Open, and its review date has come. */
@@ -75,6 +88,21 @@ data class Idea(
 
     /** The idea as plain text, for a chat or a share. */
     fun asText(): String = buildString {
+        if (onPath) {
+            appendLine("Idea: $thesis")
+            if (why.isNotBlank()) appendLine("Why: $why")
+            if (wrongIf.isNotBlank()) appendLine("Wrong if: $wrongIf")
+            if (from.isNotBlank()) appendLine("From a story: $from")
+            appendLine("How sure: $conviction%")
+            if (reviewOn.isNotBlank()) appendLine("Review on: $reviewOn")
+            notes.forEach { appendLine("Note (${java.time.Instant.ofEpochMilli(it.at).toString().take(10)}): ${it.text}") }
+            if (!isOpen) {
+                appendLine("Outcome: $outcome" + (if (reason.isNotBlank()) ", $reason" else ""))
+                if (whatHappened.isNotBlank()) appendLine("What happened: $whatHappened")
+                if (lesson.isNotBlank()) appendLine("Lesson: $lesson")
+            }
+            return@buildString
+        }
         appendLine("Instrument: $instrument")
         appendLine("Direction: $direction")
         entry?.let { appendLine("Entry: ${fmt(it)}") }
@@ -117,7 +145,10 @@ data class IdeaDraft(
     val wrongIf: String = "",
     val clientAngle: String = "",
     val conviction: Int = 60,
-    val source: String = "you"
+    val source: String = "you",
+    val kind: String = "trade",
+    val why: String = "",
+    val from: String = ""
 )
 
 /** Reads the Trader persona's idea card out of a reply (lines like "Entry: 2,385"). */

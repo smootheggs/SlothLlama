@@ -47,6 +47,22 @@ class IdeaBook @Inject constructor(@ApplicationContext context: Context) {
         _draft.value = draft
     }
 
+    private val _asking = MutableStateFlow<String?>(null)
+    /** The idea whose rule the Trader was last asked to draft (1.49), for the draft to come back to. */
+    val asking: StateFlow<String?> = _asking.asStateFlow()
+
+    fun setAsking(id: String?) {
+        _asking.value = id
+    }
+
+    private val _focus = MutableStateFlow<String?>(null)
+    /** An idea for SlothDesk to open (just saved, or a draft just came back for it). */
+    val focus: StateFlow<String?> = _focus.asStateFlow()
+
+    fun setFocus(id: String?) {
+        _focus.value = id
+    }
+
     suspend fun load() = lock.withLock {
         if (loaded) return@withLock
         _ideas.value = withContext(Dispatchers.IO) {
@@ -77,11 +93,14 @@ class IdeaBook @Inject constructor(@ApplicationContext context: Context) {
             horizon = d.horizon.trim(),
             reviewOn = d.reviewOn,
             size = d.size.trim(),
-            thesis = d.thesis.trim(),
-            wrongIf = d.wrongIf.trim(),
-            clientAngle = d.clientAngle.trim(),
+            thesis = d.thesis.trim().take(MAX_TEXT),
+            wrongIf = d.wrongIf.trim().take(MAX_TEXT),
+            clientAngle = d.clientAngle.trim().take(MAX_TEXT),
             conviction = d.conviction.coerceIn(50, 95),
-            source = d.source
+            source = d.source,
+            kind = if (d.kind == "rule") "rule" else "trade",
+            why = d.why.trim().take(MAX_TEXT),
+            from = d.from.trim().take(300)
         )
         change { listOf(idea) + it }
         return idea
@@ -90,6 +109,36 @@ class IdeaBook @Inject constructor(@ApplicationContext context: Context) {
     suspend fun addNote(id: String, text: String, now: Long = System.currentTimeMillis()) {
         if (text.isBlank()) return
         change { list -> list.map { if (it.id == id) it.copy(notes = it.notes + IdeaNote(now, text.trim())) else it } }
+    }
+
+    /** Links an open idea to the rule it's tested with (or unlinks it, with ""). */
+    suspend fun setRule(id: String, ruleId: String) {
+        change { list -> list.map { if (it.id == id && it.isOpen) it.copy(ruleId = ruleId) else it } }
+    }
+
+    /** Keeps the Trader's latest rule card for an open idea (as text, capped; read on the Desk). */
+    suspend fun setDraftCard(id: String, card: String) {
+        change { list -> list.map { if (it.id == id && it.isOpen) it.copy(draftCard = card.take(MAX_CARD)) else it } }
+    }
+
+    /**
+     * A rule card from a Trader reply: kept on the idea that asked for it, or (when none did, or
+     * it's closed) on a new idea named after the card. Returns the idea's id.
+     */
+    suspend fun offerRuleCard(card: String, name: String, now: Long = System.currentTimeMillis()): String {
+        load()
+        val asked = _asking.value?.let { id -> _ideas.value.firstOrNull { it.id == id && it.isOpen } }
+        val id = if (asked != null) {
+            setDraftCard(asked.id, card)
+            asked.id
+        } else {
+            val idea = add(IdeaDraft(thesis = name, kind = "rule", source = "trader",
+                reviewOn = java.time.LocalDate.now().plusMonths(3).toString()), now)
+            setDraftCard(idea.id, card)
+            idea.id
+        }
+        _focus.value = id
+        return id
     }
 
     suspend fun setReviewOn(id: String, date: String) {
@@ -139,6 +188,10 @@ class IdeaBook @Inject constructor(@ApplicationContext context: Context) {
     }
 
     companion object {
+        /** The longest a written field is kept, and a kept rule card. */
+        const val MAX_TEXT = 2000
+        const val MAX_CARD = 12_000
+
         /** "2,385.50" → 2385.5; blank or not a number → null. */
         fun String.toPrice(): Double? = trim().replace(",", "").toDoubleOrNull()
     }

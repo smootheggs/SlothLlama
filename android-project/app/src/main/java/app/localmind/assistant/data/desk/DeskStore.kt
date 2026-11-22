@@ -66,6 +66,25 @@ data class SavedRule(
     }
 }
 
+/**
+ * A rule on paper (1.49): since which data date, for which version of it ([version]: the rule's
+ * trial id, or a shelf setting's). A new version starts its paper days again.
+ */
+@Serializable
+data class PaperRun(val since: String, val version: String, val at: Long = 0)
+
+/**
+ * A Sunday review (1.49): the week ending [sunday], your call for each rule on paper (keep,
+ * change, retire), and one line for the week ahead.
+ */
+@Serializable
+data class WeekReview(
+    val sunday: String,
+    val calls: Map<String, String> = emptyMap(),
+    val line: String = "",
+    val at: Long = 0
+)
+
 @Serializable
 data class DeskState(
     /** Your settings per strategy, where they differ from the default rule sheet. */
@@ -85,7 +104,13 @@ data class DeskState(
     /** What the last check of the prices noticed. */
     val pricesNotes: List<String> = emptyList(),
     /** Your rules (1.48). */
-    val rules: List<SavedRule> = emptyList()
+    val rules: List<SavedRule> = emptyList(),
+    /** The rules on paper, by key (1.49); only these get tonight's tickets. */
+    val paper: Map<String, PaperRun> = emptyMap(),
+    /** Set once the journal before 1.49 has been turned into paper runs. */
+    val paperSince149: Boolean = false,
+    /** Your Sunday reviews, newest first. */
+    val reviews: List<WeekReview> = emptyList()
 )
 
 /**
@@ -166,7 +191,11 @@ class DeskStore @Inject constructor(@ApplicationContext context: Context) {
                 trials = (b.trials.keys + s.trials.keys).associateWith { k -> b.trials[k].orEmpty() + s.trials[k].orEmpty() },
                 nearby = b.nearby + s.nearby,
                 journal = (s.journal + b.journal.filter { (it.strategy to it.dataDate) !in have })
-                    .sortedByDescending { it.dataDate }
+                    .sortedByDescending { it.dataDate },
+                paper = b.paper.filterValues { DATE.matches(it.since) } + s.paper,
+                reviews = (s.reviews + b.reviews.filter { r -> DATE.matches(r.sunday) && s.reviews.none { it.sunday == r.sunday } })
+                    .map { it.copy(line = it.line.take(300), calls = it.calls.entries.take(40).associate { (k, v) -> k.take(40) to v.take(12) }) }
+                    .sortedByDescending { it.sunday }.take(MAX_REVIEWS)
             )
         }
     }
@@ -181,6 +210,7 @@ class DeskStore @Inject constructor(@ApplicationContext context: Context) {
     }
 
     companion object {
-        val MISTAKES = listOf("entry", "exit", "management", "sizing", "skipped a ticket", "none")
+        private val DATE = Regex("^\\d{4}-\\d{2}-\\d{2}$")
+        const val MAX_REVIEWS = 260
     }
 }

@@ -71,7 +71,7 @@ fun ReportScreen(r: StrategyReport, ui: DeskUi, vm: DeskViewModel, onBack: () ->
                     horizontalArrangement = Arrangement.spacedBy(32.dp)
                 ) {
                     Column(Modifier.weight(0.46f).fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 12.dp)) {
-                        Summary(r, vm)
+                        Summary(r, ui, vm)
                         Spacer(Modifier.height(24.dp))
                     }
                     Column(Modifier.weight(0.54f).fillMaxSize().verticalScroll(rememberScrollState()).padding(top = 12.dp)) {
@@ -82,7 +82,7 @@ fun ReportScreen(r: StrategyReport, ui: DeskUi, vm: DeskViewModel, onBack: () ->
                 }
             } else {
                 Column(Modifier.widthIn(max = 760.dp).fillMaxSize().verticalScroll(rememberScrollState()).padding(horizontal = 20.dp, vertical = 12.dp)) {
-                    Summary(r, vm)
+                    Summary(r, ui, vm)
                     Questions(r)
                     Details(r)
                     Spacer(Modifier.height(24.dp))
@@ -94,7 +94,7 @@ fun ReportScreen(r: StrategyReport, ui: DeskUi, vm: DeskViewModel, onBack: () ->
 
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun Summary(r: StrategyReport, vm: DeskViewModel) {
+private fun Summary(r: StrategyReport, ui: DeskUi, vm: DeskViewModel) {
     val (headline, line) = r.verdict
     Card(padding = 20.dp) {
         EquityChart(r.chart, height = 190.dp)
@@ -115,7 +115,15 @@ private fun Summary(r: StrategyReport, vm: DeskViewModel) {
     Text(line, color = P.Muted, fontSize = 14.sp, lineHeight = 20.sp, modifier = Modifier.padding(top = 4.dp))
     r.guardrail?.let { Text("⚠ $it", color = P.Warning, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.padding(top = 8.dp)) }
     FlowRow(Modifier.padding(top = 14.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Button("Ask the Trader about it") { vm.askAbout(r) }
+        // Paper is the next step once a back-test has nothing more to say (1.49).
+        val onPaper = r.key in ui.state.paper
+        val ready = r.gates.take(5).all { it.passed == true }
+        when {
+            onPaper -> Button("On paper: tonight's ticket") { vm.closeReport(); vm.openPaper(r.key) }
+            ready -> Button("Paper it") { vm.closeReport(); vm.paperIt(r.key) }
+        }
+        OutlineButton("Ask the Trader about it") { vm.askAbout(r) }
+        if (!onPaper && !ready) OutlineButton("Paper it anyway") { vm.closeReport(); vm.paperIt(r.key) }
         if (r.gates.getOrNull(4)?.passed == null) OutlineButton("Check nearby settings") { vm.checkNearby(r.key) }
         if (r.mine) OutlineButton("Edit the rule") {
             vm.closeReport()

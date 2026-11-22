@@ -20,6 +20,7 @@ import androidx.compose.material.icons.outlined.BookmarkBorder
 import androidx.compose.material.icons.outlined.ChatBubbleOutline
 import androidx.compose.material.icons.outlined.Check
 import androidx.compose.material.icons.outlined.Description
+import androidx.compose.material.icons.outlined.Lightbulb
 import androidx.compose.material.icons.outlined.Place
 import androidx.compose.material.icons.outlined.Public
 import androidx.compose.material.icons.outlined.RadioButtonUnchecked
@@ -54,7 +55,9 @@ internal class StoryActions(
     val ask: (EdStory) -> Unit,
     val setRead: (EdStory, Boolean) -> Unit,
     val setTap: (EdStory, Boolean) -> Unit,
-    val place: (EdStory) -> Unit
+    val place: (EdStory) -> Unit,
+    /** A new idea on SlothDesk, its headline carried over (1.49). */
+    val newIdea: ((EdStory) -> Unit)? = null
 )
 
 /** The long-press menu upright: a sheet from the bottom. (Sideways it's a popover beside the row.) */
@@ -81,8 +84,8 @@ internal fun StorySheet(
 
 /**
  * The menu itself: the story's head, then open the page, read it clean (or why it's page only),
- * save for later, ask about it, its place on the Atlas, read or unread, and what a tap on this
- * outlet does.
+ * save for later, ask about it, start an idea from it, its place on the Atlas, read or unread,
+ * and what a tap on this outlet does.
  */
 @Composable
 internal fun StoryMenu(
@@ -129,6 +132,7 @@ internal fun StoryMenu(
         )
     }
     MenuRow(Icons.Outlined.ChatBubbleOutline, "Ask about it in a chat", if (clean) "Its text goes with it" else "Its summary goes with it", onClick = go(actions.ask))
+    actions.newIdea?.let { f -> MenuRow(Icons.Outlined.Lightbulb, "New idea from this story", "On SlothDesk, the headline with it", onClick = go(f)) }
     if (place != null) MenuRow(Icons.Outlined.Place, "Show it on the Atlas", place, onClick = go(actions.place))
     MenuRow(
         if (read) Icons.Outlined.RadioButtonUnchecked else Icons.Outlined.Check,

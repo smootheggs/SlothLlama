@@ -377,6 +377,7 @@ private fun SlothRoot(
                     onOpenNotes = { navigate(Destination.NOTES) },
                     onOpenLobster = openLobster,
                     onSaveIdea = { reply -> if (trading.draftFrom(reply)) navigate(Destination.DESK) },
+                    onSaveRule = { reply -> if (trading.offerRuleCard(reply)) navigate(Destination.DESK) },
                     onSaveGist = { reply ->
                         rootScope.launch {
                             android.widget.Toast.makeText(rootContext, books.saveGistFrom(reply), android.widget.Toast.LENGTH_SHORT).show()
@@ -458,7 +459,13 @@ private fun SlothRoot(
                     onOpenLobster = { navigate(Destination.LOBSTER) },
                     onRecord = { navigate(Destination.FORECASTS) }
                 )
-                Destination.EDITION -> app.localmind.assistant.ui.edition.EditionScreen(viewModel = edition, reader = expressReader, onBack = goHome, onPlace = showPlace, onRecord = { navigate(Destination.FORECASTS) })
+                Destination.EDITION -> app.localmind.assistant.ui.edition.EditionScreen(
+                    viewModel = edition, reader = expressReader, onBack = goHome, onPlace = showPlace, onRecord = { navigate(Destination.FORECASTS) },
+                    onNewIdea = { st ->
+                        trading.newPathIdea(listOf(st.title, st.outlet).filter { it.isNotBlank() }.joinToString(" · "))
+                        navigate(Destination.DESK)
+                    }
+                )
                 Destination.ATLAS -> app.localmind.assistant.ui.atlas.AtlasScreen(viewModel = atlas, onBack = goHome)
                 Destination.PROJECTS -> app.localmind.assistant.ui.projects.ProjectsScreen(viewModel = projects, onBack = goHome)
                 Destination.MUSIC -> app.localmind.assistant.ui.music.MusicScreen(viewModel = hiltViewModel(), onBack = goHome)

@@ -15,6 +15,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import app.localmind.assistant.domain.persona.BuiltInPersonas
 import app.localmind.assistant.domain.trading.Idea
 import app.localmind.assistant.domain.trading.IdeaCard
+import app.localmind.assistant.domain.desk.RuleCard
 import app.localmind.assistant.domain.trading.IdeaDraft
 import app.localmind.assistant.domain.trading.IdeaStats
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -46,8 +47,11 @@ class TradingViewModel @Inject constructor(
         .map { b -> b?.let { DeskFacts.from(it) } }
         .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
+    /** The trade ideas (the path's ideas live on the Desk's front). */
     val ideas: StateFlow<List<Idea>> = book.ideas
-    val stats: StateFlow<IdeaStats> = book.ideas
+        .map { list -> list.filter { !it.onPath } }
+        .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val stats: StateFlow<IdeaStats> = ideas
         .map { IdeaStats.of(it, LocalDate.now()) }
         .stateIn(viewModelScope, SharingStarted.Eagerly, IdeaStats.of(emptyList(), LocalDate.now()))
     val draft: StateFlow<IdeaDraft?> = book.draft
@@ -62,6 +66,10 @@ class TradingViewModel @Inject constructor(
 
     fun newIdea() = book.setDraft(IdeaDraft(reviewOn = LocalDate.now().plusMonths(1).toString()))
 
+    /** A new idea for the path (1.49): in your words, with a review in three months. [from] names a story that started it. */
+    fun newPathIdea(from: String = "") =
+        book.setDraft(IdeaDraft(kind = "rule", from = from.take(300), reviewOn = LocalDate.now().plusMonths(3).toString()))
+
     /** A Trader reply's idea card, into the editor. Returns false when the reply has no card. */
     fun draftFrom(reply: String): Boolean {
         val d = IdeaCard.parse(reply) ?: return false
@@ -71,15 +79,31 @@ class TradingViewModel @Inject constructor(
 
     fun editDraft(d: IdeaDraft) = book.setDraft(d)
 
+    /**
+     * A Trader reply's rule card (1.49), kept on the idea that asked for a draft (or a new idea
+     * named after it). Only the card's text is kept; the Desk reads and checks it. False when
+     * the reply has no card.
+     */
+    fun offerRuleCard(reply: String): Boolean {
+        if (!RuleCard.has(reply)) return false
+        viewModelScope.launch { book.offerRuleCard(reply.take(RuleCard.MAX_CHARS), RuleCard.parse(reply).name) }
+        return true
+    }
+
     fun cancelDraft() = book.setDraft(null)
 
     fun saveDraft() {
         val d = draft.value ?: return
         if (!canSave(d)) return
         viewModelScope.launch {
-            book.add(d)
+            val idea = book.add(d)
             book.setDraft(null)
-            _message.value = "Saved. The thesis and levels are fixed now; add notes as it plays out."
+            if (idea.onPath) {
+                book.setFocus(idea.id)
+                _message.value = "Saved as you wrote it. Next: a rule to test it with."
+            } else {
+                _message.value = "Saved. The thesis and levels are fixed now; add notes as it plays out."
+            }
         }
     }
 
@@ -134,8 +158,9 @@ class TradingViewModel @Inject constructor(
     }
 
     companion object {
-        /** An idea needs what it's on, why, and what would prove it wrong. */
-        fun canSave(d: IdeaDraft) = d.instrument.isNotBlank() && d.thesis.isNotBlank() && d.wrongIf.isNotBlank()
+        /** A trade idea needs what it's on, why, and what would prove it wrong; an idea for the path, the idea itself. */
+        fun canSave(d: IdeaDraft) =
+            if (d.kind == "rule") d.thesis.isNotBlank() else d.instrument.isNotBlank() && d.thesis.isNotBlank() && d.wrongIf.isNotBlank()
     }
 }
 

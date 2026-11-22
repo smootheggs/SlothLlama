@@ -290,7 +290,7 @@ object Forecasts {
             idea.target?.let { "to ${level(it)}" },
             idea.stop?.let { "stop ${level(it)}" }
         ).joinToString(", ")
-        val question = "${idea.instrument} ${idea.direction}" +
+        val question = if (idea.onPath) idea.thesis.trim().lineSequence().first().take(160) else "${idea.instrument} ${idea.direction}" +
             (if (levels.isNotEmpty()) " $levels" else "") +
             (if (idea.thesis.isNotBlank()) ": ${idea.thesis.trim().lineSequence().first().take(120)}" else "")
         val closed = !idea.isOpen

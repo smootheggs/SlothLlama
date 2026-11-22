@@ -15,6 +15,8 @@ data class ChatActions(
     val onPractise: ((String) -> Unit)? = null,
     /** Save the idea card in this reply to the idea book (the Trader only). */
     val onSaveIdea: ((String) -> Unit)? = null,
+    /** Take the rule card in this reply to SlothDesk, as an idea's draft (the Trader only, 1.49). */
+    val onSaveRule: ((String) -> Unit)? = null,
     /** Save the gist card in this reply to the book's card in SlothBooks (the Librarian only). */
     val onSaveGist: ((String) -> Unit)? = null,
     /** Keep this reply as the desk's notes on today's edition (the desk persona the edition asked). */

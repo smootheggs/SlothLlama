@@ -387,6 +387,41 @@ object RuleEngine {
         is Condition.Not -> "not (" + say(c.of, i, !held) + ")"
     }
 
+    // --- tonight, in words ---
+
+    /** One of a rule's conditions at the last close: in words, with the numbers, and whether it held (null: no data). */
+    class Today(val branch: String, val text: String, val met: Boolean?)
+
+    /** Each condition of each branch as it stood at the last close, for "why tonight's ticket says this". */
+    fun today(r: Rule, data: DeskData): List<Today> {
+        if (missing(r, data).isNotEmpty()) return emptyList()
+        val dates = axis(r, data)
+        if (dates.isEmpty()) return emptyList()
+        val crypto = priceAssets(r).all { r.markets[it] == Market.CRYPTO }
+        val ctx = Ctx(r, data, dates, if (crypto) 365.0 else 252.0)
+        val i = dates.size - 1
+        return r.branches.flatMap { b ->
+            b.conditions.map { c ->
+                val met = when (ctx.eval(c, i)) { T.YES -> true; T.NO -> false; T.UNKNOWN -> null }
+                Today(b.tag, RuleWords.condition(c).replaceFirstChar { it.uppercase() } + ctx.now(c, i), met)
+            }
+        }
+    }
+
+    /** " · now 245.10 against 231.20", in the left signal's units. */
+    private fun Ctx.now(c: Condition, i: Int): String {
+        if (c !is Condition.Compare) return ""
+        val u = RuleWords.unit(c.left)
+        fun f(x: Double) = if (x.isNaN()) "–" else if (u == RuleWords.Unit.PERCENT) "%.2f%%".format(java.util.Locale.US, x * 100) else "%.2f".format(java.util.Locale.US, x)
+        val l = values(c.left)[i]
+        val r = when (val a = c.right) {
+            is Against.Value -> a.x
+            is Against.Of -> values(a.signal)[i]
+            is Against.Percentile -> percentile(c.left, a)[i]
+        }
+        return " · now ${f(l)} against ${f(r)}"
+    }
+
     // --- the day-by-day machine ---
 
     fun targets(r: Rule, data: DeskData): Plan {

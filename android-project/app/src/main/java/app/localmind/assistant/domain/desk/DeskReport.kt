@@ -40,7 +40,10 @@ class StrategyReport(
     val chart: Chart,
     val recent: List<Episode>,
     val exitReasons: List<ExitReason>,
-    val splitDate: LocalDate
+    val splitDate: LocalDate,
+    /** The last days of the run (up to [DeskReports.RECENT]), for paper results and the week's review. */
+    val recentDates: List<LocalDate> = emptyList(),
+    val recentEquity: DoubleArray = DoubleArray(0)
 ) {
     val gatesPassed: Int get() = gates.count { it.passed == true }
     val gatesUnchecked: Int get() = gates.count { it.passed == null }
@@ -52,6 +55,9 @@ object DeskReports {
 
     /** Your rules' keys start with this ("my:3f9a…"); the shelf's are their names. */
     const val MINE = "my:"
+
+    /** How many of the last days a report keeps (more than the 60 paper days, with room). */
+    const val RECENT = 400
 
     /** The in-sample daily Sharpe of a run, as recorded in the trial log. */
     fun inSampleSharpe(run: DeskStrategies.Run, data: DeskData): Double {
@@ -171,7 +177,9 @@ object DeskReports {
             chart = chart,
             recent = r.episodes.takeLast(12).reversed(),
             exitReasons = reasons,
-            splitDate = splitDate
+            splitDate = splitDate,
+            recentDates = dates.takeLast(RECENT),
+            recentEquity = eq.copyOfRange(maxOf(0, eq.size - RECENT), eq.size)
         )
     }
 

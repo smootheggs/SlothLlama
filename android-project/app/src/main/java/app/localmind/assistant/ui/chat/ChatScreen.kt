@@ -105,6 +105,8 @@ fun ChatScreen(
     onOpenLobster: (() -> Unit)? = null,
     /** An idea card from a Trader reply, to SlothDesk's idea book. */
     onSaveIdea: ((String) -> Unit)? = null,
+    /** A rule card from a Trader reply, to SlothDesk as an idea's draft (1.49). */
+    onSaveRule: ((String) -> Unit)? = null,
     /** A gist card from a Librarian reply, to the book's card in SlothBooks. */
     onSaveGist: ((String) -> Unit)? = null,
     /** The persona the edition asked for desk notes, and where its reply is kept. */
@@ -257,6 +259,7 @@ fun ChatScreen(
                 onContinue = viewModel::continueReply,
                 onPractise = if (persona.speech != null) openPractice else null,
                 onSaveIdea = if (persona.id == BuiltInPersonas.TRADER.id) onSaveIdea else null,
+                onSaveRule = if (persona.id == BuiltInPersonas.TRADER.id) onSaveRule else null,
                 onSaveGist = if (persona.id == BuiltInPersonas.LIBRARIAN.id) onSaveGist else null,
                 onKeepOnDesk = if (persona.id == deskPersonaId) onKeepOnDesk else null,
                 onKeepInProject = if (projectAsk != null && persona.id == projectAsk.first) onKeepInProject else null,

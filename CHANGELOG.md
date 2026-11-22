@@ -4,6 +4,36 @@ Every release of SlothLlama and the SlothLobster, newest first, in the words of 
 Each GitHub release carries its entry from here; this file keeps them all (GitHub keeps only the
 newest five releases of each app).
 
+## SlothLlama 1.49.0 — 2026-11-22
+
+**SlothDesk: one path for every idea, Idea → Test → Paper → Review, with Sunday's review**
+
+The third stage of the new SlothDesk. The Desk's front is now the path:
+
+- Your ideas, each where it is: written, its rule being tested (with its try count and
+  verdict), on paper (day 23 of 60), or ready for its review. Furthest along first.
+- An idea is in your own words: the idea, why you think so, what would prove it wrong, how
+  sure you are, and when to review it. It's kept as you wrote it, before any test, so the
+  review compares what happened with what you expected then.
+- A rule to test it: ask the Trader for a draft, write it yourself, or start from the shelf.
+  The Trader writes a short rule card under its reply; take it to the Desk, and the idea shows
+  the draft in plain sentences (or the lines it couldn't read) before you open it in the editor.
+  A card is read as data, every part checked against the rule's limits; nothing is tested or
+  traded until you tap Test.
+- Paper it: from the six questions, a rule goes on paper for 60 days. Only rules on paper get
+  tonight's tickets now, each with why (every condition as it stood at the close, with its
+  numbers). Mark each one followed, or not and what happened instead: late, skipped it, traded
+  early, changed the size, didn't trust it. The paper page shows the 60 days as marks, the share
+  followed, the slips and the rule's own result. Testing a new version starts its 60 again.
+- Sunday's review, about five minutes, looks back on the week from Monday: the tickets and
+  slips, each rule's week beside plain holding, each idea beside the week (you judge whether it
+  fits), trade ideas due and price calls. Then your call for each rule (keep it, change a
+  setting, take it off paper) and one line for the week ahead. The Trader can talk it through.
+- The shelf's four are starting points: copy one and it becomes your idea, with its tries.
+- New idea from this story, in the Sloth Express story menu: the headline comes with it.
+- Strategies you'd been marking tickets for stay on paper from their first day; the rest
+  stop writing tickets until you paper them. Trade ideas with levels are on their own tab.
+
 ## SlothLlama 1.48.0 — 2026-11-22
 
 **SlothDesk: write your own rules, and every test answers six plain questions**
