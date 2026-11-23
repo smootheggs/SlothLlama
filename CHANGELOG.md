@@ -4,6 +4,23 @@ Every release of SlothLlama and the SlothLobster, newest first, in the words of 
 Each GitHub release carries its entry from here; this file keeps them all (GitHub keeps only the
 newest five releases of each app).
 
+## SlothLlama 1.52.0 — 2026-11-22
+
+**Benchmark: how fast each device runs a model**
+
+- **Models → Benchmark** (the gauge in the top bar, or its card). Pick a GGUF model, the GPU, the
+  CPU or both, and how many CPU threads; it reads a prompt of about 600 tokens and writes 128
+  tokens, three times, and shows the medians: reading speed (how long before a reply starts) and
+  writing speed (how fast the words come), with load time, memory and how steady the runs were.
+- Earlier runs stay listed on the device, in its no-backup folder: the numbers describe this
+  device, so a backup restored elsewhere doesn't carry them. "Copy results" gives plain text to
+  paste on another device or in a chat.
+- It never runs during a reply, frees a LiteRT model first so only one model is in memory, keeps
+  the GPU crash guard, and leaves the model loaded with the usual threads afterwards.
+- Thread counts: replies still use the usual number (the cores less two, between 2 and 4). The
+  benchmark can try 6 or 8, to see whether more would help on a given chip.
+- LiteRT models aren't timed yet; their speed shows under each reply as before.
+
 ## SlothLlama 1.51.2 · SlothLobster 1.13.4 — 2026-11-22
 
 **Fixes from the screenshots, ready for more devices, and lint**

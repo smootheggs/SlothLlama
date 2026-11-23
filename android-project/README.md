@@ -41,6 +41,13 @@ default). The first GPU load compiles the GPU kernels (about a minute) and cache
 files are the fastest on Adreno; Q4_K_M works too. If the GPU driver ever takes the app down,
 that model is moved to the CPU automatically and the Models screen offers to try again. A
 model too big for the GPU falls back to the CPU on its own.
+On chips without Adreno (the Galaxy Tab S11 Ultra's MediaTek, for one), llama.cpp has no GPU
+support, so GGUF models run on the CPU there; LiteRT models still try the GPU.
+
+**Benchmark** (Models → the gauge, 1.52). Times a GGUF model on this device: how fast it reads a
+prompt of about 600 tokens and writes 128 tokens, three times, on the GPU, the CPU or both, with
+the CPU threads you choose. The results stay on the device (not in backups); "Copy results" gives
+plain text to compare devices.
 
 ## Building
 1. **Get the llama.cpp sources** (pinned submodule, once):

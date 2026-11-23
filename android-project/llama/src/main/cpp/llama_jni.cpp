@@ -123,8 +123,30 @@ Java_app_localmind_llama_LlamaNative_gpuName(JNIEnv *env, jobject /*unused*/) {
     return env->NewStringUTF("");
 }
 
+// Threads asked for by the benchmark (0 = the usual choice below).
+static int g_threads_override = 0;
+
 static int thread_count() {
-    return std::max(N_THREADS_MIN, std::min(N_THREADS_MAX, (int) sysconf(_SC_NPROCESSORS_ONLN) - N_THREADS_HEADROOM));
+    const int cores = (int) sysconf(_SC_NPROCESSORS_ONLN);
+    if (g_threads_override > 0) {
+        return std::max(1, std::min(g_threads_override, cores));
+    }
+    return std::max(N_THREADS_MIN, std::min(N_THREADS_MAX, cores - N_THREADS_HEADROOM));
+}
+
+/**
+ * Sets how many CPU threads the model uses, for the loaded context too; 0 goes back to the usual
+ * choice. Returns the number now in use. For the benchmark: replies always use the usual choice.
+ */
+extern "C"
+JNIEXPORT jint JNICALL
+Java_app_localmind_llama_LlamaNative_setThreads(JNIEnv * /*env*/, jobject /*unused*/, jint n_threads) {
+    g_threads_override = n_threads > 0 ? (int) n_threads : 0;
+    const int n = thread_count();
+    if (g_context) {
+        llama_set_n_threads(g_context, n, n);
+    }
+    return n;
 }
 
 static llama_context *init_context(llama_model *model, const int n_ctx = DEFAULT_CONTEXT_SIZE) {
@@ -134,9 +156,7 @@ static llama_context *init_context(llama_model *model, const int n_ctx = DEFAULT
     }
 
     // Multi-threading setup
-    const int n_threads = std::max(N_THREADS_MIN, std::min(N_THREADS_MAX,
-                                                     (int) sysconf(_SC_NPROCESSORS_ONLN) -
-                                                     N_THREADS_HEADROOM));
+    const int n_threads = thread_count();
     LOGi("%s: Using %d threads", __func__, n_threads);
 
     // Context parameters setup

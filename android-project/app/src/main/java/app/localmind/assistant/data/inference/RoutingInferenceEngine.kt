@@ -68,6 +68,18 @@ class RoutingInferenceEngine @Inject constructor(
         }
     }
 
+    /**
+     * Times a GGUF model for the benchmark (1.52). Waits for any reply to finish, and frees a
+     * LiteRT model first, so only one model is ever in memory.
+     */
+    suspend fun benchmark(file: java.io.File, onGpu: Boolean, threads: Int, onStage: (String) -> Unit): app.localmind.assistant.domain.bench.BenchTiming =
+        switchMutex.withLock {
+            if (mediaPipe.isLoaded) mediaPipe.unloadModel()
+            llama.benchmark(file, onGpu, threads, onStage)
+        }
+
+    fun stopBenchmark() = llama.stopBenchmark()
+
     override suspend fun unloadModel() {
         switchMutex.withLock {
             if (mediaPipe.isLoaded) mediaPipe.unloadModel()

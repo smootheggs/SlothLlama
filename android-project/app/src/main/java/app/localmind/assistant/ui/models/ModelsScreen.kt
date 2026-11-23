@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.outlined.Fingerprint
 import androidx.compose.material.icons.outlined.Mic
 import androidx.compose.material.icons.outlined.PhotoCamera
+import androidx.compose.material.icons.outlined.Speed
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -74,7 +75,7 @@ import app.localmind.assistant.ui.common.SlothTopBar
 import app.localmind.assistant.ui.theme.SlothPalette as P
 
 @Composable
-fun ModelsScreen(viewModel: ModelsViewModel, onBack: () -> Unit) {
+fun ModelsScreen(viewModel: ModelsViewModel, onBack: () -> Unit, onBenchmark: () -> Unit = {}) {
     val state by viewModel.uiState.collectAsStateWithLifecycle()
     val snackbar = remember { SnackbarHostState() }
     val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -110,6 +111,9 @@ fun ModelsScreen(viewModel: ModelsViewModel, onBack: () -> Unit) {
             subtitle = "On-device runtime · 100% offline",
             onBack = onBack,
             actions = {
+                IconButton(onClick = onBenchmark) {
+                    Icon(Icons.Outlined.Speed, contentDescription = "Benchmark", tint = P.Muted)
+                }
                 IconButton(onClick = viewModel::refresh) {
                     Icon(Icons.Default.Refresh, contentDescription = "Rescan model folders", tint = P.Muted)
                 }
@@ -134,6 +138,8 @@ fun ModelsScreen(viewModel: ModelsViewModel, onBack: () -> Unit) {
                         onRetry = viewModel::retryGpu
                     )
                 }
+
+                item(span = { GridItemSpan(maxLineSpan) }) { BenchmarkCard(onBenchmark) }
 
                 item(span = { GridItemSpan(maxLineSpan) }) {
                     ImportCard(
@@ -590,6 +596,24 @@ private fun Chip(text: String, color: Color) {
             .border(1.dp, P.Border, RoundedCornerShape(6.dp))
             .padding(horizontal = 6.dp, vertical = 2.dp)
     )
+}
+
+/** The way to the benchmark: how fast this device runs a model, on the GPU or the CPU. */
+@Composable
+private fun BenchmarkCard(onOpen: () -> Unit) {
+    SlothCard(Modifier.clickable(onClickLabel = "Open the benchmark", role = androidx.compose.ui.semantics.Role.Button, onClick = onOpen)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Column(Modifier.weight(1f)) {
+                Text("Benchmark", color = P.Text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                Text(
+                    "How fast this device reads and writes with a model, on the GPU or the CPU, so you know which to use.",
+                    color = P.Muted, fontSize = 12.sp
+                )
+            }
+            Spacer(Modifier.width(12.dp))
+            Icon(Icons.Outlined.Speed, contentDescription = null, tint = P.Accent)
+        }
+    }
 }
 
 @Composable

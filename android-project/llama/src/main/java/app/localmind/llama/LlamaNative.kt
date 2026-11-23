@@ -47,6 +47,12 @@ object LlamaNative {
 
     external fun systemInfo(): String
 
+    /**
+     * CPU threads for the loaded model, for the benchmark; 0 = the usual choice (up to 4). Takes
+     * effect at once. Returns the number now in use.
+     */
+    external fun setThreads(threads: Int): Int
+
     external fun setSampling(temperature: Float, topP: Float, topK: Int)
 
     /**

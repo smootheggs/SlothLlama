@@ -210,7 +210,7 @@ class MainActivity : ComponentActivity() {
     }
 }
 
-private enum class Destination { HOME, CHAT, PERSONAS, MODELS, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES, LOBSTER, READER, DESK, CORE, BOOKS, EDITION, ATLAS, PROJECTS, FORECASTS, MUSIC, SPORTS, WORLD }
+private enum class Destination { HOME, CHAT, PERSONAS, MODELS, BENCHMARK, SETTINGS, FLASHCARDS, DICTIONARY, LIBRARY, NOTES, LOBSTER, READER, DESK, CORE, BOOKS, EDITION, ATLAS, PROJECTS, FORECASTS, MUSIC, SPORTS, WORLD }
 
 /**
  * Home (or the last chat, per Settings) on a fresh start. Screens open on top of each other and
@@ -407,7 +407,13 @@ private fun SlothRoot(
                     onModels = { navigate(Destination.MODELS) },
                     script = chineseStyle.script
                 )
-                Destination.MODELS -> ModelsScreen(viewModel = hiltViewModel<ModelsViewModel>(), onBack = goHome)
+                Destination.MODELS -> ModelsScreen(
+                    viewModel = hiltViewModel<ModelsViewModel>(), onBack = goHome,
+                    onBenchmark = { navigate(Destination.BENCHMARK) }
+                )
+                Destination.BENCHMARK -> app.localmind.assistant.ui.models.BenchmarkScreen(
+                    viewModel = hiltViewModel<app.localmind.assistant.ui.models.BenchmarkViewModel>(), onBack = goBack
+                )
                 Destination.FLASHCARDS -> FlashcardsScreen(viewModel = hiltViewModel<FlashcardsViewModel>(), onBack = goHome)
                 Destination.DICTIONARY -> DictionaryScreen(viewModel = hiltViewModel<DictionaryViewModel>(), onBack = goHome)
                 Destination.CORE -> CoreWordsScreen(

@@ -14,10 +14,14 @@ import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOn
+import kotlinx.coroutines.flow.onCompletion
+import kotlinx.coroutines.flow.onStart
 import kotlinx.coroutines.withContext
 import app.localmind.assistant.data.attachments.AttachmentStore
 import app.localmind.assistant.data.dictionary.ReplyPolisher
 import app.localmind.assistant.data.models.ModelLibrary
+import app.localmind.assistant.domain.bench.Bench
+import app.localmind.assistant.domain.bench.BenchTiming
 import app.localmind.assistant.domain.attachments.Attachments
 import java.io.File
 import javax.inject.Inject
@@ -57,6 +61,8 @@ class LlamaCppInferenceEngine @Inject constructor(
     private var nativeChat: List<Pair<String, String>>? = null
 
     @Volatile private var cancelRequested = false
+    /** A reply is being written: its tokens come between suspensions, so nothing may unload it. */
+    @Volatile private var replying = false
 
     val isLoaded: Boolean get() = loadedFile != null
 
@@ -144,6 +150,91 @@ class LlamaCppInferenceEngine @Inject constructor(
             LlamaNative.unload()
             error("Not enough memory to set up ${file.name}. Try a smaller model or quantization (e.g. Q4_K_M).")
         }
+    }
+
+    /**
+     * Times [file] for the benchmark (1.52): it's loaded on the GPU when [onGpu] and the GPU can
+     * take it (else on the CPU), then reads [Bench.PROMPT] and writes [Bench.WRITE_TOKENS] tokens,
+     * [Bench.RUNS] times, with [threads] CPU threads. Runs on the native thread, so never alongside
+     * a reply. The model stays loaded afterwards, with the usual threads, and the chat is replayed
+     * on its next reply. [stopBenchmark] ends it early.
+     */
+    suspend fun benchmark(file: File, onGpu: Boolean, threads: Int, onStage: (String) -> Unit): BenchTiming = withContext(nativeThread) {
+        // A reply in progress suspends between tokens; unloading its model then would break it.
+        check(!replying) { "A reply is still being written. Try again when it's finished." }
+        cancelRequested = false
+        initNative()
+        unloadOnThread()
+        try {
+            ModelLibrary.ggufProblem(file)?.let { error("${file.name} can't be loaded: $it.") }
+            onStage("Loading ${file.nameWithoutExtension}")
+            val loadStart = SystemClock.elapsedRealtime()
+            // The same rules as a chat: no GPU, or a model that took the app down on it, means the CPU.
+            val gpuOk = onGpu && !gpu.gpuName.value.isNullOrEmpty() && file.name !in gpu.cpuOnlyModels.value && loadOnGpu(file)
+            if (!gpuOk) loadOnCpu(file)
+            val loadMillis = SystemClock.elapsedRealtime() - loadStart
+            loadedFile = file
+            loadedWantsGpu = onGpu
+            loadedOnGpu = gpuOk
+            loadedContext = LlamaNative.contextSize()
+            nativeChat = null
+            status.set(
+                EngineRuntimeState.Ready(
+                    file.name, loadedContext, canThink = LlamaNative.supportsThinking(),
+                    gpu = if (gpuOk) gpu.gpuName.value?.let(::shortGpuName) else null,
+                    canSee = library.projectorFor(file) != null
+                )
+            )
+            val used = LlamaNative.setThreads(threads)
+            LlamaNative.setThinking(false)
+            val reads = ArrayList<Double>()
+            val writes = ArrayList<Double>()
+            var promptTokens = 0
+            for (run in 1..Bench.RUNS) {
+                if (cancelRequested) error("Stopped.")
+                onStage("Run $run of ${Bench.RUNS}")
+                check(LlamaNative.loadConversation(arrayOf("system"), arrayOf(Bench.SYSTEM)) == 0) { "The model couldn't start the test." }
+                LlamaNative.setSampling(BENCH_TEMPERATURE, TOP_P, TOP_K)
+                val before = LlamaNative.usedTokens()
+                // The first reading on the GPU is guarded like a chat's first reply.
+                if (gpuAttemptOpen) gpu.beginAttempt(file.name)
+                val t0 = SystemClock.elapsedRealtime()
+                check(LlamaNative.processUserPrompt(Bench.PROMPT, Bench.WRITE_TOKENS) == 0) { "The model couldn't read the test prompt." }
+                val t1 = SystemClock.elapsedRealtime()
+                promptTokens = LlamaNative.usedTokens() - before
+                var written = 0
+                while (written < Bench.WRITE_TOKENS && !cancelRequested) {
+                    // An empty piece is still a token (half of a character), so it counts.
+                    LlamaNative.generateNextToken() ?: break
+                    written++
+                }
+                val t2 = SystemClock.elapsedRealtime()
+                if (gpuAttemptOpen) {
+                    gpu.endAttempt()
+                    gpuAttemptOpen = false
+                }
+                if (cancelRequested) error("Stopped.")
+                reads += Bench.tps(promptTokens, t1 - t0)
+                writes += Bench.tps(written, t2 - t1)
+            }
+            val memoryMb = (android.os.Debug.getPss() / 1024).toInt()
+            BenchTiming(gpuOk, used, promptTokens, reads, writes, loadMillis, memoryMb)
+        } catch (e: Throwable) {
+            gpu.endAttempt()
+            gpuAttemptOpen = false
+            unloadOnThread()
+            status.set(EngineRuntimeState.Idle)
+            throw e
+        } finally {
+            // Replies always use the usual threads, and the chat is replayed before the next one.
+            if (loadedFile != null) runCatching { LlamaNative.setThreads(0) }
+            nativeChat = null
+            cancelRequested = false
+        }
+    }
+
+    fun stopBenchmark() {
+        cancelRequested = true
     }
 
     suspend fun unload() = withContext(nativeThread) { unloadOnThread() }
@@ -391,7 +482,11 @@ class LlamaCppInferenceEngine @Inject constructor(
             // Any ending we get to see (done, error, cancel) wasn't a crash.
             if (guarded) gpu.endAttempt()
         }
-    }.flowOn(nativeThread)
+    }
+        // While a reply is being written the benchmark won't start (see [benchmark]).
+        .onStart { replying = true }
+        .onCompletion { replying = false }
+        .flowOn(nativeThread)
 
     private fun usedMemoryMb(): Int =
         (android.os.Debug.getNativeHeapAllocatedSize() / (1024 * 1024)).toInt()
@@ -426,5 +521,7 @@ class LlamaCppInferenceEngine @Inject constructor(
         const val THINKING_TOKENS = 1536
         const val TOP_P = 0.95f
         const val TOP_K = 40
+        /** Sampling for the benchmark: an ordinary temperature, so it writes like a real reply. */
+        const val BENCH_TEMPERATURE = 0.7f
     }
 }
