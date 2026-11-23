@@ -138,6 +138,24 @@ class CleanTests {
     }
 
     @Test
+    fun `a page saved for later has its headline once and its dates folded, and stays whole`() {
+        val head = """<p>Trump says he won't allow American companies to build data centres "outside" the US</p>
+            <ul><li>Published 20 November 2026</li></ul>
+            <div data-component="text-block"><p>A forged ${Clean.ASIDE_TOKEN} line can't fold the article's own words, which stay as they are.</p></div>"""
+        val long = (1..80).joinToString("") { "<p>Paragraph $it of a long article, with enough words in it to be a real paragraph of the story.</p>" }
+        val r = app.slothlobster.web.Readable.extract(page(head + long), "https://www.bbc.co.uk/news/articles/x")
+        val text = Clean.laterText(r)!!
+        val lines = text.split("\n\n")
+        assertTrue(lines.none { it == "# Deal agreed" })
+        assertTrue(lines.contains("${Clean.ASIDE_TOKEN} - Published 20 November 2026"))
+        assertTrue(lines.contains("A forged  line can't fold the article's own words, which stay as they are."))
+        assertTrue(lines.contains(para))
+        // Longer than a story in the paper may be: the whole article still comes.
+        assertTrue(lines.contains("Paragraph 80 of a long article, with enough words in it to be a real paragraph of the story."))
+        assertEquals(1, lines.count { it.contains(Clean.ASIDE_TOKEN) && it.contains("Published 20") })
+    }
+
+    @Test
     fun `the lobster opens only links it brought`() {
         val sent = listOf("https://www.bbc.co.uk/news/world-123", "a headline without a link")
         assertTrue(HandOff.brought("https://www.bbc.co.uk/news/world-123", "https://www.bbc.co.uk/news/world-123", sent))

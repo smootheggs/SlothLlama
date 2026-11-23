@@ -2,6 +2,7 @@ package app.slothlobster.jobs
 
 import android.graphics.Bitmap
 import android.graphics.BitmapFactory
+import app.slothlobster.web.ReadablePage
 import app.slothlobster.web.Web
 import org.jsoup.Jsoup
 import java.io.ByteArrayOutputStream
@@ -43,9 +44,17 @@ object Clean {
      * the story's own title (already shown) is left out, and lines from the page around the
      * article ([asides], and short scraps such as bylines and "Share") are kept but marked aside,
      * so the reader can fold them away without anything being lost (1.13.3). The article within
-     * [MAX_PARAS] and [MAX_CHARS]; the page's lines within [MAX_ASIDES] and [MAX_ASIDE_CHARS] of their own.
+     * [MAX_PARAS] and [MAX_CHARS] for the paper ([maxParas], [maxChars] and [maxPara] for a page
+     * saved whole); the page's lines within [MAX_ASIDES] and [MAX_ASIDE_CHARS] of their own.
      */
-    fun paras(lines: List<String>, title: String, asides: Set<Int> = emptySet()): List<EdPara> {
+    fun paras(
+        lines: List<String>,
+        title: String,
+        asides: Set<Int> = emptySet(),
+        maxParas: Int = MAX_PARAS,
+        maxChars: Int = MAX_CHARS,
+        maxPara: Int = 4_000
+    ): List<EdPara> {
         val out = ArrayList<EdPara>()
         val own = fold(title)
         var chars = 0
@@ -71,13 +80,34 @@ object Clean {
                 asideCount++
                 continue
             }
-            val room = MAX_CHARS - chars
+            val room = maxChars - chars
             if (room <= 0) break
-            out += EdPara(line.take(minOf(room, 4_000)))
+            out += EdPara(line.take(minOf(room, maxPara)))
             chars += line.length
-            if (++count >= MAX_PARAS) break
+            if (++count >= maxParas) break
         }
         return out
+    }
+
+    /**
+     * Starts a line the page put around the article, in a page saved for later (1.13.4). The same
+     * mark as SlothLlama's `Editions.ASIDE_TOKEN`: the Llama folds such lines in its reader and
+     * leaves them out of chats. A page can't write it: it's taken out of the page's own words first.
+     */
+    const val ASIDE_TOKEN = "%%aside%%"
+
+    /**
+     * A page saved for later, as Markdown: the whole article as the reader shows it, without its
+     * own title (the shelf shows that), and the page's lines around it marked with [ASIDE_TOKEN].
+     * Nothing is cut short beyond what the reader extracted; null when nothing came back.
+     */
+    fun laterText(page: ReadablePage): String? {
+        val lines = page.lines.map { it.replace(ASIDE_TOKEN, "") }
+        val paras = paras(lines, page.title, page.asides, maxParas = 5_000, maxChars = 200_000, maxPara = 200_000)
+        if (paras.none { !it.aside }) return null
+        return paras.joinToString("\n\n") { p ->
+            if (p.aside) "$ASIDE_TOKEN " + p.t.replace(Regex("\\s*\\n\\s*"), " ") else p.t
+        }
     }
 
     /** Why the text that came back isn't enough to read, or null when it is. */

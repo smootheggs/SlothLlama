@@ -178,6 +178,9 @@ it short):
 - A top story read clean carries its article in `paras`. A paragraph with `"aside": true` (1.13.3)
   is a line the page put around the article: a byline, a date, a caption, a link to another
   story. SlothLlama folds those in the reader and leaves them out of chats; it never drops them.
+- A page saved for later (a `later` catch, 1.13.4) carries the same lines in its Markdown, each
+  starting `%%aside%% `. The Lobster takes that mark out of the page's own words first, so only it
+  can write one.
 
 ## Status (Lobster → SlothLlama), JSON
 

@@ -13,8 +13,8 @@ android {
         applicationId = "app.slothlobster"
         minSdk = 29
         targetSdk = 35
-        versionCode = 20
-        versionName = "1.13.3"
+        versionCode = 21
+        versionName = "1.13.4"
         manifestPlaceholders["appLabel"] = "SlothLobster"
     }
 

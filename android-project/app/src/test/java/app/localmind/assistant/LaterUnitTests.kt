@@ -19,6 +19,14 @@ class LaterUnitTests {
     }
 
     @Test
+    fun `a page's folded lines don't count toward its reading time`() {
+        val m = app.localmind.assistant.domain.edition.Editions.ASIDE_MARK
+        val article = List(460) { "word" }.joinToString(" ")
+        val folded = (1..40).joinToString("\n\n") { "$m Related story number $it with several words in its headline" }
+        assertEquals(2, ReadingList.readingMinutes("$article\n\n$folded"))
+    }
+
+    @Test
     fun `sites and reading times`() {
         assertEquals("example.org", ReadingList.siteOf("https://www.example.org/a/b?c=1"))
         assertEquals("", ReadingList.siteOf("not a link"))

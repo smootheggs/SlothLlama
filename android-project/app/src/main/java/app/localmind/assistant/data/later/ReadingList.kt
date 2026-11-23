@@ -178,7 +178,9 @@ class ReadingList @Inject constructor(@ApplicationContext context: Context) {
         private fun linkIn(text: String): String? = Regex("""https://[^\s<>"')\]]+""").find(text)?.value?.trimEnd('.', ',', ';', ':')
 
         /** About how long a text takes to read: 230 words or 500 Chinese characters a minute. */
-        fun readingMinutes(text: String): Int {
+        fun readingMinutes(full: String): Int {
+            // The article alone: the page's lines around it are folded away in the reader.
+            val text = app.localmind.assistant.domain.edition.Editions.withoutAsides(full)
             val han = text.count { it.code in 0x3400..0x9FFF }
             val words = text.split(Regex("\\s+")).count { it.isNotBlank() }
             return maxOf(1, Math.round(words / 230.0 + han / 500.0).toInt())

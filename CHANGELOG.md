@@ -4,6 +4,28 @@ Every release of SlothLlama and the SlothLobster, newest first, in the words of 
 Each GitHub release carries its entry from here; this file keeps them all (GitHub keeps only the
 newest five releases of each app).
 
+## SlothLlama 1.51.2 · SlothLobster 1.13.4 — 2026-11-22
+
+**Fixes from the screenshots, ready for more devices, and lint**
+
+- **Flashcards keep clear of the status bar.** During a review the close button and "0 of 5" sat
+  under the clock and battery, upright and sideways: the review has no top bar, and only top bars
+  were keeping clear. It now keeps clear of the status bar, the navigation bar, a camera cut-out
+  and the keyboard.
+- **A page saved for later reads like a story in the paper.** "Save for later" from a Chrome tab
+  brought back every line the page had, so the headline showed twice and lines like "Published
+  20 November 2026" sat in the article. The Lobster now reads it the way it reads the paper's
+  stories: the headline once, the page's own lines folded, and the whole article kept (pages
+  saved for later aren't cut to a paper story's length). Reading times count the article alone.
+  Pages already on the shelf stay as they were; save one again to get the new reading.
+- **Other chips.** On a tablet without Snapdragon's Adreno GPU (the Tab S11 Ultra has a MediaTek
+  Dimensity with an Immortalis GPU), the Models screen now says why GGUF models run on the CPU,
+  naming the chip, and that LiteRT models try the GPU on their own. Nothing changes on the Y700
+  or a Snapdragon phone.
+- **Lint.** Both apps' builds now run Android lint beside the APK build and keep its report
+  (lint-report and lobster-lint-report under the run's artifacts). It never holds up an APK or a
+  release; findings get fixed in their own changes.
+
 ## SlothLlama 1.51.1 · SlothLobster 1.13.3 — 2026-11-22
 
 **Read clean: the white page works again, and the page's clutter folds away**

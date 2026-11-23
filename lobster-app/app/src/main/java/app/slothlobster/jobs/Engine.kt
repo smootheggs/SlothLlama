@@ -399,12 +399,15 @@ class Engine(private val lobster: Lobster) {
             }
             page.isHtml -> {
                 val readable = Readable.extract(page.text, page.url)
+                // A page for the Later shelf is read like a story in the paper (1.13.4): the page's own
+                // headline once, and its links, dates and captions marked so SlothLlama folds them.
+                val body = if (job.deliver == LATER) Clean.laterText(readable) ?: readable.text else readable.text
                 LobsterCatch(
                     id = UUID.randomUUID().toString(),
                     orderId = job.orderId,
                     kind = "document",
                     title = readable.title.take(120),
-                    text = "# ${readable.title}\n\nSource: ${page.url}\n\n${readable.text}",
+                    text = "# ${readable.title}\n\nSource: ${page.url}\n\n$body",
                     sources = listOf(LobsterSource(readable.title, page.url)),
                     createdAt = System.currentTimeMillis()
                 )

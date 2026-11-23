@@ -13,6 +13,9 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -333,8 +336,11 @@ private fun ReviewPane(r: ReviewView, showReading: Boolean, typed: Boolean, wide
     val speak = { speaker.speak(r.card.term, r.card.language.speech) }
     val label = "${r.card.language.label.uppercase()} · ${if (r.item.ask == Ask.WORD) "WORD → MEANING" else "MEANING → WORD"}" +
         if (r.practice) " · PRACTICE" else ""
+    // The review has no top bar, so it keeps clear of the status bar, the navigation bar, a camera
+    // cut-out and the keyboard itself (a top bar does that for the other screens).
+    val safe = keys.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)
     if (wide) {
-        Row(keys.fillMaxSize().padding(horizontal = 32.dp, vertical = 24.dp), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
+        Row(safe.padding(horizontal = 32.dp, vertical = 24.dp), horizontalArrangement = Arrangement.spacedBy(32.dp)) {
             Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 Text(label, color = P.Faint, fontSize = 11.sp, letterSpacing = 1.2.sp)
                 CardFace(r, showReading, typed, big = true, modifier = Modifier.weight(1f), vm = vm, speak = speak)
@@ -355,7 +361,7 @@ private fun ReviewPane(r: ReviewView, showReading: Boolean, typed: Boolean, wide
             }
         }
     } else {
-        Column(keys.fillMaxSize().navigationBarsPadding().padding(bottom = 16.dp)) {
+        Column(safe.padding(bottom = 16.dp)) {
             Row(Modifier.fillMaxWidth().padding(start = 4.dp, end = 20.dp, top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(onClick = { vm.end() }) { Icon(Icons.Filled.Close, contentDescription = "End review", tint = P.Muted) }
                 Progress(r.done, r.total, Modifier.weight(1f))

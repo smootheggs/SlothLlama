@@ -291,6 +291,13 @@ private fun RuntimeCard(engine: EngineRuntimeState) {
     }
 }
 
+/** This device's chip as Android names it ("Mediatek MT6991"), or a plain word when it doesn't say. */
+private fun chipName(): String {
+    val maker = android.os.Build.SOC_MANUFACTURER.orEmpty().takeUnless { it.isBlank() || it == android.os.Build.UNKNOWN }
+    val model = android.os.Build.SOC_MODEL.orEmpty().takeUnless { it.isBlank() || it == android.os.Build.UNKNOWN }
+    return listOfNotNull(maker, model).joinToString(" ").ifBlank { "chip" }
+}
+
 /**
  * The GPU switch. Explains what it does, which GPU was found, and lists any model that crashed
  * the GPU (those run on the CPU until "Try the GPU again").
@@ -310,8 +317,11 @@ private fun GpuCard(
                 Text("Use the GPU", color = P.Text, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
                 Text(
                     when {
-                        name == null -> "Checking this tablet's graphics chip…"
-                        !available -> "No supported GPU found, so models run on the CPU."
+                        name == null -> "Checking this device's graphics chip…"
+                        // llama.cpp's GPU backend is made for Snapdragon's Adreno; on other chips
+                        // (the Tab S11 Ultra's MediaTek, say) GGUF models run on the CPU.
+                        !available -> "llama.cpp has no GPU support for this ${chipName()}, so GGUF models run on the " +
+                            "CPU. LiteRT models (.litertlm) try the GPU on their own."
                         else -> name.replace("(TM)", "").replace("QUALCOMM", "", ignoreCase = true).trim()
                     },
                     color = P.Muted, fontSize = 12.sp

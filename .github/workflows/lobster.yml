@@ -116,6 +116,56 @@ jobs:
           path: ${{ runner.temp }}/out/SlothLobster.apk
           if-no-files-found: error
 
+  # Android lint, as a report to read (the lobster-lint-report artifact). It never holds up the APK
+  # or a release.
+  lint:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    continue-on-error: true
+    steps:
+      - name: Check out code
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+
+      - name: Set up Java 17
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install the SDK platform
+        run: |
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/android-sdk}}"
+          SDKM="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" --install "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+        with:
+          gradle-version: "8.11.1"
+          cache-read-only: true
+
+      - name: Run lint
+        working-directory: lobster-app
+        run: |
+          if gradle :app:lintDebug --console=plain; then
+            echo "### ✅ Lint found nothing that stops a build" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### ⚠️ Lint has findings: see the lobster-lint-report artifact" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+      - name: Upload the lint report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: lobster-lint-report
+          path: lobster-app/app/build/reports/lint-results-debug.*
+          if-no-files-found: ignore
+          retention-days: 14
+
   # Publishes each signed build of sloth-terminal as a GitHub release, so Obtainium on the tablet
   # can notice and install updates. Only this job can write to the repository, and it runs no
   # build tools: just the pinned download and checkout steps (the changelog, as text) and GitHub's own gh
