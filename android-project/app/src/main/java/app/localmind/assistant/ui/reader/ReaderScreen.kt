@@ -112,6 +112,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.heightIn
+import androidx.hilt.navigation.compose.hiltViewModel
 
 /**
  * The reader. On a wide screen the shelf (the Lobster's catch, the library, notes) sits on the
@@ -176,8 +177,10 @@ fun ReaderScreen(
                     SlothTopBar(title = "Reader", subtitle = "Later, catch, library and notes · offline", onBack = leave)
                 }
                 if (wide) {
+                    // A very large screen lying sideways (1.54) asks about the text beside it.
+                    val ultra = maxWidth >= ULTRA_PANE && maxWidth > maxHeight
                     Row(Modifier.fillMaxSize()) {
-                        Column(Modifier.width(340.dp).fillMaxHeight()) {
+                        Column(Modifier.width(if (ultra) 300.dp else 340.dp).fillMaxHeight()) {
                             if (current != null) {
                                 SlothTopBar(title = "Reader", subtitle = "Catch, library and notes", onBack = leave)
                             }
@@ -198,6 +201,10 @@ fun ReaderScreen(
                             } else {
                                 Empty(if (loading) null else "Pick something on the left to read it here.")
                             }
+                        }
+                        if (ultra && current != null) {
+                            VerticalDivider(color = P.Border)
+                            AskBeside(current, Modifier.width(380.dp).fillMaxHeight())
                         }
                     }
                 } else if (current != null) {
@@ -943,6 +950,73 @@ private fun PickMark(on: Boolean, onClick: () -> Unit) {
             .padding(top = 3.dp),
         textAlign = TextAlign.Center
     )
+}
+
+/** At least this wide, lying sideways, the reader asks beside the text (a Tab S11 Ultra; not a Y700). */
+private val ULTRA_PANE = 1360.dp
+
+/**
+ * Ask about this, beside the text (1.54): questions answered by the local model, which reads the
+ * text as reference material only. "Continue in a chat" carries it over to Chats.
+ */
+@Composable
+private fun AskBeside(doc: ReaderDoc, modifier: Modifier) {
+    val vm: AskBesideViewModel = hiltViewModel()
+    val state by vm.state.collectAsStateWithLifecycle()
+    LaunchedEffect(doc.key, doc.text) { vm.show(doc.key, doc.title, doc.text) }
+    var question by rememberSaveable(doc.key) { mutableStateOf("") }
+    val list = rememberLazyListState()
+    LaunchedEffect(state.turns.size, state.turns.lastOrNull()?.answer?.length) {
+        if (state.turns.isNotEmpty()) list.animateScrollToItem(state.turns.lastIndex)
+    }
+    Column(modifier.background(P.Canvas).padding(horizontal = 16.dp, vertical = 14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Text("ASK ABOUT THIS", color = P.Faint, fontSize = 11.sp, letterSpacing = 1.2.sp, fontWeight = FontWeight.Medium)
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            Chip("SlothLlama", selected = !state.trader) { vm.setTrader(false) }
+            Chip("Au · Trader", selected = state.trader) { vm.setTrader(true) }
+        }
+        LazyColumn(Modifier.weight(1f).fillMaxWidth(), state = list, verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            if (state.turns.isEmpty()) {
+                item {
+                    Text(
+                        "Ask what the text means, what it leaves out or how it bears on your desk. The answer comes from the model on this tablet, from this text.",
+                        color = P.Muted, fontSize = 14.sp, lineHeight = 20.sp
+                    )
+                }
+            }
+            items(state.turns.size) { i ->
+                val t = state.turns[i]
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text(
+                        t.question, color = P.Text, fontSize = 15.sp, lineHeight = 21.sp,
+                        modifier = Modifier.align(Alignment.End).clip(RoundedCornerShape(14.dp)).background(P.AccentSoft).padding(horizontal = 12.dp, vertical = 8.dp)
+                    )
+                    val writing = state.busy && i == state.turns.lastIndex
+                    Text(
+                        t.answer.ifBlank { if (writing) "…" else "No answer." },
+                        color = P.Text, fontSize = 15.sp, lineHeight = 22.sp,
+                        modifier = Modifier.clip(RoundedCornerShape(14.dp)).background(P.Card).padding(horizontal = 12.dp, vertical = 8.dp)
+                    )
+                }
+            }
+        }
+        state.error?.let { Text(it, color = P.Warning, fontSize = 13.sp) }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Field(value = question, onChange = { question = it }, hint = "Ask about the text…", modifier = Modifier.weight(1f))
+            Spacer(Modifier.width(8.dp))
+            if (state.busy) {
+                TextButton(onClick = vm::stop) { Text("Stop", color = P.Muted) }
+            } else {
+                TextButton(onClick = { vm.ask(question); question = "" }, enabled = question.isNotBlank()) { Text("Ask", color = P.Accent) }
+            }
+        }
+        if (state.turns.isNotEmpty()) {
+            Text(
+                "Continue in a chat", color = P.Accent, fontSize = 13.sp,
+                modifier = Modifier.clip(RoundedCornerShape(8.dp)).clickable(role = Role.Button) { vm.continueInChat() }.padding(vertical = 6.dp)
+            )
+        }
+    }
 }
 
 /** A reading pane narrower than this is a phone's. */

@@ -268,6 +268,63 @@ jobs:
           if-no-files-found: ignore
           retention-days: 14
 
+  # Device previews: the screens drawn at the Y700's, Galaxy S25+'s and Tab S11 Ultra's sizes,
+  # upright and sideways (the device-previews artifact, PNGs). Beside the build, never holding up
+  # the APK or a release. Drawn on the JVM, so no device or emulator is involved.
+  previews:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    continue-on-error: true
+    steps:
+      - name: Check out code (with the pinned llama.cpp submodule)
+        uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5
+        with:
+          submodules: recursive
+
+      - name: Set up Java 17
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install NDK, CMake and SDK platform
+        run: |
+          SDK="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-$HOME/android-sdk}}"
+          SDKM="$SDK/cmdline-tools/latest/bin/sdkmanager"
+          [ -x "$SDKM" ] || { echo "::error::sdkmanager not found in $SDK"; exit 1; }
+          echo "ANDROID_HOME=$SDK" >> "$GITHUB_ENV"
+          echo "ANDROID_SDK_ROOT=$SDK" >> "$GITHUB_ENV"
+          yes | "$SDKM" --licenses > /dev/null || true
+          "$SDKM" --install "ndk;29.0.13113456" "cmake;3.31.6" "platforms;android-35" "build-tools;35.0.0"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@ed408507eac070d1f99cc633dbcf757c94c7933a # v4
+        with:
+          gradle-version: "8.11.1"
+          cache-read-only: true
+
+      - name: Fetch sherpa-onnx (offline voice input), checksum-verified
+        run: android-project/scripts/fetch-sherpa-onnx.sh
+
+      - name: Draw the device previews
+        working-directory: android-project
+        run: |
+          if gradle :app:testDebugUnitTest -PdevicePreviews --tests 'app.localmind.assistant.*Upright' --tests 'app.localmind.assistant.*Sideways' --console=plain; then
+            echo "### ✅ Device previews drawn: see the device-previews artifact" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "### ⚠️ Device previews didn't all draw: see this job's log" >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+
+      - name: Upload the device previews
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: device-previews
+          path: android-project/app/build/outputs/roborazzi/
+          if-no-files-found: ignore
+          retention-days: 14
+
   # Publishes each signed build of sloth-terminal as a GitHub release, so Obtainium on the tablet
   # can notice and install updates. Only this job can write to the repository, and it runs no
   # build tools: just the pinned download and checkout steps (the changelog, as text) and GitHub's own gh

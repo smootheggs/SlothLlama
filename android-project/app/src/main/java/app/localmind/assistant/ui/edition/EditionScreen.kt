@@ -256,13 +256,15 @@ fun EditionScreen(
         val beside = maxWidth >= WIDE && maxWidth > maxHeight
         // A phone keeps one action in its top bar and the rest under ⋮ (1.53).
         val phone = maxWidth < PHONE_WIDTH
+        // A very large screen sideways (1.54): the contents as a rail, the paper and the story side by side.
+        val ultra = maxWidth >= ULTRA_WIDTH && maxWidth > maxHeight
         if (clean != null && !beside) {
             cleanView(clean, true)
             SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
             return@BoxWithConstraints
         }
         Row(Modifier.fillMaxSize()) {
-            Column(Modifier.weight(1f).fillMaxHeight()) {
+            Column(Modifier.weight(if (ultra && clean != null) 1.25f else 1f).fillMaxHeight()) {
                 when (page) {
                     EditionPage.PAPER -> {
                         val e = shown
@@ -307,7 +309,7 @@ fun EditionScreen(
                         if (e == null) {
                             NoEdition(setup, onSend = { viewModel.send(now = true) }, onSettings = { page = EditionPage.SETTINGS })
                         } else {
-                            Paper(e, tiles, setup, personas, viewModel, actions, shelved, onSettings = { page = EditionPage.SETTINGS }, onPlace = onPlace, onRecord = onRecord)
+                            Paper(e, tiles, setup, personas, viewModel, actions, shelved, onSettings = { page = EditionPage.SETTINGS }, onPlace = onPlace, onRecord = onRecord, rail = ultra)
                         }
                     }
                     EditionPage.ARCHIVE -> {
@@ -322,7 +324,7 @@ fun EditionScreen(
             }
             if (clean != null) {
                 VerticalDivider(color = P.Border)
-                Box(Modifier.weight(1.1f).fillMaxHeight()) { cleanView(clean, false) }
+                Box(Modifier.weight(if (ultra) 1f else 1.1f).fillMaxHeight()) { cleanView(clean, false) }
             }
         }
         SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
@@ -374,7 +376,9 @@ private fun Paper(
     shelved: Set<String>,
     onSettings: () -> Unit,
     onPlace: (app.localmind.assistant.domain.atlas.PlaceHit) -> Unit,
-    onRecord: () -> Unit
+    onRecord: () -> Unit,
+    /** A very large screen lying sideways (1.54): the contents as a rail down the left. */
+    rail: Boolean = false
 ) {
     val places by vm.places.collectAsStateWithLifecycle()
     // The long-press menu: a popover beside the row on a wide screen lying on its side, else a sheet.
@@ -451,11 +455,17 @@ private fun Paper(
     }
 
     BoxWithConstraints(Modifier.fillMaxSize()) {
-        val wide = maxWidth >= WIDE
+        val wide = (if (rail) maxWidth - RAIL_WIDTH else maxWidth) >= WIDE
         val pad = if (wide) 40.dp else 20.dp
-        Column(Modifier.fillMaxSize()) {
+        val jump: (String) -> Unit = { key -> marks[key]?.let { y -> scope.launch { scroll.animateScrollTo(y.toInt()) } } }
+        Row(Modifier.fillMaxSize()) {
+        if (rail) {
+            PartsRail(parts, current, jump)
+            VerticalDivider(color = P.Border)
+        }
+        Column(Modifier.weight(1f).fillMaxHeight()) {
             // Contents: always in view, so a long paper never feels like one endless list.
-            Row(
+            if (!rail) Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = pad, vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp)
             ) {
@@ -468,7 +478,7 @@ private fun Paper(
                     }
                 }
             }
-            HorizontalDivider(color = P.Border)
+            if (!rail) HorizontalDivider(color = P.Border)
             Column(
                 Modifier.fillMaxSize().verticalScroll(scroll).onGloballyPositioned { content = it }
                     .padding(horizontal = pad).padding(top = 12.dp, bottom = 48.dp)
@@ -510,6 +520,7 @@ private fun Paper(
                 }
             }
         }
+        }
     }
     if (!sideMenu) {
         val key = menuKey
@@ -520,6 +531,35 @@ private fun Paper(
                 place = places[Editions.storyKey(st)]?.named, now = now,
                 actions = actions, onDismiss = { menuKey = null }
             )
+        }
+    }
+}
+
+/** The contents rail on a very large screen. */
+private val RAIL_WIDTH = 220.dp
+
+/** At least this wide, and lying sideways, is a very large screen (a Tab S11 Ultra is about 1,390 dp; a Y700 1,280). */
+internal val ULTRA_WIDTH = 1360.dp
+
+/** The paper's parts down the left on a very large screen: a tap goes to that part. */
+@Composable
+private fun PartsRail(parts: List<PaperPart>, current: String?, onJump: (String) -> Unit) {
+    Column(
+        Modifier.width(RAIL_WIDTH).fillMaxHeight().verticalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp)
+    ) {
+        parts.forEach { part ->
+            val on = part.key == current
+            Row(
+                Modifier.fillMaxWidth().heightIn(min = 44.dp).clip(RoundedCornerShape(22.dp))
+                    .background(if (on) P.AccentSoft else Color.Transparent)
+                    .clickable(role = Role.Button) { onJump(part.key) }
+                    .padding(horizontal = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(part.label, color = if (on) P.Text else P.Muted, fontSize = 15.sp, modifier = Modifier.weight(1f), maxLines = 1, overflow = TextOverflow.Ellipsis)
+                if (part.unread > 0) Text("${part.unread}", color = P.Faint, fontSize = 13.sp)
+            }
         }
     }
 }

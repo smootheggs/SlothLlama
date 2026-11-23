@@ -16,8 +16,8 @@ android {
         applicationId = "app.localmind.assistant"
         minSdk = 33 // required by the llama.cpp module
         targetSdk = 35
-        versionCode = 76
-        versionName = "1.53.0"
+        versionCode = 77
+        versionName = "1.54.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -190,4 +190,21 @@ dependencies {
     androidTestImplementation(libs.androidx.work.testing)
     debugImplementation(libs.androidx.ui.tooling)
     debugImplementation(libs.androidx.ui.test.manifest)
+}
+
+// Device previews (1.54): the screens drawn at the Y700's, the Galaxy S25+'s and the Tab S11
+// Ultra's sizes, upright and sideways, on the JVM (Robolectric and Roborazzi), as PNGs. Only with
+// -PdevicePreviews, which CI's separate "previews" job passes: the APK and the ordinary unit tests
+// never compile or download any of this.
+if (project.hasProperty("devicePreviews")) {
+    android.sourceSets.getByName("test").java.srcDir("src/previews/java")
+    android.testOptions.unitTests.isIncludeAndroidResources = true
+    android.testOptions.unitTests.all { it.systemProperty("roborazzi.test.record", "true") }
+    dependencies {
+        testImplementation("org.robolectric:robolectric:4.14.1")
+        testImplementation("io.github.takahirom.roborazzi:roborazzi:1.26.0")
+        testImplementation(platform(libs.androidx.compose.bom))
+        testImplementation(libs.androidx.ui.test.junit4)
+        debugImplementation(libs.androidx.ui.test.manifest)
+    }
 }

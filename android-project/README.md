@@ -50,6 +50,12 @@ the CPU threads you choose. The results stay on the device (not in backups); "Co
 plain text to compare devices.
 
 ## Building
+Each push also runs Android lint and draws **device previews** (screens at the Y700's, Galaxy
+S25+'s and Tab S11 Ultra's sizes, upright and sideways) in jobs of their own; their reports are
+the run's lint-report and device-previews artifacts, and neither holds up the APK. Locally:
+`gradle :app:testDebugUnitTest -PdevicePreviews --tests '*Upright' --tests '*Sideways'` writes
+the pictures to `app/build/outputs/roborazzi/`.
+
 1. **Get the llama.cpp sources** (pinned submodule, once):
    ```
    git submodule update --init --recursive

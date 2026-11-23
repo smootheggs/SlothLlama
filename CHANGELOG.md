@@ -4,6 +4,26 @@ Every release of SlothLlama and the SlothLobster, newest first, in the words of 
 Each GitHub release carries its entry from here; this file keeps them all (GitHub keeps only the
 newest five releases of each app).
 
+## SlothLlama 1.54.0 — 2026-11-22
+
+**The very large tablet (Galaxy Tab S11 Ultra): three panes for the Express, Ask beside the Reader**
+
+Screens at least 1,360 dp wide lying sideways (the Tab S11 Ultra is about 1,390 dp; the Y700, at
+about 1,280, keeps its layouts) use the room:
+
+- **The Express.** The paper's contents run as a rail down the left (each part with its unread
+  count; a tap goes there), the paper sits in the middle, and a story read clean opens on the
+  right, with the paper given a little more of the width than before.
+- **The Reader: Ask beside the text.** A third pane next to the article answers questions about it
+  with the model on the tablet, as SlothLlama or the Trader, without leaving the reader. The text
+  goes in as an attached document, marked as reference material that's never obeyed, just as in a
+  chat, and leaves out the page's folded lines. Nothing is kept: "Continue in a chat" takes the
+  text and your last question to Chats. A different text starts afresh.
+- **Device previews.** A new build job draws screens at the Y700's, the Galaxy S25+'s and the Tab
+  S11 Ultra's sizes, upright and sideways, and keeps the pictures (the device-previews artifact
+  of each run), so a layout can be checked on all three without holding each device. It starts
+  with the benchmark and the market tiles. It runs beside the build and never holds up an APK.
+
 ## SlothLlama 1.53.0 — 2026-11-22
 
 **The phone (Galaxy S25+): Home, the Express and the Reader fitted to an upright phone**
