@@ -397,7 +397,9 @@ fun HomeScreen(
                 SectionLabel(label)
                 BoxWithConstraints {
                     val full = maxWidth
-                    val perRow = if (tiles.size >= 4 && (full - 36.dp) / 4 >= 120.dp) 4 else 3
+                    // A phone's column keeps four across with the icon above the name (1.53).
+                    val minUnit = if (full < PHONE_COLUMN) 76.dp else 120.dp
+                    val perRow = if (tiles.size >= 4 && (full - 36.dp) / 4 >= minUnit) 4 else 3
                     val gaps = 12.dp * (perRow - 1)
                     val rows = tiles.chunked(perRow)
                     val needs = rows.map { row -> row.map { besideWidth(it) } }
@@ -507,6 +509,26 @@ fun HomeScreen(
                 }
                 footer()
             }
+        } else if (maxWidth < PHONE) {
+            // A phone upright (1.53): narrower margins, the smaller hello, and the quiet row as a
+            // bar along the bottom (a few places, and More), so it never wraps or scrolls away.
+            Column(Modifier.fillMaxSize()) {
+                HomePage(Modifier.weight(1f).fillMaxWidth().padding(horizontal = 16.dp), top = 12.dp, bottom = 12.dp) {
+                    top()
+                    greetingBlock(true)
+                    mainActions()
+                    daily(true)
+                    favouritesRow()
+                    learnSection()
+                    pillar("Know", "know", know, false)
+                    weigh(false)
+                }
+                PhoneBar(
+                    more = more, arranging = arranging,
+                    onArrange = { arranging = true; picked = null },
+                    onDone = { arranging = false; picked = null }
+                )
+            }
         } else {
             // Portrait: one page. The sections spread over the screen's height when they fit, and
             // never sit closer than the smallest gap: past one screen the page scrolls.
@@ -545,6 +567,85 @@ private fun HomePage(modifier: Modifier, top: Dp = 0.dp, bottom: Dp = 0.dp, cont
 
 /** Narrowest sideways screen that gets Home's two pages (an open foldable is about 750–880dp). */
 private val TWO_PAGES = 720.dp
+
+/** Narrower than this upright is a phone (a Galaxy S25+ is about 412 dp; a small tablet 600+). */
+private val PHONE = 600.dp
+
+/** A pillar narrower than this is in a phone's column. */
+private val PHONE_COLUMN = 440.dp
+
+/**
+ * The quiet row on a phone (1.53): a bar of four places (the Lobster always among them, for its
+ * count) and More, which holds the rest and Arrange. Each item is at least 56 dp tall.
+ */
+@Composable
+private fun PhoneBar(more: List<HomeTile>, arranging: Boolean, onArrange: () -> Unit, onDone: () -> Unit) {
+    Column(Modifier.fillMaxWidth().background(P.Canvas)) {
+        HorizontalDivider(color = P.Border)
+        if (arranging) {
+            Row(Modifier.fillMaxWidth().padding(horizontal = 12.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text("Tap a tile, then the one to swap it with.", color = P.Muted, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                Text(
+                    "Done", color = P.Accent, fontSize = 15.sp, fontWeight = FontWeight.Medium,
+                    modifier = Modifier.heightIn(min = 48.dp).clip(RoundedCornerShape(24.dp))
+                        .clickable(role = Role.Button, onClick = onDone).padding(horizontal = 16.dp, vertical = 14.dp)
+                )
+            }
+            return@Column
+        }
+        val lobster = more.firstOrNull { it.key == "lobster" }
+        val shown = more.filter { it.key != "lobster" }.take(if (lobster != null) 3 else 4) + listOfNotNull(lobster)
+        val rest = more.filter { it !in shown }
+        var menuOpen by remember { mutableStateOf(false) }
+        Row(Modifier.fillMaxWidth().padding(horizontal = 4.dp)) {
+            shown.forEach { tile -> BarItem(tile.icon, barLabel(tile), toneColor(tile.tone), tile.mark, Modifier.weight(1f), tile.onClick) }
+            Box(Modifier.weight(1f)) {
+                BarItem(Icons.Outlined.MoreHoriz, "More", P.Muted, null, Modifier.fillMaxWidth()) { menuOpen = true }
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }, modifier = Modifier.background(P.Elevated)) {
+                    rest.forEach { tile ->
+                        DropdownMenuItem(
+                            text = { Text(if (tile.detail.isBlank()) tile.label else "${tile.label} · ${tile.detail}", color = toneColor(tile.tone)) },
+                            leadingIcon = {
+                                if (tile.mark != null) Text(tile.mark, color = toneColor(tile.tone), fontSize = 15.sp)
+                                else Icon(tile.icon, contentDescription = null, tint = toneColor(tile.tone))
+                            },
+                            onClick = { menuOpen = false; tile.onClick() }
+                        )
+                    }
+                    DropdownMenuItem(
+                        text = { Text("Arrange Home", color = P.Text) },
+                        leadingIcon = { Icon(Icons.Outlined.DragIndicator, contentDescription = null, tint = P.Muted) },
+                        onClick = { menuOpen = false; onArrange() }
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun toneColor(tone: Tone): Color = when (tone) {
+    Tone.ACCENT -> P.Accent
+    Tone.LOBSTER -> P.Lobster
+    else -> P.Muted
+}
+
+/** A bar item's name: the place's own, with its count ("Lobster 2"). Models stays "Models". */
+private fun barLabel(tile: HomeTile): String = if (tile.badge != null) "${tile.label} ${tile.badge}" else tile.label
+
+@Composable
+private fun BarItem(icon: ImageVector, label: String, color: Color, mark: String?, modifier: Modifier, onClick: () -> Unit) {
+    Column(
+        modifier.heightIn(min = 56.dp).clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button, onClick = onClick)
+            .padding(vertical = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        if (mark != null) Text(mark, color = color, fontSize = 17.sp, fontWeight = FontWeight.Medium)
+        else Icon(icon, contentDescription = null, tint = color, modifier = Modifier.size(22.dp))
+        Text(label, color = color, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.padding(top = 4.dp))
+    }
+}
 
 /** Width a favourite chip is given when working out how many fit. */
 private val FAV_CHIP = 170.dp

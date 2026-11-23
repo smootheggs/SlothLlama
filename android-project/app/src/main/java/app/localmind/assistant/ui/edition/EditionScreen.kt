@@ -32,6 +32,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Archive
+import androidx.compose.material.icons.outlined.MoreVert
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material.icons.outlined.Headphones
 import androidx.compose.material.icons.outlined.Pause
 import androidx.compose.material.icons.outlined.Settings
@@ -251,6 +254,8 @@ fun EditionScreen(
         // Sideways on a wide screen the clean story sits beside the paper; upright it has the screen.
         // (Worked out here: the Row below hides this scope's maxWidth.)
         val beside = maxWidth >= WIDE && maxWidth > maxHeight
+        // A phone keeps one action in its top bar and the rest under ⋮ (1.53).
+        val phone = maxWidth < PHONE_WIDTH
         if (clean != null && !beside) {
             cleanView(clean, true)
             SnackbarHost(snackbar, Modifier.align(Alignment.BottomCenter))
@@ -276,8 +281,27 @@ fun EditionScreen(
                                         )
                                     }
                                 }
-                                IconButton(onClick = { page = EditionPage.ARCHIVE }) { Icon(Icons.Outlined.Archive, contentDescription = "Past editions", tint = P.Text) }
-                                IconButton(onClick = { page = EditionPage.SETTINGS }) { Icon(Icons.Outlined.Settings, contentDescription = "Edition settings", tint = P.Text) }
+                                if (phone) {
+                                    var menuOpen by remember { mutableStateOf(false) }
+                                    Box {
+                                        IconButton(onClick = { menuOpen = true }) { Icon(Icons.Outlined.MoreVert, contentDescription = "More", tint = P.Text) }
+                                        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }, modifier = Modifier.background(P.Elevated)) {
+                                            DropdownMenuItem(
+                                                text = { Text("Past editions", color = P.Text) },
+                                                leadingIcon = { Icon(Icons.Outlined.Archive, contentDescription = null, tint = P.Muted) },
+                                                onClick = { menuOpen = false; page = EditionPage.ARCHIVE }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("Edition settings", color = P.Text) },
+                                                leadingIcon = { Icon(Icons.Outlined.Settings, contentDescription = null, tint = P.Muted) },
+                                                onClick = { menuOpen = false; page = EditionPage.SETTINGS }
+                                            )
+                                        }
+                                    }
+                                } else {
+                                    IconButton(onClick = { page = EditionPage.ARCHIVE }) { Icon(Icons.Outlined.Archive, contentDescription = "Past editions", tint = P.Text) }
+                                    IconButton(onClick = { page = EditionPage.SETTINGS }) { Icon(Icons.Outlined.Settings, contentDescription = "Edition settings", tint = P.Text) }
+                                }
                             }
                         )
                         if (e == null) {
@@ -472,6 +496,13 @@ private fun Paper(
                         }
                     }
                 } else {
+                    // Upright, the desk sits after the news: a line near the top says it's there (1.53).
+                    val deskPersona = setup.desk.firstNotNullOfOrNull { id -> personas.firstOrNull { it.id == id } }
+                    if (deskPersona != null) {
+                        DeskJump(deskPersona, has = s.desk.any { it.personaId == deskPersona.id }, modifier = Modifier.padding(top = 12.dp)) {
+                            marks["desk"]?.let { y -> scope.launch { scroll.animateScrollTo(y.toInt()) } }
+                        }
+                    }
                     DueCalls(Modifier.padding(top = 14.dp), onRecord)
                     news()
                     desk()
@@ -490,6 +521,28 @@ private fun Paper(
                 actions = actions, onDismiss = { menuKey = null }
             )
         }
+    }
+}
+
+/** Narrower than this is a phone. */
+private val PHONE_WIDTH = 600.dp
+
+/** On a narrow screen: one line near the top that takes you down to the desk. */
+@Composable
+private fun DeskJump(persona: Persona, has: Boolean, modifier: Modifier, onClick: () -> Unit) {
+    Row(
+        modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(14.dp)).background(P.Card)
+            .clickable(role = Role.Button, onClickLabel = "Go to the desk", onClick = onClick)
+            .padding(horizontal = 12.dp, vertical = 8.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Badge(persona.badge, 30.dp, if (persona.id == Editions.TRADER_ID) Color(0xFFE2C26B) else null)
+        Text(
+            if (has) "The desk · ${persona.name}'s notes on today" else "The desk · what ${persona.name.lowercase()}'s desk would watch today",
+            color = P.Text, fontSize = 14.sp, maxLines = 2, overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f).padding(horizontal = 10.dp)
+        )
+        Text("›", color = P.Accent, fontSize = 20.sp)
     }
 }
 

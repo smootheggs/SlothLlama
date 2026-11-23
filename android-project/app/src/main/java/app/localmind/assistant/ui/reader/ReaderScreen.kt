@@ -105,6 +105,13 @@ import app.localmind.assistant.ui.theme.SlothPalette as P
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.foundation.layout.wrapContentSize
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.Role
+import androidx.compose.foundation.layout.heightIn
 
 /**
  * The reader. On a wide screen the shelf (the Lobster's catch, the library, notes) sits on the
@@ -469,6 +476,20 @@ private fun ReadingPage(
         scope.launch { list.animateScrollToItem(matches[hit] + 1) }
     }
 
+    val shareMarkdown: () -> Unit = {
+        viewModel.markdown()?.let { md ->
+            val send = Intent(Intent.ACTION_SEND).apply {
+                type = "text/plain"
+                putExtra(Intent.EXTRA_SUBJECT, doc.title)
+                putExtra(Intent.EXTRA_TEXT, md.take(MAX_SHARE_CHARS))
+            }
+            context.startActivity(Intent.createChooser(send, "Share as Markdown"))
+        }
+    }
+    // A phone-wide page (1.53) keeps three marks in its top bar (the page and its size under Aa)
+    // and four actions under the text, the rest under More.
+    BoxWithConstraints(Modifier.fillMaxSize()) {
+    val phone = maxWidth < PHONE_PANE
     Column(Modifier.fillMaxSize()) {
         SlothTopBar(
             title = if (express) "Read clean" else "Reader",
@@ -486,28 +507,28 @@ private fun ReadingPage(
                     Icon(Icons.Outlined.Headphones, contentDescription = if (listening) "Stop reading aloud" else "Read aloud", tint = if (listening) P.Accent else P.Muted)
                 }
                 val white by viewModel.whitePage.collectAsStateWithLifecycle()
-                IconButton(onClick = viewModel::toggleWhitePage) {
-                    Icon(
-                        if (white) Icons.Outlined.DarkMode else Icons.Outlined.LightMode,
-                        contentDescription = if (white) "Black page" else "White page", tint = P.Muted
+                if (phone) {
+                    PageMenu(
+                        white = white, canSmaller = scale > ReaderViewModel.MIN_SCALE, canBigger = scale < ReaderViewModel.MAX_SCALE,
+                        onWhite = viewModel::toggleWhitePage, onSmaller = viewModel::smaller, onBigger = viewModel::bigger
                     )
+                } else {
+                    IconButton(onClick = viewModel::toggleWhitePage) {
+                        Icon(
+                            if (white) Icons.Outlined.DarkMode else Icons.Outlined.LightMode,
+                            contentDescription = if (white) "Black page" else "White page", tint = P.Muted
+                        )
+                    }
+                    SizeButton("A−", enabled = scale > ReaderViewModel.MIN_SCALE) { viewModel.smaller() }
+                    SizeButton("A+", enabled = scale < ReaderViewModel.MAX_SCALE) { viewModel.bigger() }
                 }
-                SizeButton("A−", enabled = scale > ReaderViewModel.MIN_SCALE) { viewModel.smaller() }
-                SizeButton("A+", enabled = scale < ReaderViewModel.MAX_SCALE) { viewModel.bigger() }
                 IconButton(onClick = { finding = !finding }) {
                     Icon(Icons.Outlined.Search, contentDescription = "Find in text", tint = if (finding) P.Accent else P.Muted)
                 }
-                IconButton(onClick = {
-                    viewModel.markdown()?.let { md ->
-                        val send = Intent(Intent.ACTION_SEND).apply {
-                            type = "text/plain"
-                            putExtra(Intent.EXTRA_SUBJECT, doc.title)
-                            putExtra(Intent.EXTRA_TEXT, md.take(MAX_SHARE_CHARS))
-                        }
-                        context.startActivity(Intent.createChooser(send, "Share as Markdown"))
+                if (!phone) {
+                    IconButton(onClick = shareMarkdown) {
+                        Icon(Icons.Outlined.Share, contentDescription = "Share as Markdown", tint = P.Muted)
                     }
-                }) {
-                    Icon(Icons.Outlined.Share, contentDescription = "Share as Markdown", tint = P.Muted)
                 }
             }
         )
@@ -665,6 +686,24 @@ private fun ReadingPage(
                 if (lobsterOn) Action("Fetch picked") { viewModel.fetchPicked() }
                 else Text("Turn on the Lobster to fetch", color = P.Faint, fontSize = 12.sp)
             }
+        } else if (phone) {
+            val main = buildList<Pair<String, () -> Unit>> {
+                add("Ask" to { viewModel.askAboutAll() })
+                add("Trader" to { viewModel.askTrader() })
+                if (laterItem != null && !laterItem.archived) add("Done" to { viewModel.finishLater(laterItem.id) })
+                if (doc.source == ReaderSource.CATCH) add("Library" to { onCatchToLibrary(doc.ref) })
+            }
+            val more = buildList<Pair<String, () -> Unit>> {
+                if (laterItem != null) {
+                    add((if (laterItem.favourite) "★ Favourite" else "☆ Favourite") to { viewModel.favouriteLater(laterItem.id, !laterItem.favourite) })
+                    add("To Library" to { viewModel.laterToLibrary(laterItem.id) })
+                }
+                if (doc.source == ReaderSource.CATCH) add("Notes" to { onCatchToNotes(doc.ref) })
+                add("Share as Markdown" to shareMarkdown)
+                if (laterItem != null) add("Delete" to { viewModel.removeLater(laterItem.id) })
+                if (doc.source == ReaderSource.CATCH) add("Dismiss" to { onCatchDismiss(doc.ref) })
+            }
+            PhoneActions(main, more)
         } else {
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(horizontal = 12.dp, vertical = 6.dp),
@@ -689,6 +728,7 @@ private fun ReadingPage(
                 }
             }
         }
+    }
     }
 
     linkMenu?.let { url ->
@@ -903,6 +943,64 @@ private fun PickMark(on: Boolean, onClick: () -> Unit) {
             .padding(top = 3.dp),
         textAlign = TextAlign.Center
     )
+}
+
+/** A reading pane narrower than this is a phone's. */
+private val PHONE_PANE = 600.dp
+
+/** Aa on a phone: the white or black page and the text size, in one menu. */
+@Composable
+private fun PageMenu(
+    white: Boolean, canSmaller: Boolean, canBigger: Boolean,
+    onWhite: () -> Unit, onSmaller: () -> Unit, onBigger: () -> Unit
+) {
+    var menuOpen by remember { mutableStateOf(false) }
+    Box {
+        Text(
+            "Aa", color = P.Muted, fontSize = 17.sp, fontWeight = FontWeight.SemiBold,
+            modifier = Modifier.size(48.dp).clip(RoundedCornerShape(24.dp))
+                .clickable(role = Role.Button, onClickLabel = "Page and text size") { menuOpen = true }
+                .wrapContentSize(Alignment.Center)
+                .semantics { contentDescription = "Page and text size" }
+        )
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }, modifier = Modifier.background(P.Elevated)) {
+            DropdownMenuItem(
+                text = { Text(if (white) "Black page" else "White page", color = P.Text) },
+                leadingIcon = { Icon(if (white) Icons.Outlined.DarkMode else Icons.Outlined.LightMode, contentDescription = null, tint = P.Muted) },
+                onClick = { menuOpen = false; onWhite() }
+            )
+            // The size steps keep the menu open, so a few taps find the right one.
+            DropdownMenuItem(text = { Text("Smaller text", color = if (canSmaller) P.Text else P.Faint) }, enabled = canSmaller, onClick = onSmaller)
+            DropdownMenuItem(text = { Text("Larger text", color = if (canBigger) P.Text else P.Faint) }, enabled = canBigger, onClick = onBigger)
+        }
+    }
+}
+
+/** Under the text on a phone: up to four actions across, and More for the rest. */
+@Composable
+private fun PhoneActions(main: List<Pair<String, () -> Unit>>, more: List<Pair<String, () -> Unit>>) {
+    var menuOpen by remember { mutableStateOf(false) }
+    Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 2.dp), verticalAlignment = Alignment.CenterVertically) {
+        main.take(3).forEachIndexed { i, (label, go) ->
+            Box(Modifier.weight(1f).heightIn(min = 48.dp).clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button, onClick = go), contentAlignment = Alignment.Center) {
+                Text(label, color = if (i == 1) P.Text else P.Accent, fontSize = 14.sp, fontWeight = FontWeight.Medium, maxLines = 1)
+            }
+        }
+        val rest = main.drop(3) + more
+        if (rest.isNotEmpty()) {
+            Box(Modifier.weight(1f)) {
+                Box(
+                    Modifier.fillMaxWidth().heightIn(min = 48.dp).clip(RoundedCornerShape(12.dp)).clickable(role = Role.Button) { menuOpen = true },
+                    contentAlignment = Alignment.Center
+                ) { Text("More", color = P.Text, fontSize = 14.sp, fontWeight = FontWeight.Medium) }
+                DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }, modifier = Modifier.background(P.Elevated)) {
+                    rest.forEach { (label, go) ->
+                        DropdownMenuItem(text = { Text(label, color = P.Text) }, onClick = { menuOpen = false; go() })
+                    }
+                }
+            }
+        }
+    }
 }
 
 @Composable

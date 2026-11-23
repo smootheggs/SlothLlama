@@ -4,6 +4,24 @@ Every release of SlothLlama and the SlothLobster, newest first, in the words of 
 Each GitHub release carries its entry from here; this file keeps them all (GitHub keeps only the
 newest five releases of each app).
 
+## SlothLlama 1.53.0 — 2026-11-22
+
+**The phone (Galaxy S25+): Home, the Express and the Reader fitted to an upright phone**
+
+Screens narrower than 600 dp (a phone held upright; the S25+ is about 412 dp) get their own
+arrangement. Tablets, and a phone held sideways, keep theirs.
+
+- **Home.** Narrower margins and the smaller hello. Know's four places stay four across, each with
+  its icon above its name. The quiet row becomes a bar along the bottom: four places (the Lobster
+  always among them, with its count) and More, which holds the rest and Arrange Home. It never
+  wraps or scrolls away.
+- **The Express.** The top bar keeps Listen; Past editions and Edition settings move under ⋮. The
+  market tiles go two by two, so no number is cut off. A line near the top ("The desk · …") takes
+  you down to the desk, which comes after the news.
+- **The Reader.** The top bar keeps Listen, Aa and Find; Aa holds the white or black page and the
+  text size. Under the text: Ask, Trader, Done (or Library for a catch) and More, with Favourite,
+  To Library, Share and Delete.
+
 ## SlothLlama 1.52.0 — 2026-11-22
 
 **Benchmark: how fast each device runs a model**

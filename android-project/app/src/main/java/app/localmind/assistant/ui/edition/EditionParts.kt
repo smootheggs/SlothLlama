@@ -8,6 +8,7 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -195,22 +196,34 @@ internal fun MarketStrip(tiles: List<MarketTile>) {
         )
         return
     }
-    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        tiles.forEach { t ->
-            Column(
-                Modifier.weight(1f).clip(RoundedCornerShape(14.dp)).background(P.Card).padding(horizontal = 12.dp, vertical = 8.dp)
-                    .semantics(mergeDescendants = true) {}
-            ) {
-                Text(t.name, color = P.Faint, fontSize = 12.sp, maxLines = 1)
-                Row(verticalAlignment = Alignment.Bottom) {
-                    Text(t.value, color = P.Text, fontSize = 15.sp, maxLines = 1)
-                    Spacer(Modifier.width(6.dp))
-                    val arrow = when (t.up) { true -> "▲ "; false -> "▼ "; null -> "" }
-                    Text(arrow + t.change, color = P.Muted, fontSize = 12.sp, maxLines = 1)
+    // Four across where they fit; on a phone two by two (1.53), so the numbers aren't cut off.
+    BoxWithConstraints(Modifier.fillMaxWidth()) {
+        val perRow = if (maxWidth < 520.dp) 2 else tiles.size
+        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            tiles.chunked(perRow).forEach { row ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    row.forEach { t -> MarketTileView(t, Modifier.weight(1f)) }
+                    repeat(perRow - row.size) { Spacer(Modifier.weight(1f)) }
                 }
-                Text("${t.asOf} · ${t.label}", color = P.Faint, fontSize = 11.sp, maxLines = 1)
             }
         }
+    }
+}
+
+@Composable
+private fun MarketTileView(t: MarketTile, modifier: Modifier) {
+    Column(
+        modifier.clip(RoundedCornerShape(14.dp)).background(P.Card).padding(horizontal = 12.dp, vertical = 8.dp)
+            .semantics(mergeDescendants = true) {}
+    ) {
+        Text(t.name, color = P.Faint, fontSize = 12.sp, maxLines = 1)
+        Row(verticalAlignment = Alignment.Bottom) {
+            Text(t.value, color = P.Text, fontSize = 15.sp, maxLines = 1)
+            Spacer(Modifier.width(6.dp))
+            val arrow = when (t.up) { true -> "▲ "; false -> "▼ "; null -> "" }
+            Text(arrow + t.change, color = P.Muted, fontSize = 12.sp, maxLines = 1)
+        }
+        Text("${t.asOf} · ${t.label}", color = P.Faint, fontSize = 11.sp, maxLines = 1)
     }
 }
 
