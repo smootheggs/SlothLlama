@@ -150,6 +150,9 @@ fun ReaderScreen(
     WhitePage(white, statusBar = true) {
         BoxWithConstraints(Modifier.fillMaxSize()) {
             val wide = maxWidth >= WIDE
+            // A very large screen lying sideways (1.54) asks about the text beside it. (Worked
+            // out here: the Column below can't see this scope's size.)
+            val ultra = maxWidth >= ULTRA_PANE && maxWidth > maxHeight
             val current = doc
             BackHandler(enabled = current != null && viaShelf && !wide) {
                 viewModel.close()
@@ -177,8 +180,6 @@ fun ReaderScreen(
                     SlothTopBar(title = "Reader", subtitle = "Later, catch, library and notes · offline", onBack = leave)
                 }
                 if (wide) {
-                    // A very large screen lying sideways (1.54) asks about the text beside it.
-                    val ultra = maxWidth >= ULTRA_PANE && maxWidth > maxHeight
                     Row(Modifier.fillMaxSize()) {
                         Column(Modifier.width(if (ultra) 300.dp else 340.dp).fillMaxHeight()) {
                             if (current != null) {

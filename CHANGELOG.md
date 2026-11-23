@@ -4,6 +4,16 @@ Every release of SlothLlama and the SlothLobster, newest first, in the words of 
 Each GitHub release carries its entry from here; this file keeps them all (GitHub keeps only the
 newest five releases of each app).
 
+## SlothLlama 1.54.1 — 2026-11-22
+
+**The build again**
+
+- 1.53 and 1.54 didn't build, so no release came of them. Home's new phone bar brought a second
+  copy of a colour helper Home already had, and the Reader worked out whether the screen is very
+  large inside a column, where the screen's size can't be read. The duplicate is gone and the
+  check moved up beside the Reader's other width check. Nothing else changes: this is 1.52 to
+  1.54 as described below, now built.
+
 ## SlothLlama 1.54.0 — 2026-11-22
 
 **The very large tablet (Galaxy Tab S11 Ultra): three panes for the Express, Ask beside the Reader**

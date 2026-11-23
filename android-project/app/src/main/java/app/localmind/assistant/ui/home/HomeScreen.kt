@@ -623,13 +623,6 @@ private fun PhoneBar(more: List<HomeTile>, arranging: Boolean, onArrange: () -> 
     }
 }
 
-@Composable
-private fun toneColor(tone: Tone): Color = when (tone) {
-    Tone.ACCENT -> P.Accent
-    Tone.LOBSTER -> P.Lobster
-    else -> P.Muted
-}
-
 /** A bar item's name: the place's own, with its count ("Lobster 2"). Models stays "Models". */
 private fun barLabel(tile: HomeTile): String = if (tile.badge != null) "${tile.label} ${tile.badge}" else tile.label
 
