@@ -164,7 +164,9 @@ data class Settings(
     /** (1.8) SlothLlama's plan for the edition; while it's on, the edition replaces the daily brief. */
     val edition: app.slothlobster.jobs.EditionPlan? = null,
     /** Editions already made ("2026-11-20|Morning"), so each is made once. */
-    val editionsMade: List<String> = emptyList()
+    val editionsMade: List<String> = emptyList(),
+    /** (1.14) Today's edition that failed and is waiting to be tried again (or was given up). */
+    val editionMiss: app.slothlobster.jobs.EditionMiss? = null
 ) {
     companion object {
         val DEFAULT_FEEDS = listOf(

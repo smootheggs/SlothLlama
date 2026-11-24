@@ -83,6 +83,10 @@ object Diagnostics {
             appendLine("Memory: ${gb(memory.availMem)} free of ${gb(memory.totalMem)}")
             appendLine("Battery use: ${if (unrestricted) "unrestricted" else "optimised (Android may delay checks)"}")
             appendLine("Notifications: ${if (notifications) "allowed" else "not allowed"}")
+            appendLine("Edition alarm: ${if (app.slothlobster.run.EditionAlarm.exact(context)) "exact" else "inexact (Alarms & reminders not allowed)"}" +
+                app.slothlobster.run.EditionAlarm.armedFor.takeIf { it > 0 }?.let { ", next ${stamp(it)}" }.orEmpty())
+            app.slothlobster.jobs.EditionClock.statusLine(saved.settings.editionMiss, java.util.Calendar.getInstance(), ::stamp)
+                ?.let { appendLine("Edition: $it") }
             appendLine("Paired: ${if (live.paired) "yes" else "no"}")
             appendLine("Mailbox: ${live.folderName ?: if (live.folderMissing) "folder can't be opened" else "not chosen"}")
             appendLine("Mode: ${if (live.paused) "paused" else if (live.awake) "awake" else "checks every 15 minutes"}")

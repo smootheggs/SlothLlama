@@ -88,6 +88,19 @@ class EditionViewModel @Inject constructor(
     val setup: StateFlow<EditionSetup> = store.setup
     val entries: StateFlow<List<EditionEntry>> = store.entries
     val latest: StateFlow<SavedEdition?> = store.latest
+    /** (1.54.2) The papers have been read from storage. */
+    val ready: StateFlow<Boolean> = store.ready
+
+    /**
+     * (1.54.2) What the Lobster says about today's edition when it hasn't come out ("Morning edition
+     * is late: … Trying again at 07:45"), from its sealed status file; only a status written today.
+     */
+    val lobsterNote: StateFlow<String?> = mailbox.state.map { m ->
+        val st = m.status ?: return@map null
+        val zone = java.time.ZoneId.systemDefault()
+        val today = java.time.LocalDate.now(zone)
+        if (java.time.Instant.ofEpochMilli(st.at).atZone(zone).toLocalDate() != today) null else Editions.lobsterNote(st.edition)
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), null)
 
     val personas: StateFlow<List<Persona>> = personas.personas.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 

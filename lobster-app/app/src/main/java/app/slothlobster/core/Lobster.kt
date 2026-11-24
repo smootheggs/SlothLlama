@@ -106,6 +106,10 @@ class Lobster private constructor(val context: Context) {
         val cm = context.getSystemService(ConnectivityManager::class.java) ?: return null
         val caps = cm.getNetworkCapabilities(cm.activeNetwork) ?: return "No connection"
         if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)) return "No connection"
+        // (1.14) Connected isn't online: waking from sleep, or behind a sign-in page, Wi-Fi shows up
+        // before the internet answers. Android checks; until it has, the Lobster waits rather than
+        // spending the edition's tries on a connection that can't reach anything.
+        if (!caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)) return "Connected, but the internet isn't answering yet"
         if (store.value.settings.wifiOnly && !caps.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_METERED)) return "Waiting for Wi-Fi"
         return null
     }

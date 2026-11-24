@@ -87,6 +87,13 @@ fun SettingsScreen(
     val unrestricted = remember(diagnosticsVersion, diagnosticsOpen) {
         context.getSystemService(PowerManager::class.java)?.isIgnoringBatteryOptimizations(context.packageName) == true
     }
+    // (1.14) Back from Android's settings, the battery and alarm rows show what was just changed.
+    androidx.lifecycle.compose.LifecycleResumeEffect(Unit) {
+        diagnosticsVersion++
+        onPauseOrDispose { }
+    }
+    // (1.14) Exact alarms for the edition's time; Android 12 and later ask for them in Settings.
+    val onTime = remember(diagnosticsVersion, diagnosticsOpen) { app.slothlobster.run.EditionAlarm.exact(context) }
     val pickFolder = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         if (uri != null) onFolder(uri)
     }
@@ -292,6 +299,21 @@ fun SettingsScreen(
                             diagnosticsVersion++
                         }
                     ) { StatusDot(unrestricted) }
+                    if (android.os.Build.VERSION.SDK_INT >= 31) {
+                        ListRow(
+                            "Alarms & reminders",
+                            if (onTime) "Allowed: the edition wakes the tablet at its time"
+                            else "Not allowed: the edition can come a few minutes late. Allow it for SlothLobster",
+                            onClick = {
+                                runCatching {
+                                    context.startActivity(
+                                        Intent(android.provider.Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, android.net.Uri.parse("package:" + context.packageName))
+                                    )
+                                }
+                                diagnosticsVersion++
+                            }
+                        ) { StatusDot(onTime) }
+                    }
                     ListRow(
                         "Report",
                         "Version, device, recent problems and " + when (crashCount) {

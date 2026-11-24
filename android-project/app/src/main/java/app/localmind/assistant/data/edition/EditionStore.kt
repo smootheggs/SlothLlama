@@ -56,6 +56,15 @@ class EditionStore @Inject constructor(@ApplicationContext context: Context) {
     private val _latest = MutableStateFlow<SavedEdition?>(null)
     /** The newest edition, read whole (for Home and the page's first view). */
     val latest: StateFlow<SavedEdition?> = _latest.asStateFlow()
+    /** The file [latest] was read from. */
+    @Volatile private var latestName: String? = null
+
+    private val _ready = MutableStateFlow(false)
+    /**
+     * (1.54.2) True once the papers have been read from storage. Until then the Express shows
+     * that it's opening, not "no edition yet" (which it used to, for the moment it took).
+     */
+    val ready: StateFlow<Boolean> = _ready.asStateFlow()
 
     /**
      * A story to open in the Express, until it does: its link, read clean (asked from the Lobster's
@@ -83,13 +92,18 @@ class EditionStore @Inject constructor(@ApplicationContext context: Context) {
     private fun loadBlocking() {
         synchronized(lock) {
             if (loaded) return
-            _setup.value = if (!setupFile.exists()) EditionSetup() else runCatching { Editions.parseSetup(setupFile.readText()) }.getOrElse {
-                runCatching { setupFile.copyTo(File(dir, "setup.unreadable.json"), overwrite = true) }
-                EditionSetup()
+            try {
+                _setup.value = if (!setupFile.exists()) EditionSetup() else runCatching { Editions.parseSetup(setupFile.readText()) }.getOrElse {
+                    runCatching { setupFile.copyTo(File(dir, "setup.unreadable.json"), overwrite = true) }
+                    EditionSetup()
+                }
+                prune()
+                refresh()
+                loaded = true
+            } finally {
+                // Even if storage failed, the page stops saying it's opening (and says what it has).
+                _ready.value = true
             }
-            prune()
-            refresh()
-            loaded = true
         }
     }
 
@@ -111,14 +125,24 @@ class EditionStore @Inject constructor(@ApplicationContext context: Context) {
 
     private fun refresh() {
         val files = paperFiles()
-        val latest = files.firstOrNull()?.let(::read)
-        val list = files.mapIndexedNotNull { i, f ->
+        // (1.54.2) The newest paper that reads: one that doesn't (cut short, or from a newer
+        // Lobster) no longer leaves the page empty while the archive still lists the others.
+        var latestFile: File? = null
+        var latest: SavedEdition? = null
+        for (f in files.take(LATEST_TRIES)) {
+            val s = read(f) ?: continue
+            latestFile = f
+            latest = s
+            break
+        }
+        val list = files.mapNotNull { f ->
             val stamp = f.lastModified()
             cache[f.name]?.takeIf { it.first == stamp }?.second
-                ?: (if (i == 0) latest else read(f))?.let { s -> entryOf(f, s).also { cache[f.name] = stamp to it } }
+                ?: (if (f == latestFile) latest else read(f))?.let { s -> entryOf(f, s).also { cache[f.name] = stamp to it } }
         }
         cache.keys.retainAll(files.map { it.name }.toSet())
         _entries.value = list
+        latestName = latestFile?.name
         _latest.value = latest
     }
 
@@ -180,7 +204,7 @@ class EditionStore @Inject constructor(@ApplicationContext context: Context) {
     suspend fun findNews(url: String): Pair<String, EdStory>? = withContext(Dispatchers.IO) {
         loadBlocking()
         for (f in paperFiles()) {
-            val s = (if (f.name == _entries.value.firstOrNull()?.file) _latest.value else null) ?: read(f) ?: continue
+            val s = (if (f.name == latestName) _latest.value else null) ?: read(f) ?: continue
             Editions.findNews(s.edition, url)?.let { return@withContext f.name to it }
         }
         null
@@ -294,5 +318,7 @@ class EditionStore @Inject constructor(@ApplicationContext context: Context) {
         private const val MAX_KEPT = 60
         private const val MAX_NOTE = 2_000
         private const val MAX_PICS = 60
+        /** How many of the newest papers are tried for the page before it gives up. */
+        private const val LATEST_TRIES = 5
     }
 }

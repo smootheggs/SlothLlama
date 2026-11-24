@@ -59,7 +59,9 @@ data class LobsterStatus(
     /** What it's doing now ("Researching: …"). */
     val working: String? = null,
     /** Orders waiting in its own queue. */
-    val queue: Int = 0
+    val queue: Int = 0,
+    /** (1.14) Today's edition when it hasn't come out: "Morning edition is late: … Trying again at 07:45". */
+    val edition: String? = null
 )
 
 enum class OrderKind(val id: String, val label: String, val hint: String) {

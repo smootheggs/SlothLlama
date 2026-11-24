@@ -176,11 +176,10 @@ object Editions {
 
     // --- when ---
 
-    private fun key(day: String, t: EditionTime) = "$day|${t.name}"
-
     /**
      * The edition due now, if any: the latest time already passed today that hasn't been made.
      * Earlier ones missed today are skipped (one paper, not three in a row after a long sleep).
+     * (1.14) Only an edition that came out is in [made]: one that failed is tried again (see [EditionClock]).
      */
     fun due(plan: EditionPlan, now: Calendar, made: Collection<String>): EditionTime? {
         if (!plan.on) return null
@@ -188,14 +187,12 @@ object Editions {
         if (!plan.weekends && (weekday == Calendar.SATURDAY || weekday == Calendar.SUNDAY)) return null
         val minutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE)
         val latest = plan.times.filter { it.h * 60 + it.m <= minutes }.maxByOrNull { it.h * 60 + it.m } ?: return null
-        return latest.takeIf { key(Repeats.dayKey(now), it) !in made }
+        return latest.takeIf { EditionClock.key(now, it) !in made }
     }
 
     /** The keys to remember once [time] is made: it and every earlier time today. */
-    fun madeKeys(plan: EditionPlan, now: Calendar, time: EditionTime): List<String> {
-        val day = Repeats.dayKey(now)
-        return plan.times.filter { it.h * 60 + it.m <= time.h * 60 + time.m }.map { key(day, it) }
-    }
+    fun madeKeys(plan: EditionPlan, now: Calendar, time: EditionTime): List<String> =
+        plan.times.filter { it.h * 60 + it.m <= time.h * 60 + time.m }.map { EditionClock.key(now, it) }
 
     // --- choosing stories ---
 

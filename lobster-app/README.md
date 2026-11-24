@@ -24,6 +24,10 @@ goes out on the web, and brings back what it finds for SlothLlama to read offlin
   its lead picture re-drawn as a small JPEG, one page at a time within eight minutes a paper.
   Google News links (they open only in a browser), paywalls and sites that don't answer are
   marked page only, with why.
+  Since 1.14 it comes **on time**: an alarm wakes the tablet at the edition's time, the round
+  holds it awake till the paper is sent, and an edition only counts as made once it's sent. One
+  that fails is tried again (15, 15, 30, 30, then every 60 minutes) until four hours after its
+  time; then a notice says why, and SlothLlama's Express shows it too.
 - **Opening a story for SlothLlama** (1.11): SlothLlama hands over a story's link and the Lobster
   opens it in Chrome's in-app view (Custom Tabs), with Save for later and Read it clean in
   SlothLlama added to the tab's menu. Each visit is in the Log, with the browser that opened it.
@@ -110,6 +114,8 @@ New in 1.2:
    `Documents/SlothMailbox`) and copy the **pairing code**.
 2. In the SlothLobster: **Settings → Paste the code**, then **Mailbox folder → Choose** the same folder.
 3. Leave **Stay awake** on so SlothLlama sees it as awake (a quiet notification shows while it is).
+4. For the edition on time: **Settings → Diagnostics**, set **Battery use** to Unrestricted and
+   allow **Alarms & reminders**. Without the second the paper still comes, a few minutes late.
 
 On a phone, keep the same folder in sync with the tablet using Syncthing.
 
@@ -133,6 +139,10 @@ On a phone, keep the same folder in sync with the tablet using Syncthing.
 - An edition plan is plain data: feed and page links (HTTPS, public sites only), news searches and
   numbers, checked and capped before it's kept. A listing page is read for its links to the same
   site; nothing on it is run.
+- The edition's alarm (1.14) reaches only the Lobster's own receiver, which no other app can call
+  (not exported), through an immutable intent that carries nothing: the plan is read from the
+  Lobster's own storage. The exact alarm is Android's "Alarms & reminders" switch, yours to turn
+  on or off; the Lobster never asks for the always-on kind (`USE_EXACT_ALARM`), and CI refuses it.
 - No backups of its data, no tracking, no account. CI checks it asks for no other permissions.
 - Orders older than 14 days, or taken before, are ignored, so old order files can't be replayed.
 - The pairing code is wiped from the clipboard once it's pasted (SlothLlama marks it sensitive).

@@ -1,5 +1,6 @@
 package app.slothlobster.jobs
 
+import android.os.PowerManager
 import app.slothlobster.BuildConfig
 import app.slothlobster.core.Delivered
 import app.slothlobster.core.From
@@ -15,6 +16,7 @@ import app.slothlobster.mailbox.LobsterCatch
 import app.slothlobster.mailbox.LobsterSource
 import app.slothlobster.mailbox.LobsterStatus
 import app.slothlobster.mailbox.OrderKind
+import app.slothlobster.run.EditionAlarm
 import app.slothlobster.run.LobsterService
 import app.slothlobster.run.Notifier
 import app.slothlobster.web.FeedItem
@@ -79,9 +81,17 @@ class Engine(private val lobster: Lobster) {
         withTimeoutOrNull(ms) { wake.receive() }
     }
 
-    /** One round of work. If a round is already going, this one is skipped (it'll see the news). */
-    suspend fun pass() {
-        if (!passLock.tryLock()) return
+    /**
+     * One round of work. If a round is already going, this one is skipped (it'll see the news),
+     * unless [wait]: then it waits for that round and runs its own after it.
+     *
+     * (1.14) The tablet is held awake for the round (a partial wake lock, released at the end and
+     * after [WAKE_MS] at most): asleep, the awake service's timers stop, so without it a round
+     * started by the 15-minute check or the edition's alarm could stall halfway.
+     */
+    suspend fun pass(wait: Boolean = false) {
+        if (wait) passLock.lock() else if (!passLock.tryLock()) return
+        val awake = holdAwake()
         try {
             takeOrders()
             lobster.refreshLive()
@@ -103,9 +113,27 @@ class Engine(private val lobster: Lobster) {
             lobster.setLive { it.copy(lastPass = System.currentTimeMillis(), workingId = null) }
             runCatching { lobster.refreshLive() }
             heartbeat()
+            // The next edition's alarm, for a plan just sent, a retry just set, or a day just turned.
+            runCatching { EditionAlarm.arm(lobster.context) }
+            runCatching { awake?.let { if (it.isHeld) it.release() } }
             passLock.unlock()
         }
     }
+
+    /**
+     * A round that holds the tablet awake and runs in the Lobster's own scope, for the 15-minute
+     * check and the edition's alarm: waits for a round already going, then runs one. Cancelling
+     * the caller (Android stopping a job) doesn't cut the round short.
+     */
+    suspend fun passAwake() {
+        lobster.scope.launch { pass(wait = true) }.join()
+    }
+
+    private fun holdAwake(): PowerManager.WakeLock? = runCatching {
+        lobster.context.getSystemService(PowerManager::class.java)
+            ?.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "SlothLobster:pass")
+            ?.apply { setReferenceCounted(false); acquire(WAKE_MS) }
+    }.getOrNull()
 
     // --- mailbox ---
 
@@ -211,7 +239,8 @@ class Engine(private val lobster: Lobster) {
                 at = System.currentTimeMillis(),
                 version = BuildConfig.VERSION_NAME,
                 working = working?.let { "${verb(it.kind)}: ${it.text.take(60)}" },
-                queue = s.jobs.count { it.state == JobState.QUEUED }
+                queue = s.jobs.count { it.state == JobState.QUEUED },
+                edition = EditionClock.statusLine(s.settings.editionMiss, Calendar.getInstance(), ::clock)
             )
             mailbox.writeStatus(status)
             lobster.setLive { it.copy(lastSync = status.at) }
@@ -816,30 +845,78 @@ class Engine(private val lobster: Lobster) {
     /**
      * Makes the edition when one of the plan's times has come, or one was asked for. True while
      * SlothLlama's plan is on (then the old brief doesn't run).
+     *
+     * (1.14) An edition counts as made only once it's made and sent. A try that fails (no answer
+     * from the sources, a connection that drops) is tried again every 15 to 60 minutes until four
+     * hours after its time; then it's given up for the day, with a notice saying why. A try cut
+     * short by the pause, or by Android stopping the Lobster, isn't counted.
      */
     private suspend fun maybeEdition(): Boolean {
         val plan = store.value.settings.edition?.takeIf { it.on } ?: return false
         val now = Calendar.getInstance()
         val time = Editions.due(plan, now, store.value.settings.editionsMade)
-        if (time == null && !briefRequested) return true
+        val key = time?.let { EditionClock.key(now, it) }
+        val asked = briefRequested
+        if (time == null && !asked) return true
+        // A retry waits for its time, unless an edition was asked for by hand.
+        if (key != null && EditionClock.waiting(store.value.settings.editionMiss, key, now.timeInMillis) && !asked) return true
         briefRequested = false
-        if (time != null) {
-            val keys = Editions.madeKeys(plan, now, time)
-            store.update { it.copy(settings = it.settings.copy(editionsMade = (it.settings.editionsMade + keys).distinct().takeLast(MAX_EDITION_KEYS))) }
-        }
+        val name = time?.name ?: "Edition"
         try {
-            val catch = makeEdition(plan, time?.name ?: "Edition", null)
+            val catch = makeEdition(plan, name, null)
             val line = editionLine(catch)
             store.log("brief", catch.title, line)
             deliver(catch, null, line)
+            if (time != null) {
+                val keys = Editions.madeKeys(plan, now, time)
+                store.update {
+                    it.copy(settings = it.settings.copy(
+                        editionsMade = (it.settings.editionsMade + keys).distinct().takeLast(MAX_EDITION_KEYS),
+                        editionMiss = null
+                    ))
+                }
+            } else if (store.value.settings.editionMiss?.gaveUp == true) {
+                // An extra edition made by hand takes the place of the one that didn't come out.
+                store.update { it.copy(settings = it.settings.copy(editionMiss = null)) }
+            }
             notify(catch.title, line)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
-            store.log("problem", "Couldn't make the edition", friendly(e))
+            val why = friendly(e)
+            if (time == null || key == null) {
+                store.log("problem", "Couldn't make the edition", why)
+            } else if (lobster.isPaused()) {
+                store.log("problem", "${Editions.label(name)} waits for the Lobster to be switched back on", why)
+            } else {
+                editionFailed(plan, now, time, key, why)
+            }
         }
         return true
     }
+
+    /** A timed edition's try failed: the next try, or (when it's too late) given up with a notice. */
+    private fun editionFailed(plan: EditionPlan, now: Calendar, time: EditionTime, key: String, why: String) {
+        val miss = EditionClock.failed(store.value.settings.editionMiss, key, time.name, now, time, why)
+        val label = Editions.label(time.name)
+        if (miss.gaveUp) {
+            val keys = Editions.madeKeys(plan, now, time)
+            store.update {
+                it.copy(settings = it.settings.copy(
+                    editionsMade = (it.settings.editionsMade + keys).distinct().takeLast(MAX_EDITION_KEYS),
+                    editionMiss = miss
+                ))
+            }
+            val tries = if (miss.tries == 1) "1 try" else "${miss.tries} tries"
+            store.log("problem", "$label didn't come out", "$why · $tries; the next comes at its usual time")
+            notify("$label didn't come out", "$why. Make one from SlothLlama's Express, or wait for the next.")
+        } else {
+            store.update { it.copy(settings = it.settings.copy(editionMiss = miss)) }
+            store.log("problem", "Couldn't make the $label yet", "$why · trying again at ${clock(miss.nextAt)}")
+        }
+    }
+
+    private fun clock(ms: Long): String = SimpleDateFormat("HH:mm", Locale.ENGLISH).format(Date(ms))
 
     /** SlothLlama's plan for the edition: kept here; with "now", the first edition comes straight back. */
     private suspend fun editionOrder(job: Job): Outcome {
@@ -1162,6 +1239,8 @@ class Engine(private val lobster: Lobster) {
         private const val CLEAN_STORY_MS = 25_000L
         private const val MAX_CLEAN_STORIES = 45
         private const val MAX_EDITION_KEYS = 24
+        /** The longest a round holds the tablet awake (an edition takes up to about ten minutes). */
+        private const val WAKE_MS = 20L * 60 * 1000
         private const val MAX_EDITION_TEXT = 40_000
         const val HOUR_MS = 60L * 60 * 1000
 

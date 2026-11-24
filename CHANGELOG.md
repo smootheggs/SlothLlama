@@ -4,6 +4,50 @@ Every release of SlothLlama and the SlothLobster, newest first, in the words of 
 Each GitHub release carries its entry from here; this file keeps them all (GitHub keeps only the
 newest five releases of each app).
 
+## SlothLlama 1.54.2 · SlothLobster 1.14.0 — 2026-11-24
+
+**The morning edition on time, and tried again when it fails**
+
+Tuesday's 07:00 edition never came. Three things were behind it, and each is fixed:
+
+- **Nothing woke the tablet at 07:00.** The awake service checks every half minute, but its timer
+  stops while the tablet sleeps, and the 15-minute check, which Android does wake for, left the
+  round to the service whenever the service was on. So the edition waited until the tablet was
+  picked up. Now the 15-minute check runs its round itself, and the SlothLobster sets an alarm for
+  each edition time that wakes the tablet then. The round holds the tablet awake until the paper
+  is sent (a wake lock, let go when the round ends and after 20 minutes at most).
+- **A failed try counted as made.** The Lobster wrote down "made" before it tried, so a try that
+  failed (a connection just waking up, no source answering) was the only one that day. Now an
+  edition counts as made only once it's sent. One that fails is tried again after 15, 15, 30 and
+  30 minutes, then hourly, until four hours after its time (at least an hour after the first try,
+  for a tablet that woke late); then a notice says why it didn't come out. A try cut short by the
+  pause or by Android isn't counted.
+- **"Connected" isn't online.** The Lobster now waits until Android has checked that the internet
+  answers (the validated network), so a Wi-Fi that's back before the internet is doesn't spend a
+  try. The alarm's round also waits for a connection before it starts.
+
+The alarm is exact when **Alarms & reminders** is allowed for the SlothLobster (a new line in
+Settings → Diagnostics, beside Battery use, opens Android's switch); otherwise Android's inexact
+alarm is set again after each round, so the paper can come a few minutes late. Both rows now show
+the change as soon as you come back from Android's settings. The alarm is set again after a
+restart, an update, a new time zone or a change of the clock, and Settings → Diagnostics → Report
+says when it's set for and how today's edition is going. The alarm reaches only the Lobster's own
+receiver, which no other app can call, through an immutable intent that carries nothing; CI now
+also refuses the always-on exact-alarm permission (`USE_EXACT_ALARM`), which the Lobster never
+asks for.
+
+In SlothLlama's Express:
+
+- **No more empty page while the paper opens.** For the moment the papers were being read, the
+  page said "the first edition comes at 07:00". It now says it's opening. And if the newest paper
+  can't be read, the page shows the newest one that can, rather than nothing while Past editions
+  lists the rest.
+- **A late edition says so.** Half an hour past an edition's time with no paper since (an extra
+  one made by hand counts), a line over the paper says so, with the Lobster's own word when it has
+  one ("Morning edition is late: none of the sources answered. Trying again at 07:45"), and
+  **Make one now**. The Lobster's line comes in its sealed status file, and is shown as one line
+  of plain text, at most 200 characters, only from a status written today.
+
 ## SlothLlama 1.54.1 — 2026-11-22
 
 **The build again**

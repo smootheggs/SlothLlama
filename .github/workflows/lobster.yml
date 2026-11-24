@@ -92,13 +92,13 @@ jobs:
         run: |
           PERMS=$("$ANDROID_HOME"/build-tools/35.0.0/aapt2 dump permissions "$RUNNER_TEMP/out/SlothLobster.apk")
           echo "$PERMS"
-          for bad in READ_CONTACTS READ_SMS SEND_SMS CAMERA RECORD_AUDIO ACCESS_FINE_LOCATION ACCESS_COARSE_LOCATION READ_EXTERNAL_STORAGE MANAGE_EXTERNAL_STORAGE READ_CALENDAR; do
+          for bad in READ_CONTACTS READ_SMS SEND_SMS CAMERA RECORD_AUDIO ACCESS_FINE_LOCATION ACCESS_COARSE_LOCATION READ_EXTERNAL_STORAGE MANAGE_EXTERNAL_STORAGE READ_CALENDAR USE_EXACT_ALARM; do
             if echo "$PERMS" | grep -q "android.permission.$bad'"; then
               echo "::error::The Lobster asks for $bad, which it should never need."
               exit 1
             fi
           done
-          echo "Only network, notifications, staying awake and the hand-off with SlothLlama: as intended."
+          echo "Only network, notifications, staying awake, the edition's alarm (yours to allow) and the hand-off with SlothLlama: as intended."
 
       - name: Read the version
         id: version

@@ -2,8 +2,10 @@ package app.localmind.assistant.domain.edition
 
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import java.time.DayOfWeek
 import java.time.Instant
 import java.time.ZoneId
+import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.util.Locale
 
@@ -189,6 +191,29 @@ object Editions {
             else -> "$n edition"
         }
     }
+    /** (1.54.2) Minutes after an edition's time before the Express says it's late. */
+    const val LATE_AFTER_MIN = 30L
+
+    /**
+     * Today's edition that's late (1.54.2): the latest of today's times passed [LATE_AFTER_MIN]
+     * minutes ago with no paper made since it ([newestMade], 0 for none). Null when the plan is off
+     * or not sent yet, on a weekend for a weekdays plan, or when a paper (an extra one too) came.
+     */
+    fun late(setup: EditionSetup, now: ZonedDateTime, newestMade: Long): EditionTime? {
+        val plan = setup.plan
+        if (setup.sentAt == 0L || !plan.on) return null
+        if (!plan.weekends && (now.dayOfWeek == DayOfWeek.SATURDAY || now.dayOfWeek == DayOfWeek.SUNDAY)) return null
+        val (time, at) = plan.times
+            .map { it to now.toLocalDate().atTime(it.h.coerceIn(0, 23), it.m.coerceIn(0, 59)).atZone(now.zone) }
+            .filter { (_, at) -> !at.plusMinutes(LATE_AFTER_MIN).isAfter(now) }
+            .maxByOrNull { it.second } ?: return null
+        return time.takeIf { newestMade < at.toInstant().toEpochMilli() }
+    }
+
+    /** The Lobster's word on a late edition: one plain line of a sane length, or null. */
+    fun lobsterNote(raw: String?): String? =
+        raw?.replace(Regex("[\\p{Cntrl}\\s]+"), " ")?.trim()?.take(200)?.takeIf { it.isNotEmpty() }
+
     const val PLAN_FORMAT = "slothexpress-plan"
     const val FORMAT = "slothexpress-edition"
     const val FILE_NAME = "sloth-express.json"

@@ -164,4 +164,36 @@ class EditionUnitTests {
         assertTrue("headlines" in card.lowercase())
         assertTrue("1. Gold edges higher (Reuters)" in card)
     }
+
+    // --- 1.54.2: a late edition says so ---
+
+    private fun on(h: Int, m: Int, day: Int = 24): java.time.ZonedDateTime =
+        java.time.ZonedDateTime.of(2026, 11, day, h, m, 0, 0, java.time.ZoneOffset.UTC)
+
+    private val sent = EditionSetup(sentAt = 1L)
+
+    @Test
+    fun `a paper half an hour past its time with none since is late`() {
+        val seven = on(7, 0).toInstant().toEpochMilli()
+        assertEquals(null, Editions.late(sent, on(7, 29), 0))
+        assertEquals("Morning", Editions.late(sent, on(7, 30), seven - 3_600_000)?.name)
+        // A paper made after the time, an extra one too, isn't late.
+        assertEquals(null, Editions.late(sent, on(9, 57), on(9, 52).toInstant().toEpochMilli()))
+    }
+
+    @Test
+    fun `no late line before the plan is sent, with the plan off, or on a weekend off`() {
+        assertEquals(null, Editions.late(EditionSetup(), on(9, 0), 0))
+        assertEquals(null, Editions.late(sent.copy(plan = sent.plan.copy(on = false)), on(9, 0), 0))
+        // Saturday 28 November.
+        assertEquals(null, Editions.late(sent.copy(plan = sent.plan.copy(weekends = false)), on(9, 0, 28), 0))
+    }
+
+    @Test
+    fun `the Lobster's note is one plain line, capped`() {
+        assertEquals("Morning edition is late: x. Trying again at 07:45", Editions.lobsterNote("Morning edition is late: x.\nTrying again at 07:45"))
+        assertEquals(200, Editions.lobsterNote("a".repeat(500))?.length)
+        assertEquals(null, Editions.lobsterNote("  "))
+        assertEquals(null, Editions.lobsterNote(null))
+    }
 }

@@ -191,6 +191,11 @@ it short):
 `state`: `awake`, `busy`, `paused` or `asleep`. SlothLlama treats a status older than three
 minutes as asleep.
 
+`edition` (SlothLobster 1.14, optional): one line about today's edition when it hasn't come out,
+such as `"Morning edition is late: None of the edition's sources answered. Trying again at 07:45"`
+or `"Morning edition didn't come out: …"`. Absent once the edition is sent. SlothLlama shows it as
+plain text, on one line, at most 200 characters, and only from a status written today.
+
 ## Rules for the Lobster
 
 1. Only take orders that decrypt with the key. Never run shell commands from an order; map

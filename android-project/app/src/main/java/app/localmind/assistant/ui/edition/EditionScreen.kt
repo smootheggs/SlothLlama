@@ -47,6 +47,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.rememberCoroutineScope
@@ -112,6 +113,15 @@ fun EditionScreen(
 ) {
     val shown by viewModel.shown.collectAsStateWithLifecycle()
     val latest by viewModel.latest.collectAsStateWithLifecycle()
+    val ready by viewModel.ready.collectAsStateWithLifecycle()
+    val lobsterNote by viewModel.lobsterNote.collectAsStateWithLifecycle()
+    // The minute, so a late edition is noticed without opening the page again.
+    val minute by produceState(System.currentTimeMillis()) {
+        while (true) {
+            kotlinx.coroutines.delay(60_000 - value % 60_000)
+            value = System.currentTimeMillis()
+        }
+    }
     val setup by viewModel.setup.collectAsStateWithLifecycle()
     val entries by viewModel.entries.collectAsStateWithLifecycle()
     val tiles by viewModel.tiles.collectAsStateWithLifecycle()
@@ -306,10 +316,17 @@ fun EditionScreen(
                                 }
                             }
                         )
-                        if (e == null) {
-                            NoEdition(setup, onSend = { viewModel.send(now = true) }, onSettings = { page = EditionPage.SETTINGS })
-                        } else {
-                            Paper(e, tiles, setup, personas, viewModel, actions, shelved, onSettings = { page = EditionPage.SETTINGS }, onPlace = onPlace, onRecord = onRecord, rail = ultra)
+                        val late = if (older || !ready) null else Editions.late(
+                            setup, Instant.ofEpochMilli(minute).atZone(ZoneId.systemDefault()), latest?.edition?.made ?: 0L
+                        )
+                        when {
+                            // (1.54.2) Still reading the papers: not "no edition yet".
+                            e == null && !ready -> Opening()
+                            e == null -> NoEdition(setup, late, lobsterNote, onSend = { viewModel.send(now = true) }, onSettings = { page = EditionPage.SETTINGS })
+                            else -> {
+                                if (late != null) LateLine(late, lobsterNote, onMake = { viewModel.send(now = true) })
+                                Paper(e, tiles, setup, personas, viewModel, actions, shelved, onSettings = { page = EditionPage.SETTINGS }, onPlace = onPlace, onRecord = onRecord, rail = ultra)
+                            }
                         }
                     }
                     EditionPage.ARCHIVE -> {
@@ -337,14 +354,53 @@ private fun received(s: SavedEdition, older: Boolean): String {
     return if (older) "past · $time" else "from the Lobster · $time"
 }
 
+/** (1.54.2) The papers are being read from storage: the masthead, and a word that it's opening. */
 @Composable
-private fun NoEdition(setup: EditionSetup, onSend: () -> Unit, onSettings: () -> Unit) {
+private fun Opening() {
+    Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+        Masthead("YOUR MORNING PAPER, MADE BY THE LOBSTER", compact = false)
+        Text("Opening the paper…", color = P.Faint, fontSize = 13.sp, modifier = Modifier.padding(top = 24.dp))
+    }
+}
+
+/**
+ * (1.54.2) Today's edition is half an hour past its time: one quiet line over the paper, with
+ * what the Lobster says about it when it has said, and the way to make one now.
+ */
+@Composable
+private fun LateLine(time: app.localmind.assistant.domain.edition.EditionTime, note: String?, onMake: () -> Unit) {
+    Row(
+        Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 6.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(
+            note ?: lateWords(time),
+            color = P.Muted, fontSize = 13.sp, lineHeight = 18.sp, modifier = Modifier.weight(1f)
+        )
+        QuietButton("Make one now", onClick = onMake)
+    }
+}
+
+private fun lateWords(t: app.localmind.assistant.domain.edition.EditionTime): String =
+    Editions.label(t.name) + " (" + "%02d:%02d".format(t.h, t.m) + ") hasn't come yet. Is the Lobster awake?"
+
+@Composable
+private fun NoEdition(
+    setup: EditionSetup,
+    late: app.localmind.assistant.domain.edition.EditionTime?,
+    lobsterNote: String?,
+    onSend: () -> Unit,
+    onSettings: () -> Unit
+) {
     Column(Modifier.fillMaxSize().padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
         Masthead("YOUR MORNING PAPER, MADE BY THE LOBSTER", compact = false)
         Column(Modifier.widthIn(max = 560.dp).padding(top = 24.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
             Text(
-                if (setup.sentAt == 0L) "No edition yet. The Lobster makes one at the times you choose, from the sections and language corners in the settings."
-                else "The Lobster has your settings; the first edition comes at ${setup.plan.times.firstOrNull()?.let { "%02d:%02d".format(it.h, it.m) } ?: "the next time"}.",
+                when {
+                    setup.sentAt == 0L -> "No edition yet. The Lobster makes one at the times you choose, from the sections and language corners in the settings."
+                    late != null -> lobsterNote ?: lateWords(late)
+                    else -> "The Lobster has your settings; the first edition comes at ${setup.plan.times.firstOrNull()?.let { "%02d:%02d".format(it.h, it.m) } ?: "the next time"}."
+                },
                 color = P.Muted, fontSize = 15.sp, lineHeight = 22.sp
             )
             Text("It needs SlothLobster 1.8 or newer. SlothLlama itself never goes online.", color = P.Faint, fontSize = 13.sp)

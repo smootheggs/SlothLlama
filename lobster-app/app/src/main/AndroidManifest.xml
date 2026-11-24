@@ -10,6 +10,11 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <!-- (1.14) Holding the tablet awake while a round runs, so an edition isn't cut off halfway. -->
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+    <!-- (1.14) The edition at its time. Off until you allow "Alarms & reminders" for the Lobster;
+         without it the alarm is inexact and the paper can come a few minutes late. -->
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
 
     <!-- The hand-off with SlothLlama (1.11): only an app signed with the same key can hold it, so
          only SlothLlama can ask the Lobster to open a story, and only the Lobster can answer. -->
@@ -100,12 +105,22 @@
                 android:value="@string/fgs_reason" />
         </service>
 
+        <!-- Android's own broadcasts only: not exported, so no other app can send to it. -->
         <receiver
             android:name=".run.BootReceiver"
             android:exported="false">
             <intent-filter>
                 <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
             </intent-filter>
         </receiver>
+
+        <!-- (1.14) The edition's alarm. Reached only by this app's own immutable alarm intent. -->
+        <receiver
+            android:name=".run.EditionAlarmReceiver"
+            android:exported="false" />
     </application>
 </manifest>

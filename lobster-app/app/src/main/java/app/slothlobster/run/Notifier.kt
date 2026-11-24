@@ -19,6 +19,8 @@ object Notifier {
     const val AWAKE_CHANNEL = "awake"
     const val CATCH_CHANNEL = "catch"
     const val AWAKE_ID = 7101
+    /** (1.14) A rushed edition job's notice, below Android 12 only. */
+    const val RUSH_ID = 7102
     private var nextId = 7200
 
     fun channels(context: Context) {
